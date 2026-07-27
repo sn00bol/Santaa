@@ -1,5 +1,5 @@
 # CHANGELOG
-# v1.1.1 - 7.29.2026
+# v1.1.1 - 7.27.2026
 - Add selling item, help command search
 - Add wanted level (affect to economy command and minigame)
 - Move all item (including from shop, fish, mine) to a single folder to easy managing
