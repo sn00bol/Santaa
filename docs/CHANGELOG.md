@@ -1,8 +1,3 @@
-v1.1.1-beta.1
-- Add DM and SLASH emoji (yea gonna add that later lol)
-- Clean up and rework UI/Usage for some and all commands
-- Fix some stuff to release stable version
-
 # CHANGELOG
 # v1.1.1 - 7.29.2026
 - Add selling item, help command search
