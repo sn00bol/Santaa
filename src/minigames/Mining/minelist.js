@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const { RARITY_CONFIG, mineralData } = require('./mineCore');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
+const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 
 module.exports = {
     name: 'minelist',
@@ -18,23 +19,28 @@ module.exports = {
             emoji: RARITY_CONFIG[key].emoji
         }));
 
-        const menuRow = new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-                .setCustomId('minelist_menu')
-                .setPlaceholder('Select a rarity to view minerals...')
-                .addOptions(categories)
-        );
+        const buildMenuRow = (selectedCategory) => {
+            const optionsWithDefault = categories.map(option => ({
+                ...option,
+                default: option.value === selectedCategory
+            }));
 
-        const colorFor = (rarity) => {
-            switch (rarity) {
-                case 'COMMON': return 'Grey';
-                case 'UNCOMMON': return 'Green';
-                case 'RARE': return 'Blue';
-                case 'EPIC': return 'Purple';
-                case 'LEGENDARY': return 'Gold';
-                case 'MYTHIC': return 'Red';
-                default: return 'Grey';
-            }
+            return new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('minelist_menu')
+                    .setPlaceholder('Select a rarity to view minerals...')
+                    .addOptions(optionsWithDefault)
+            );
+        };
+        const resolveColor = (category) => {
+            const emoji = RARITY_CONFIG[category]?.color;
+            if (emoji === '⚪') return 0x99AAB5;
+            if (emoji === '🟢') return 0x57F287;
+            if (emoji === '🟣') return 0x9B59B6;
+            if (emoji === '🔵') return 0x5865F2;
+            if (emoji === '🟡') return 0xFEE75C;
+            if (emoji === '🔴') return 0xED4245;
+            return 0x99AAB5;
         };
 
         const generateEmbed = (category, page) => {
@@ -46,22 +52,29 @@ module.exports = {
             const paged = list.slice(start, start + itemsPerPage);
 
             const displayContent = paged.map((item, index) => {
-                return `**${start + index + 1}. ${item.name}** *${item.desc || ''}*\nValue: ${item.sell} coins`;
+                const descText = item.desc ? `\n-# ${item.desc}` : '';
+                return `**${start + index + 1}. ${item.name.toUpperCase()}** — \`${item.sell}\` ${CURRENCY_EMOJI} ${descText}`;
             }).join('\n\n') || 'No minerals found in this rarity.';
+
+            const rarityLabel = RARITY_CONFIG[category]?.label || category;
+            const rarityEmoji = RARITY_CONFIG[category]?.emoji || '';
 
             return {
                 embed: new EmbedBuilder()
-                    .setTitle(`Mineral List - ${RARITY_CONFIG[category].label}`)
+                    .setTitle(`${rarityEmoji} Mineral List (${rarityLabel})`)
                     .setDescription(displayContent)
+                    .setColor(resolveColor(category))
                     .setFooter({ text: `Page ${page + 1} of ${totalPages}` }),
                 totalPages
             };
         };
 
         const initial = generateEmbed(currentCategory, currentPage);
+        let currentMenuRow = buildMenuRow(currentCategory);
+
         const response = await message.reply({
             embeds: [initial.embed],
-            components: [menuRow, ...(initial.totalPages > 1 ? [getPaginationRow(currentPage, initial.totalPages)] : [])]
+            components: [currentMenuRow, ...(initial.totalPages > 1 ? [getPaginationRow(currentPage, initial.totalPages)] : [])]
         });
 
         const collector = response.createMessageComponentCollector({ time: 60000 });
@@ -86,10 +99,19 @@ module.exports = {
             }
 
             const result = generateEmbed(currentCategory, currentPage);
-            const components = [menuRow];
+            currentMenuRow = buildMenuRow(currentCategory);
+
+            const components = [currentMenuRow];
             if (result.totalPages > 1) components.push(getPaginationRow(currentPage, result.totalPages));
 
             await i.update({ embeds: [result.embed], components });
+        });
+
+        collector.on('end', () => {
+            if (currentMenuRow && currentMenuRow.components && currentMenuRow.components[0]) {
+                currentMenuRow.components[0].setDisabled(true);
+                response.edit({ components: [currentMenuRow] }).catch(() => { });
+            }
         });
     }
 };

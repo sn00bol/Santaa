@@ -5,6 +5,12 @@
 const CURRENCY_EMOJI = '<a:coin:1526046578996154569>'; // your coin emoji
 const CURRENCY_SYMBOL = '🪙'; // fallback for canvas
 
+// Slash and DM
+const DM = '<:DM:1531243221374468176>';
+const noDM = '<:noDM:1531243237606428702>';
+const SLASH = '<:slash:1531243250353049650>';
+const noSLASH = '<:noSLASH:1531246838458351818>';
+
 // COOLDOWN CONFIG
 const COOLDOWN_MODE = process.env.COOLDOWN_MODE === 'test' ? 'test' : 'prod';
 
@@ -38,6 +44,10 @@ const configs = {
 module.exports = {
     CURRENCY_EMOJI,
     CURRENCY_SYMBOL,
+    DM,
+    noDM,
+    SLASH,
+    noSLASH,
     mode: COOLDOWN_MODE,
     ...configs[COOLDOWN_MODE],
 };

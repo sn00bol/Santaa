@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const { RARITY_CONFIG, fishData } = require('./fishCore');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
+const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 
 module.exports = {
     name: 'fishlist',
@@ -14,16 +15,33 @@ module.exports = {
 
         const categories = Object.keys(RARITY_CONFIG).map(key => ({
             label: RARITY_CONFIG[key].label,
-            value: key,
-            emoji: RARITY_CONFIG[key].color
+            value: key
         }));
 
-        const menuRow = new ActionRowBuilder().addComponents(
-            new StringSelectMenuBuilder()
-                .setCustomId('fishlist_menu')
-                .setPlaceholder('Select a rarity to view fish...')
-                .addOptions(categories)
-        );
+        const buildMenuRow = (selectedCategory) => {
+            const optionsWithDefault = categories.map(option => ({
+                ...option,
+                default: option.value === selectedCategory
+            }));
+
+            return new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('fishlist_menu')
+                    .setPlaceholder('Select rarity...')
+                    .addOptions(optionsWithDefault)
+            );
+        };
+
+        const resolveColor = (category) => {
+            const emoji = RARITY_CONFIG[category]?.color;
+            if (emoji === '⚪') return 0x99AAB5;
+            if (emoji === '🟢') return 0x57F287;
+            if (emoji === '🟣') return 0x9B59B6;
+            if (emoji === '🔵') return 0x5865F2;
+            if (emoji === '🟡') return 0xFEE75C;
+            if (emoji === '🔴') return 0xED4245;
+            return 0x99AAB5;
+        };
 
         const generateEmbed = (category, page) => {
             const fishList = [...(fishData[category] || [])].sort((a, b) => {
@@ -34,32 +52,29 @@ module.exports = {
             const pagedFish = fishList.slice(start, start + itemsPerPage);
 
             const displayContent = pagedFish.map((fish, index) => {
-                return `**${start + index + 1}. ${fish.name}** *${fish.desc}*\n💰 Value: ${fish.sell} coins`;
-            }).join('\n\n') || 'No fish found in this rarity.';
+                const descText = fish.desc ? `\n-# ${fish.desc}` : '';
+                return `**${start + index + 1}. ${fish.name.toUpperCase()}** —\`${fish.sell}\`${CURRENCY_EMOJI} ${descText}`;
+            }).join('\n\n') || 'No fish found in this category.';
+
+            const rarityLabel = RARITY_CONFIG[category]?.label || category;
+            const rarityEmoji = RARITY_CONFIG[category]?.color || '';
 
             return {
                 embed: new EmbedBuilder()
-                    .setTitle(`🐟 Fish List - ${RARITY_CONFIG[category].label}`)
+                    .setTitle(`Fish List (${rarityLabel})`)
                     .setDescription(displayContent)
-                    .setColor((() => {
-                        const emoji = RARITY_CONFIG[category].color;
-                        if (emoji === '⚪') return 'Grey';
-                        if (emoji === '🟢') return 'Green';
-                        if (emoji === '🟣') return 'Purple';
-                        if (emoji === '🔵') return 'Blue';
-                        if (emoji === '🟡') return 'Gold';
-                        if (emoji === '🔴') return 'Red';
-                        return 'Grey';
-                    })())
+                    .setColor(resolveColor(category))
                     .setFooter({ text: `Page ${page + 1} of ${totalPages}` }),
                 totalPages
             };
         };
 
         const initial = generateEmbed(currentCategory, currentPage);
+        let currentMenuRow = buildMenuRow(currentCategory);
+
         const response = await message.reply({
             embeds: [initial.embed],
-            components: [menuRow, ...(initial.totalPages > 1 ? [getPaginationRow(currentPage, initial.totalPages)] : [])]
+            components: [currentMenuRow, ...(initial.totalPages > 1 ? [getPaginationRow(currentPage, initial.totalPages)] : [])]
         });
 
         const collector = response.createMessageComponentCollector({ time: 60000 });
@@ -84,12 +99,21 @@ module.exports = {
             }
 
             const result = generateEmbed(currentCategory, currentPage);
-            const components = [menuRow];
+            currentMenuRow = buildMenuRow(currentCategory);
+
+            const components = [currentMenuRow];
             if (result.totalPages > 1) {
                 components.push(getPaginationRow(currentPage, result.totalPages));
             }
 
-            await i.update({ embeds: [result.embed], components: components });
+            await i.update({ embeds: [result.embed], components });
+        });
+
+        collector.on('end', () => {
+            if (currentMenuRow && currentMenuRow.components && currentMenuRow.components[0]) {
+                currentMenuRow.components[0].setDisabled(true);
+                response.edit({ components: [currentMenuRow] }).catch(() => { });
+            }
         });
     }
 };

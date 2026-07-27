@@ -1,20 +1,20 @@
-v1.1.1-beta.0
-- Change some stuff on usage
-- new tree
+v1.1.1-beta.1
+- Add DM and SLASH emoji (yea gonna add that later lol)
+- Clean up and rework UI/Usage for some and all commands
+- Fix some stuff to release stable version
 
 # CHANGELOG
 # v1.1.1 - 7.29.2026
-- Add help command search, `sell all`
-- Minor upgrade crime command
+- Add selling item, help command search
 - Add wanted level (affect to economy command and minigame)
 - Move all item (including from shop, fish, mine) to a single folder to easy managing
 - Automatic create bosses_memory if it dont exists
-- Upgrade select options, UI for some commands
+- Upgrade select options, rework UI/Usage for some and all commands, upgrade crime commands
 - Remove version and type in .env, emoji in help commands
 
 Alpha release: [7519dde](https://github.com/sn00bol/Santaa/commit/7519dde3e5dd81a9f77eb0677d73a6fa38dbe45f), [540afa3](https://github.com/sn00bol/Santaa/commit/540afa3058123ce03396dba54d7994a7f6a77264), [68aea7d](https://github.com/sn00bol/Santaa/commit/68aea7df00845685bddff83bc8560c9efe3e912b), [dacfc47](https://github.com/sn00bol/Santaa/commit/dacfc47b4203b17c1b1ded4301bb9a836fb0d0d0), [17ecb5d](https://github.com/sn00bol/Santaa/commit/17ecb5d4190445bb6eabefd1a08dff58dc82d12f), [597f925](https://github.com/sn00bol/Santaa/commit/597f925109b8f1b62659c043cdc0db85fbfe7c55)
 
-Beta release:
+Beta release: [1db5502](https://github.com/sn00bol/Santaa/commit/1db550288de11e62df5c5c897d45a1f4a04b3c32)
 
 # v1.1.0 - 7.18.2026
 - Adding more jobs

@@ -2,6 +2,10 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, 
 const packageInfo = require('../../../package.json');
 require('dotenv').config();
 const { getMenuRow, getPaginationRow, getOptions, applySelectMenuDefaults } = require('../Utils/NavigateManager');
+const { DM, noDM, SLASH, noSLASH } = require('../Utils/config')
+
+// In-memory fallback cache for category selection (used if DB is unavailable)
+const lastHelpCategoriesByUser = new Map();
 
 module.exports = {
     name: 'help',
@@ -17,9 +21,9 @@ module.exports = {
             if (!command) {
                 const similar = commands.find(c => c.name.includes(cmdName) || cmdName.includes(c.name));
                 if (similar) {
-                    return message.reply({ content: `Not found command, do you mean \`${similar.name}\`?` });
+                    return message.reply({ content: `Not found command, do you mean \`${similar.name}\`?`, ephemeral: true });
                 }
-                return message.reply({ content: `Not found command, do you mean \`${similar.name}\`?` });
+                return message.reply({ content: `Not found command, do you mean \`${similar.name}\`?`, ephemeral: true });
             }
             const cmdEmbed = new EmbedBuilder()
                 .setTitle(`**${command.name}**`)
@@ -41,8 +45,19 @@ module.exports = {
 
         let currentPage = 0;
         const itemsPerPage = 5;
-        let currentCategories = [];
         const isOwner = message.author.id === process.env.OWNER_ID;
+
+        // Load last-accessed categories from DB, fallback to in-memory or 'all'
+        let currentCategories;
+        try {
+            const dbCategories = await message.client.db.getHelpPreference(message.author.id);
+            currentCategories = dbCategories;
+        } catch {
+            const memCategories = lastHelpCategoriesByUser.get(message.author.id);
+            currentCategories = Array.isArray(memCategories) && memCategories.length > 0
+                ? [...memCategories]
+                : ['all'];
+        }
 
         // Filter commands based on category and ownership
         const getFilteredCmds = (categories) => {
@@ -53,31 +68,58 @@ module.exports = {
             });
         };
 
-        // Help embed
-        const helpEmbed = new EmbedBuilder()
-            .setAuthor({ name: 'HELP MENU', iconURL: message.client.user.displayAvatarURL() })
-            .addFields({ name: '', value: 'To get more information about a command, use `Zhelp <command>`', inline: false })
-            .setFooter({ text: `v${packageInfo.version} | ${packageInfo.author}` });
-
-        // Menu row — show Owner option only for bot owner
+        // Menu options — show Owner option only for bot owner
         const menuOptions = isOwner
-            ? [...getOptions(), { label: 'Owner', value: 'owner', emoji: '👑' }]
+            ? [...getOptions(), { label: 'Owner', value: 'owner' }]
             : getOptions();
         const maxVals = Math.max(1, menuOptions.length - 1);
-        const menuRow = getMenuRow('help_slt', menuOptions, maxVals, 0);
 
-        let currentMenuRow = menuRow;
+        // Helper: build the full embed + components for a given state
+        const buildPage = (categories, page) => {
+            if (categories.includes('gau3')) {
+                const updatedOptions = applySelectMenuDefaults(menuOptions, categories);
+                const menuRow = getMenuRow('help_slt', updatedOptions, maxVals, 0);
+                const embed = new EmbedBuilder()
+                    .setTitle('🔧 Construction Area')
+                    .setDescription('Architects are designing the house and interior for Santaa... what can you expect?');
+                return { embed, components: [menuRow] };
+            }
 
-        const response = await message.channel.send({ embeds: [helpEmbed], components: [currentMenuRow] });
+            const filteredArray = Array.from(getFilteredCmds(categories).values());
+            const totalPages = Math.ceil(filteredArray.length / itemsPerPage);
+            const start = page * itemsPerPage;
+            const pagedCmds = filteredArray.slice(start, start + itemsPerPage);
+
+            const displayContent = pagedCmds.map(cmd => {
+                const prefix = cmd.folder === 'adminCMD' ? '🛡️ ' : '';
+                return `**${prefix}${cmd.name.toUpperCase()}** ${noDM} ${noSLASH}\n-# ${cmd.description || 'No description provided.'}`;
+            }).join('\n\n') || 'No commands in this category.';
+
+            const embed = new EmbedBuilder()
+                .setTitle(`Commands\n> Try use Zhelp \`command\` for more information`)
+                .setDescription(displayContent)
+                .setFooter({ text: `Page ${page + 1} of ${totalPages || 1}` });
+
+            const updatedOptions = applySelectMenuDefaults(menuOptions, categories);
+            const menuRow = getMenuRow('help_slt', updatedOptions, maxVals, 0);
+            const btnRow = getPaginationRow(page, totalPages);
+            const components = filteredArray.length > itemsPerPage ? [menuRow, btnRow] : [menuRow];
+
+            return { embed, components, totalPages };
+        };
+
+        // Initial render — directly shows commands without a separate welcome embed
+        const { embed: initialEmbed, components: initialComponents } = buildPage(currentCategories, currentPage);
+        const response = await message.channel.send({ embeds: [initialEmbed], components: initialComponents });
 
         // Component collector for menu and pagination
         const collector = response.createMessageComponentCollector({ time: 60000 });
 
-        // Handle menu selection and pagination
+        let currentMenuRow = initialComponents[0]; // keep track for end event
+
         collector.on('collect', async (i) => {
             if (i.user.id !== message.author.id) return i.reply({ content: 'Not your menu!', ephemeral: true });
 
-            // Handle menu selection and pagination
             if (i.isStringSelectMenu()) {
                 const newSelection = i.values;
 
@@ -105,66 +147,33 @@ module.exports = {
                     }
                 }
 
-                if (currentCategories.length === 0) {
-                    currentCategories = ['all'];
+                if (currentCategories.length === 0) currentCategories = ['all'];
+
+                // Save to DB + in-memory fallback
+                try {
+                    await message.client.db.setHelpPreference(message.author.id, [...currentCategories]);
+                } catch {
+                    // DB write failed, at least update in-memory
                 }
+                lastHelpCategoriesByUser.set(message.author.id, [...currentCategories]);
                 currentPage = 0;
+
             } else if (i.isButton()) {
                 switch (i.customId) {
-                    // Pagination buttons
                     case 'prev': currentPage--; break;
                     case 'next': currentPage++; break;
                     case 'first': currentPage = 0; break;
                     case 'last': {
-                        // Calculate total pages based on current category
                         const totalItems = getFilteredCmds(currentCategories).size;
-                        currentPage = Math.max(0, Math.ceil(totalItems / itemsPerPage) - 1); // Set to last page index
+                        currentPage = Math.max(0, Math.ceil(totalItems / itemsPerPage) - 1);
                         break;
                     }
                 }
             }
 
-            // Rebuild the menu row to retain the selected visual state
-            const updatedOptions = applySelectMenuDefaults(menuOptions, currentCategories);
-            currentMenuRow = getMenuRow('help_slt', updatedOptions, maxVals, 0);
-
-            // dont care ts
-            if (currentCategories.includes('gau3')) {
-                return i.update({
-                    embeds: [new EmbedBuilder().setTitle('❓ Hidden Area').setDescription('You bastard! You just into owner\'s bot bedroom 🤨')],
-                    components: [currentMenuRow]
-                });
-            }
-
-            // Get category commands and paginate
-            const filteredArray = Array.from(getFilteredCmds(currentCategories).values());
-            const totalPages = Math.ceil(filteredArray.length / itemsPerPage);
-
-            // Pagination logic
-            const start = currentPage * itemsPerPage;
-            const pagedCmds = filteredArray.slice(start, start + itemsPerPage);
-
-            // Format command list
-            const displayContent = pagedCmds.map(cmd => {
-                const prefix = cmd.folder === 'adminCMD' ? '🛡️ ' : '';
-                return `**${prefix}${cmd.name.toUpperCase()}**\n${cmd.description}`; // Format each command with name and description
-            }).join('\n\n') || 'No commands in this category.';
-
-            // Page embed
-            const pageEmbed = new EmbedBuilder()
-                .setTitle(`Commands\n` +
-                    `> If you found bug then dm to meh32_.!`
-                )
-                .setDescription(displayContent) // Set description to command list
-                .setFooter({ text: `Page ${currentPage + 1} of ${totalPages || 1}` });
-
-            // Button state
-            const btnRow = getPaginationRow(currentPage, totalPages);
-
-            // Menu page
-            const components = filteredArray.length > itemsPerPage ? [currentMenuRow, btnRow] : [currentMenuRow];
-
-            await i.update({ embeds: [pageEmbed], components: components });
+            const { embed: pageEmbed, components } = buildPage(currentCategories, currentPage);
+            currentMenuRow = components[0];
+            await i.update({ embeds: [pageEmbed], components });
         });
 
         collector.on('end', () => {

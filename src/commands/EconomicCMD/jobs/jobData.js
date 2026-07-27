@@ -192,11 +192,11 @@ function formatJobSummary(job, totalCompletedWorkCount = 0) {
 
   return [
     `${lockIcon} **${job.name}**`,
-    `● Shifts Required Per Day: \`${job.shiftsRequiredPerDay ?? 1}\``,
-    `● Time Between Shifts: \`${shiftCooldown}\``,
-    `● Total Shifts Required To Unlock: \`${job.totalShiftsRequiredToUnlock ?? job.requiredWorkCount ?? 0}\``,
-    `● Salary: \`${job.salary}\`${CURRENCY_EMOJI} \`per shift\``,
-    `● Unlock Status: ${unlockStatus.reason}`
+    `• **Shifts Required:** \`${job.shiftsRequiredPerDay ?? 1} per day\``,
+    `• ${CURRENCY_EMOJI} **Salary:** \`${job.salary}\` / shift`,
+    `• **Cooldown:** \`${shiftCooldown}\``,
+    `• **Required To Unlock:** \`${job.totalShiftsRequiredToUnlock ?? job.requiredWorkCount ?? 0} total shifts\``,
+    `-# Status: ${unlockStatus.reason}`
   ].join('\n');
 }
 

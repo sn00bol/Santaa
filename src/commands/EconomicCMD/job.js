@@ -24,7 +24,7 @@ function getRandomText(arr) {
 
 module.exports = {
   name: 'job',
-  description: 'The most feared word in the world... THE JOB!!!! (use `Zjob help` for more info)',
+  description: 'The most feared word in the world... THE JOB!!!!',
   category: 'eco',
   usage: 'Zjob `help`/`work`/`list`/`choose`',
   async execute(message, args = []) {
@@ -34,20 +34,20 @@ module.exports = {
     const state = await dbManager.getJobState(author.id);
     const now = Date.now();
 
-    const action = args[0] && args[0].toLowerCase();
-    if (!args.length) {
-      const embed = new EmbedBuilder()
-        .setTitle('Job usage')
-        .setDescription('To know job usage, use Zjob `help`');
-      return message.channel.send({ embeds: [embed] });
-    }
+    const action = args[0] ? args[0].toLowerCase() : 'help';
 
     if (action === 'help') {
       const embed = new EmbedBuilder()
-        .setTitle('Job usage')
-        .setDescription('Here are the available ways to use the job system:\n\n• `job` - work your current job\n• `job list` - view all available careers\n• `job choose <job_name>` - choose a new job');
+        .setTitle('Use this specific commands:')
+        .addFields(
+          { name: 'Zjob help', value: '-# display job usage information' },
+          { name: 'Zjob work', value: '-# work your current job' },
+          { name: 'Zjob list', value: '-# view all available careers' },
+          { name: 'Zjob choose `job name`', value: '-# choose a new job' }
+        );
       return message.channel.send({ embeds: [embed] });
     }
+
 
     if (action === 'list') {
       const orderedJobs = getSortedJobs();
@@ -64,7 +64,7 @@ module.exports = {
           embed: new EmbedBuilder()
             .setTitle('Available careers')
             .setDescription(jobOptions || 'No jobs available at the moment.')
-            .setFooter({ text: `Page ${page + 1} of ${totalPages} • Jobs with ❌ are locked, follow the unlock status to progress.` }),
+            .setFooter({ text: `Page ${page + 1} of ${totalPages}` }),
           totalPages
         };
       };

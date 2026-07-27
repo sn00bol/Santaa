@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const dbmanager = require('../../../database/dbmanager');
 const rpgmanager = require('../../../database/rpgmanager');
+const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 
 module.exports = {
     name: 'shop',
@@ -22,13 +23,11 @@ module.exports = {
             new ButtonBuilder()
                 .setCustomId('shop_gepora')
                 .setLabel('Gepora Online Store')
-                .setStyle(ButtonStyle.Primary)
-                .setEmoji('🛍️'),
+                .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId('shop_kimori')
                 .setLabel('Kimori Food Shop')
-                .setStyle(ButtonStyle.Success)
-                .setEmoji('🍔')
+                .setStyle(ButtonStyle.Secondary)
         );
 
         const response = await message.channel.send({ embeds: [mainEmbed], components: [row] });
@@ -54,18 +53,18 @@ module.exports = {
                     const userDb = await dbmanager.getUser(i.user.id);
                     if (response.shopType === 'gepora') { // change this to your custom gepora shop folder in shoputils
                         if (userDb.bank < item.cost) {
-                            return i.reply({ content: 'You do not have enough Bank money to buy this!', ephemeral: true });
+                            return i.reply({ content: `You do not have enough ${CURRENCY_EMOJI} bank money to buy this!`, ephemeral: true });
                         }
                         await dbmanager.removeBank(i.user.id, item.cost);
                     } else if (response.shopType === 'kimori') { // change this to your custom food shop folder in shoputils
                         if (userDb.balance < item.cost) {
-                            return i.reply({ content: 'You do not have enough Money to buy this!', ephemeral: true });
+                            return i.reply({ content: `You do not have enough ${CURRENCY_EMOJI} money to buy this!`, ephemeral: true });
                         }
                         await dbmanager.removeMoney(i.user.id, item.cost);
                     }
 
                     await rpgmanager.addItem(i.user.id, item.id, item.name);
-                    return i.reply({ content: `✅ Successfully bought **${item.name}** for ${response.currencyEmoji} ${item.cost}!`, ephemeral: true });
+                    return i.reply({ content: `Successfully bought **${item.name}** for ${item.cost}  ${response.currencyEmoji}!`, ephemeral: true });
                 }
 
                 let shopType = '';
@@ -77,15 +76,15 @@ module.exports = {
                 if (i.customId === 'shop_gepora') { // change this to your custom gepora shop folder in shoputils
                     shopType = 'gepora';
                     shopTitle = '**Gepora Online Store**';
-                    shopDesc = 'Welcome to Gepora Online Store! We sell a variety of items (except food). Uses **Bank money** as currency.';
-                    currencyName = 'bank';
-                    currencyEmoji = '🏦';
+                    shopDesc = `Welcome to Gepora Online Store! We sell a variety of items (except food). Uses ${CURRENCY_EMOJI} (bank) as currency.`;
+                    currencyName = '🪙';
+                    currencyEmoji = CURRENCY_EMOJI;
                 } else if (i.customId === 'shop_kimori') {
                     shopType = 'kimori';
                     shopTitle = '**Kimori Food Shop**';
-                    shopDesc = 'Welcome to the Food shop! Uses **Money** as currency.';
-                    currencyName = 'money';
-                    currencyEmoji = '🪙';
+                    shopDesc = `Welcome to the Food shop! Uses ${CURRENCY_EMOJI} (your wallet) as currency.`;
+                    currencyName = '🪙';
+                    currencyEmoji = CURRENCY_EMOJI;
                 } else {
                     return;
                 }
@@ -172,14 +171,13 @@ module.exports = {
                     .setTitle(`🛒 ${item.name}`)
                     .setDescription(item.desc)
                     .addFields(
-                        { name: 'Cost', value: `${response.currencyEmoji} ${item.cost}`, inline: true },
+                        { name: 'Cost', value: `${item.cost} ${response.currencyEmoji}`, inline: true },
                         { name: 'ID', value: `\`${item.id}\``, inline: true }
                     )
 
                 const buyRow = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
                         .setCustomId(`buy_${item.id}`)
-                        .setLabel('Buy')
                         .setStyle(ButtonStyle.Success)
                         .setEmoji('💸')
                 );

@@ -1,6 +1,6 @@
 {
   "name": "santaa",
-  "version": "1.1.1-beta.0",
+  "version": "1.1.1-beta.1",
   "description": "Santaa look busy, I think he selling material or fish smth idk but he may search commands to find where to sell",
   "main": "src/index.js",
   "scripts": {

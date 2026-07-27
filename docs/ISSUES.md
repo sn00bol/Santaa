@@ -5,19 +5,15 @@
 
 ### [ISSUES-001]: Fishing cooldown
  - **Status**: Fixed
- - **Detail**: Cooldown logic adjusted so exceeding 5 catches sets a 1-hour cooldown; users receive a message when limit reached or if cooldown active.
-- **Steps to reproduce**:
-    1. Start fishing
-    2. Click the fishing button more than 5 times (exceed the limit)
-    3. Notice that the cooldown is not triggered
+ - **Detail**: Cooldown logic adjusted so exceeding 5 catches sets a 1-hour cooldown; users receive a message when limit reached or if cooldown active
 
 ### [ISSUES-002]: sell item
  - **Status**: Fixed
- - **Detail**: Selling currently not added but some item have type "sellable" have sell button that Im accidentally add
+ - **Detail**: Selling has added in v1.1.1, before update the only way to "sell" (which is not working) at inventory commands
 
 ### [ISSUES-003]: fish.js in wrong locate
  - **Status**: Fixed
- - **Detail**: Before moving, `fish.js` currently runs fine in `src/commands/EconomicCMD/`. `src/index.js` loads both `commands` and `minigames`, so leaving it in `EconomicCMD` avoids breaking behavior.
+ - **Detail**: Before moving, `fish.js` runs fine in `src/commands/EconomicCMD/` but when move to minigames folder it cause buggy
 
 ### [ISSUES-004]: Cannot equip than one item
  - **Status**: Fixed
@@ -33,15 +29,15 @@
 
 ### [ISSUES-007]: Jobs penalty minigame currently only have left and right
 - **Status**: Fixed
-- **Detail**: The penalty kick minigame only accepts `left` and `right`, so the interaction feels too limited and repetitive.
+- **Detail**: The penalty kick minigame only have `left` and `right`, so the interaction feels too limited and repetitive.
 
 ### [ISSUES-008]: Networth only calculate the user's earnings and bank balance not total money they earn
 - **Status**: Fixed
-- **Detail**: The current balance view only sums the available balance and bank balance. It does not reflect total lifetime earnings or other tracked assets, so the displayed net worth can be misleading.
+- **Detail**: The old balance view only sums the available balance and bank balance. It does not reflect total lifetime earnings or other tracked assets, so the displayed net worth can be misleading.
 
 ### [ISSUE-009]: All command use cooldown have time too short
 - **Status**: Fixed
-- **Detail**: Because of testing bot, Im have to set cooldown for a short time to easy testing
+- **Detail**: Had changed via package.json: `"dev": "set COOLDOWN_MODE=test&& nodemon src/index.js"`, with set COOLDOWN_MODE=test&& make cooldown more faster
 
 ### [ISSUE-010]: Cooldown sometime not work
 - **Status**: Fixed
@@ -57,7 +53,7 @@
 
 ### [ISSUE-013]: Wanted level increased too drastically even few commands
 - **Status**: Fixed
-- **Detail**: The wanted level has been increased too drastically, even though only a few crime/steal warrants
+- **Detail**: The wanted level has been increased too drastically, even though only a few crime/steal commands, new update fix it with required 5 times using crime/steal command to get 1 star
 
 ### [ISSUE-014]: Wanted level decay too short
 - **Status**: Fixed

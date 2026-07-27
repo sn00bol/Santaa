@@ -39,8 +39,37 @@ module.exports = {
             // Column already exists on older databases.
         }
 
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS help_preferences (
+                user_id TEXT PRIMARY KEY,
+                last_categories TEXT DEFAULT 'all'
+            )
+        `);
+
         // for debug @
         // console.log("Database initialized and ready to use.");
+    },
+
+    // Get the last help categories the user viewed
+    async getHelpPreference(userId) {
+        const row = await db.get('SELECT last_categories FROM help_preferences WHERE user_id = ?', [userId]);
+        if (!row || !row.last_categories) return ['all'];
+        try {
+            const parsed = JSON.parse(row.last_categories);
+            return Array.isArray(parsed) && parsed.length > 0 ? parsed : ['all'];
+        } catch {
+            return [row.last_categories]; // fallback: treat as single string value
+        }
+    },
+
+    // Save the last help categories the user viewed
+    async setHelpPreference(userId, categories) {
+        const value = JSON.stringify(Array.isArray(categories) ? categories : [categories]);
+        return await db.run(`
+            INSERT INTO help_preferences (user_id, last_categories)
+            VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET last_categories = excluded.last_categories
+        `, [userId, value]);
     },
 
     // get user info

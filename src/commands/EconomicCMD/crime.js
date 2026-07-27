@@ -6,7 +6,7 @@ const { checkWantedRestrictions } = require('../Utils/WantedLevel');
 
 module.exports = {
     name: 'crime',
-    description: 'What is faster than work hard? Commit a crime somewhere in nevada and get rich quick! (or not)',
+    description: 'Commit a crime somewhere in nevada and get rich quick! (or not)',
     category: 'eco',
     usage: 'Zcrime',
     async execute(message) {

@@ -26,7 +26,7 @@ function calculateSelfBegPenalty(totalAssets) {
 
 module.exports = {
     name: 'beg',
-    description: 'You so broke that you have to beg money from NPC or someone in discord or even yourself 😭😭',
+    description: 'Begging random NPC or people in server, could beg yourself maybe',
     category: 'eco',
     usage: 'Zbeg (Optional: `@user`)',
     pickBegSuccessMessage,

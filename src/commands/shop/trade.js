@@ -4,6 +4,7 @@ const dbmanager = require('../../../database/dbmanager');
 const fs = require('fs');
 const path = require('path');
 const { applySelectMenuDefaults } = require('../Utils/NavigateManager');
+const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 
 const ITEMS_PER_PAGE = 25; // Discord Select Menu limit
 const TRADE_TIMEOUT = 120_000; // 2 minutes
@@ -36,7 +37,7 @@ const buildTradeEmbed = (userA, userB, offerA, offerB, moneyA, moneyB, bankA, ba
     const formatOffer = (items, money, bank) => {
         const parts = [];
         if (items.length === 0 && money === 0 && bank === 0) parts.push('*(nothing yet)*');
-        if (money > 0) parts.push(`🪙 **$${money.toLocaleString()}** (Balance)`);
+        if (money > 0) parts.push(`${CURRENCY_EMOJI} **$${money.toLocaleString()}** (Balance)`);
         if (bank > 0) parts.push(`🏦 **$${bank.toLocaleString()}** (Bank)`);
         items.forEach(it => parts.push(`• ${it.item_name} (\`${it.item_id}\`)`));
         return parts.join('\n');
@@ -253,7 +254,7 @@ module.exports = {
                             .setStyle(ButtonStyle.Secondary),
                         new ButtonBuilder()
                             .setCustomId('trade_money')
-                            .setLabel('🪙 Set Money')
+                            .setLabel(`${CURRENCY_EMOJI} Set Money`)
                             .setStyle(ButtonStyle.Secondary),
                         new ButtonBuilder()
                             .setCustomId('trade_bank')
@@ -485,7 +486,7 @@ module.exports = {
 
                     const formatResult = (items, money, bank) => {
                         const parts = [];
-                        if (money > 0) parts.push(`🪙 $${money.toLocaleString()} Balance`);
+                        if (money > 0) parts.push(`$${CURRENCY_EMOJI} $${money.toLocaleString()} Balance`);
                         if (bank > 0) parts.push(`🏦 $${bank.toLocaleString()} Bank`);
                         items.forEach(it => parts.push(`• ${it.item_name}`));
                         return parts.length > 0 ? parts.join('\n') : '*(nothing)*';

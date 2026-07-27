@@ -9,7 +9,7 @@ const getOptions = () => {
         { label: 'Utils', value: 'utl' },
         { label: 'Minigames', value: 'mie' },
     ];
-    options.push({ label: 'Unknown', value: 'gau3', emoji: '❓' });
+    options.push({ label: 'Unknown', value: 'gau3' });
     return options;
 };
 
