@@ -24,7 +24,7 @@ Before do anything:
 3. **Your Discord User ID** (for owner commands, so you can flex on everyone that you legally using cheat)
 
 > **Note on Databases:**  
-> I used SQLite cuz Im lazy and MongoDB setup sounded like a side quest. You can swap to Mongo if you're built different
+> Im used SQLite because Im lazy and MongoDB setup sounded like a side quest. You can swap to Mongo if you're built different
 
 ## SETUP
 
@@ -33,23 +33,26 @@ Run these commands in your terminal:
 ```bash
 git clone https://github.com/meh2025/Santaa.git
 cd Santaa
-npm install
+npm install # install dependencies
 ```
+
 Now go fix that .env file (it's currently exampleenv.txt):
 ```
 # Linux / MacOS
 cp exampleenv.txt .env
 
-# Windows (the struggle is real)
+# Windows
 copy exampleenv.txt .env
 ```
-Open .env and put in your full information.
+Open .env and put in your full information
 
-Finally, We only have single way to run this bot:
+Finally, We only have three way to run this bot:
 ```
-npm run dev    # for development
-npm run start  # daily driver mode
-npm run test   # test if it's bugging or not
+npm run start  # daily usage
+
+npm run dev    # for development (supporting fast cooldown)
+
+npm run test   # test if it's bugging or not (have to create folder `test` to work)
 ```
 
 ---
