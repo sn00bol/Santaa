@@ -7,7 +7,7 @@ module.exports = {
     name: 'help',
     description: 'Display help commands and bot information',
     category: 'gnr',
-    usage: 'Zhelp [command]',
+    usage: 'Zhelp `command`',
     async execute(message, args) {
         const { commands } = message.client;
 
@@ -22,10 +22,10 @@ module.exports = {
                 return message.reply({ content: `Not found command, do you mean \`${similar.name}\`?` });
             }
             const cmdEmbed = new EmbedBuilder()
-                .setTitle(`Information command: ${command.name}`)
+                .setTitle(`**${command.name}**`)
                 .setColor('Blue')
                 .addFields(
-                    { name: 'Description', value: command.description || 'No description.', inline: false },
+                    { name: 'Description', value: command.description || 'No description', inline: false },
                     { name: 'Usage', value: command.usage ? `\`${command.usage}\`` : `\`Z${command.name}\``, inline: false }
                 );
             let notes = command.notes || '';
@@ -80,7 +80,7 @@ module.exports = {
             // Handle menu selection and pagination
             if (i.isStringSelectMenu()) {
                 const newSelection = i.values;
-                
+
                 if (newSelection.length === 0) {
                     currentCategories = ['all'];
                 } else {

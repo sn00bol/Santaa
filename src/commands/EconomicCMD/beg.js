@@ -28,7 +28,7 @@ module.exports = {
     name: 'beg',
     description: 'You so broke that you have to beg money from NPC or someone in discord or even yourself 😭😭',
     category: 'eco',
-    usage: 'Zbeg (<@user>)',
+    usage: 'Zbeg (Optional: `@user`)',
     pickBegSuccessMessage,
     pickSelfBegMessage,
     buildTauntPrompt,

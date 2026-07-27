@@ -4,7 +4,7 @@ module.exports = {
     name: 'clearstar',
     description: 'Clear a user\'s Wanted Level (Owner only)',
     category: 'owner',
-    usage: 'Zclearstar [@user]',
+    usage: 'Zclearstar `@user`',
     async execute(message, args) {
         if (message.author.id !== process.env.OWNER_ID) return;
 

@@ -82,7 +82,7 @@ module.exports = {
 };
 (To add a custom category, edit getOptions function in commands/utils/NavigateManager.js)
 ```
-3. **Restart the bot.**
+3. **Restart the bot.** (if you run `npm run dev` so you only have to save file)
 
 ## 4. Item System (`src/items`)
 

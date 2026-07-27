@@ -1,8 +1,6 @@
-v1.1.1-alpha.5
-- Add `sell all`
-- Upgrade selection options, UI for some commands
-- Allow to sell 3 items instead of one in inventory
-- Remove emoji in help commands
+v1.1.1-beta.0
+- Change some stuff on usage
+- new tree
 
 # CHANGELOG
 # v1.1.1 - 7.29.2026

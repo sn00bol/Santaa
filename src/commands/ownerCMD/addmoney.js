@@ -6,7 +6,7 @@ module.exports = {
     name: 'addmoney',
     description: 'Add money to a user (Owner only)',
     category: 'owner',
-    usage: 'Zaddmoney <@user> <amount>',
+    usage: 'Zaddmoney `@user` `amount`',
     async execute(message, args) {
         // Check if the user is the bot owner        
         if (message.author.id !== process.env.OWNER_ID) {
@@ -21,7 +21,7 @@ module.exports = {
 
         // checking target user and amount
         if (!TargetUser || isNaN(amount) || amount <= 0) {
-            return message.reply('Incorrect usage, use: `Zaddmoney @user amount`');
+            return message.reply('Incorrect usage, use: Zaddmoney `@user` `amount`');
         }
 
         try {

@@ -134,14 +134,14 @@ module.exports = {
     name: 'sell',
     description: 'Sell items from your inventory for money',
     category: 'eco',
-    usage: 'Zsell <item_name_or_id> <quantity>',
+    usage: 'Zsell `item name or id` `quantity` (or Zsell `all` to sell all sellable items)',
 
     executeSell, // re-exported for use by inventory.js sell button
     executeSellMultiple, // export bulk sell
 
     async execute(message, args) {
         if (!args || args.length === 0) {
-            return message.reply('Usage: `Zsell <item name or id> <quantity>` or `Zsell all`');
+            return message.reply('Usage: `Zsell `item name or id` `quantity` or `Zsell all`');
         }
 
         const isSellAll = args[0].toLowerCase() === 'all';

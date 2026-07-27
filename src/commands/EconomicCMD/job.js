@@ -26,7 +26,7 @@ module.exports = {
   name: 'job',
   description: 'The most feared word in the world... THE JOB!!!! (use `Zjob help` for more info)',
   category: 'eco',
-  usage: 'Zjob <help/work/list/choose>',
+  usage: 'Zjob `help`/`work`/`list`/`choose`',
   async execute(message, args = []) {
     const { author } = message;
     const dbManager = message.client.db;
@@ -38,7 +38,7 @@ module.exports = {
     if (!args.length) {
       const embed = new EmbedBuilder()
         .setTitle('Job usage')
-        .setDescription('To know job usage, use `Zjob help`');
+        .setDescription('To know job usage, use Zjob `help`');
       return message.channel.send({ embeds: [embed] });
     }
 

@@ -18,7 +18,7 @@ module.exports = {
   name: 'pvp',
   description: 'Challenge another user to a PvP duel',
   category: 'mie',
-  usage: 'Zpvp @user|boss|bot',
+  usage: 'Zpvp `@user`/`boss`/`bot`',
   async execute(message) {
     const challenger = message.author;
     const args = message.content.slice(1).trim().split(/\s+/);
@@ -30,7 +30,7 @@ module.exports = {
     }
 
     if (!targetUser) {
-      return message.reply('You must mention a user to challenge. Example: `Zpvp @username`');
+      return message.reply('You must mention a user to challenge. Example: Zpvp `@user`');
     }
     if (targetUser.id === challenger.id) {
       return message.reply('You cannot challenge yourself.');

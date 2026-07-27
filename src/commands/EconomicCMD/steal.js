@@ -10,7 +10,7 @@ module.exports = {
     name: 'steal',
     description: 'You so broke that begging aint work so you try attempt to steal money from another user\'s wallet (Zsteal @user)',
     category: 'eco',
-    usage: 'Zsteal @user',
+    usage: 'Zsteal (optional: `@user`)',
     async execute(message) {
         const { author } = message;
         const dbManager = message.client.db;
@@ -19,7 +19,7 @@ module.exports = {
         // ── Target validation ──────────────────────────────────────────────
         const targetUser = message.mentions.users.first();
         if (!targetUser) {
-            return message.reply('You must mention a user to steal from. Example: `Zsteal @username`');
+            return message.reply('You must mention a user to steal from. Example: Zsteal `@user`');
         }
         if (targetUser.id === author.id) {
             return message.reply('You can\'t steal from yourself, that\'s just called losing money.');
@@ -54,7 +54,7 @@ module.exports = {
             // ── Outcome roll ──────────────────────────────────────────────
             const authorStats = await rpgManager.getStats(author.id);
             const wl = Math.floor((authorStats.wanted_level || 0) / 5);
-            
+
             const roll = Math.floor(Math.random() * 100) + 1;
             let successChance = 30;
             if (wl === 2) successChance = 25;

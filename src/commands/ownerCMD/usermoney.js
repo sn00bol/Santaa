@@ -5,7 +5,7 @@ module.exports = {
     name: 'usermoney',
     description: 'Edit a user\'s money (Owner only)',
     category: 'owner',
-    usage: 'Zusermoney <set|remove|reset> @user [amount]',
+    usage: 'Zusermoney `set`/`remove`/`reset` `@user` `amount`',
 
     async execute(message, args) {
         // Check if the user is the bot owner
@@ -20,7 +20,7 @@ module.exports = {
         const amount = parseInt(args[2]);
 
         if (!targetUser) {
-            return message.reply('Usage: `Zaddmoney <set|remove|reset> @user [amount]`');
+            return message.reply('Usage: Zusermoney `set`/`remove`/`reset` `@user` `amount`');
         }
 
         try {

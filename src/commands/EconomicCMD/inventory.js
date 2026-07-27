@@ -9,7 +9,7 @@ module.exports = {
     name: 'inventory',
     description: 'Checking your inventory and profile stats',
     category: 'eco',
-    usage: 'Zinventory',
+    usage: 'Zinventory `@user`',
     async execute(message, args) {
         let inventoryItems = await rpgmanager.getInventory(message.author.id);
         const allItems = allItemsCache;

@@ -126,7 +126,7 @@ module.exports = {
     name: 'trade',
     description: 'Trade items and money with another user',
     category: 'eco',
-    usage: 'Ztrade <@user>',
+    usage: 'Ztrade `@user`',
     notes: 'Can only trade items that are tradeable.',
 
     async execute(message, args) {
@@ -135,7 +135,7 @@ module.exports = {
 
         const userB = message.mentions.users.first();
         if (!userB)
-            return message.reply('Usage: `Ztrade @user`');
+            return message.reply('Usage: `Ztrade `@user``');
         if (userB.id === userA.id)
             return message.reply('You cannot trade with yourself!');
         if (userB.bot)

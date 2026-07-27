@@ -5,7 +5,7 @@ module.exports = {
     name: 'maxstamina',
     description: 'Restore a user\'s stamina to max (Owner only)',
     category: 'owner',
-    usage: 'Zmaxstamina [@user]',
+    usage: 'Zmaxstamina `@user`',
     async execute(message, args) {
         if (message.author.id !== process.env.OWNER_ID) return;
 

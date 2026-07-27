@@ -5,7 +5,7 @@ module.exports = {
     name: 'balance',
     description: 'Manage your currently balance and bank account',
     category: 'eco',
-    usage: 'Zbalance <@user>',
+    usage: 'Zbalance `@user`',
     async execute(message) {
         const { author, client } = message;
         const dbManager = client.db;
