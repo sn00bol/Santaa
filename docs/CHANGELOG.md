@@ -1,3 +1,7 @@
+v1.2.0-alpha.0
+- Add some fish shop items
+- Add fish shop (ofc is blank lol)
+
 # CHANGELOG
 # v1.1.1 - 7.27.2026
 - Add selling item, help command search

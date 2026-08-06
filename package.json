@@ -1,7 +1,7 @@
 {
   "name": "santaa",
-  "version": "1.1.1",
-  "description": "Santaa look busy, I think he selling material or fish smth idk but he may search commands to find where to sell",
+  "version": "1.2.1-alpha.0",
+  "description": "Ho ho ho! Santa like to fishing and he have a gold bucket!",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
