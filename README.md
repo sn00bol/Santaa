@@ -24,7 +24,7 @@ Before do anything:
 3. **Your Discord User ID** (for owner commands, so you can flex on everyone that you legally using cheat)
 
 > **Note on Databases:**  
-> Im used SQLite because Im lazy and MongoDB setup sounded like a side quest. You can swap to Mongo if you're built different
+> Currently bot using SQlite due to minimal usage, the bot may not operate stably when running "very" many servers, so switching to MongoDB is recommended (required to change a lot database)
 
 ## SETUP
 
@@ -33,7 +33,7 @@ Run these commands in your terminal:
 ```bash
 git clone https://github.com/meh2025/Santaa.git
 cd Santaa
-npm install # install dependencies
+npm install
 ```
 
 Now go fix that .env file (it's currently exampleenv.txt):
