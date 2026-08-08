@@ -3,7 +3,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const { Client, IntentsBitField, Collection } = require('discord.js');
+const { Client, IntentsBitField, Collection, ActivityType } = require('discord.js');
 const dbmanager = require('../database/dbmanager'); // Import the database manager module
 
 // some flag u shouldnt care fr
@@ -115,7 +115,26 @@ async function connectData() {
 
     // Login bot
     client.login(process.env.DISCORD_BOT_API_KEY).then(() => {
-        // console.log('Bot token valid'); // @
+        // console.log(`Bot token valid... now logged in as ${client.user.tag}!`); // @
+
+        // Bot status, change here to whatever you want, or remove it if you don't want a status
+        const updateStatus = () => {
+            const serverCount = client.guilds.cache.size;
+            client.user.setPresence({
+                status: 'online',
+                activities: [
+                    {
+                        name: `Serving ${serverCount} servers!`,
+                        type: ActivityType.Streaming,
+                        url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+                    }
+                ]
+            });
+        };
+        updateStatus();
+        setInterval(updateStatus, 5 * 60 * 1000);
+
+    // Catching boot error
     }).catch((error) => {
         console.error('Error logging in:', error); // Optionally, you can exit the process if login fails
     });
