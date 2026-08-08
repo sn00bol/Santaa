@@ -15,7 +15,7 @@ v1.2.0-alpha.1
 - Change every usage, warning or anything else to ephemeral message 
 - aye aye still planning wait yall
 
-Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc)
+Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03)
 
 Beta release: None
 
