@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 require('dotenv').config();
 const { getMenuRow } = require('../Utils/NavigateManager');
+const { isVisibleItem } = require('../Utils/itemVisibility');
 const fs = require('fs');
 const path = require('path');
 const dbmanager = require('../../../database/dbmanager');
@@ -106,6 +107,7 @@ module.exports = {
                 const shopItemEntries = [];
                 for (const file of itemFiles) {
                     const item = require(path.join(shopItemsPath, file));
+                    if (!isVisibleItem(item)) continue;
                     shopItems.set(item.id, item);
                     shopItemEntries.push(item);
                 }

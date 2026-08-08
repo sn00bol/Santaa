@@ -53,7 +53,7 @@ module.exports = {
 
             const displayContent = paged.map((item, index) => {
                 const descText = item.desc ? `\n-# ${item.desc}` : '';
-                return `**${start + index + 1}. ${item.name.toUpperCase()}** — \`${item.sell}\` ${CURRENCY_EMOJI} ${descText}`;
+                return `**${start + index + 1}. ${item.name.toUpperCase()}** — ${item.sell} ${CURRENCY_EMOJI} ${descText}`;
             }).join('\n\n') || 'No minerals found in this rarity.';
 
             const rarityLabel = RARITY_CONFIG[category]?.label || category;

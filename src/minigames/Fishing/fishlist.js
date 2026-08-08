@@ -53,7 +53,7 @@ module.exports = {
 
             const displayContent = pagedFish.map((fish, index) => {
                 const descText = fish.desc ? `\n-# ${fish.desc}` : '';
-                return `**${start + index + 1}. ${fish.name.toUpperCase()}** —\`${fish.sell}\`${CURRENCY_EMOJI} ${descText}`;
+                return `**${start + index + 1}. ${fish.name.toUpperCase()}** — ${fish.sell} ${CURRENCY_EMOJI} ${descText}`;
             }).join('\n\n') || 'No fish found in this category.';
 
             const rarityLabel = RARITY_CONFIG[category]?.label || category;

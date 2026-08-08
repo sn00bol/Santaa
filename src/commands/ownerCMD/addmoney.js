@@ -1,10 +1,11 @@
 const { EmbedBuilder } = require('discord.js');
 const { category } = require('./stat');
+const { CURRENCY_SYMBOL } = require('../Utils/config');
 require('dotenv').config();
 
 module.exports = {
     name: 'addmoney',
-    description: 'Add money to a user (Owner only)',
+    description: 'Become a philanthropist (Owner only)',
     category: 'owner',
     usage: 'Zaddmoney `@user` `amount`',
     async execute(message, args) {
@@ -27,9 +28,8 @@ module.exports = {
         try {
             await dbManager.addMoney(TargetUser.id, amount);
             const addMoneyEmbed = new EmbedBuilder()
-                .setColor('#16A34A')
                 .setTitle('Money Added!')
-                .setDescription(`Successfully added **$${amount.toLocaleString()}** to ${TargetUser.username}'s balance.`)
+                .setDescription(`Successfully added **${CURRENCY_SYMBOL}${amount.toLocaleString()}** to ${TargetUser.username}'s balance.`)
                 .setThumbnail(TargetUser.displayAvatarURL({ dynamic: true }))
                 .setTimestamp();
             message.channel.send({ embeds: [addMoneyEmbed] });

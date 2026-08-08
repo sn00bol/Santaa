@@ -4,6 +4,7 @@ module.exports = {
     sell: 5,
     desc: 'You so broke that you have to buy this? bppfft',
     type: [],
+    capacity: 2, // BUCKET SPECIFIC
     is_sellable: true,
     is_tradeable: true
 };

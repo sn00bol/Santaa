@@ -76,6 +76,7 @@ module.exports = {
   category: 'gnr', // eco: Economic, gnr: General, owner: Owner, utl: Utils, mie: Minigames
   usage: '!hello', // really need, if you lazy to add then you could create a file to automatic add to all command
   notes: 'You can tag a user to greet them, or leave it blank to greet yourself.', // not necessary to add
+  show: true, // Visibility, normally default will set show
   execute(message, args) {
     message.reply('Hello!');
   },
@@ -101,17 +102,20 @@ module.exports = {
     desc: 'You could find this somewhere at your garden',
     type: ['consumable'], // Currently only two type: equippable and consumable
     is_sellable: true,
-    is_tradeable: true,
+    is_tradeable: true
+    // show: false
 };
 
 // By default, you can define is_sellable: true and is_tradeable: true to indicate if the item can be sold or traded.
 // If not specified, they might have default fallback behaviors depending on the command.
+// Show: hide or show items in shop. If omitted, items appear in shop by default.
 ```
 ## 5. Minigames System (`src/minigames`)
 
 Complex minigames are usually divided into 3 parts:
 - **Core (`...Core.js`):** Handles main logic and calculations
 - **UI (`...UI.js` or `...Board.js`):** Handles display and message formatting for the user
+- **Shop (...Shop.js)**
 - **Main (`...js`):** Main command file connecting Core and UI
 
 (for ...list.js like fishlist or minelist, its just a list of items)

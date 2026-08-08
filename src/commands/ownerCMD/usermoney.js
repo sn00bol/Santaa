@@ -3,7 +3,7 @@ const { category } = require('./stat');
 
 module.exports = {
     name: 'usermoney',
-    description: 'Edit a user\'s money (Owner only)',
+    description: 'Editing a user\'s money like a boss (Owner only)',
     category: 'owner',
     usage: 'Zusermoney `set`/`remove`/`reset` `@user` `amount`',
 
@@ -27,27 +27,23 @@ module.exports = {
             await dbManager.getUser(targetUser.id);
 
             let description = '';
-            let color = '#16A34A';
 
             switch (subcmd) {
                 case 'set':
                     if (isNaN(amount) || amount < 0) return message.reply('Please provide a valid amount.');
                     await dbManager.setMoney(targetUser.id, amount);
                     description = `Successfully set **${targetUser.username}**'s balance to **$${amount.toLocaleString()}**.`;
-                    color = '#16A34A';
                     break;
 
                 case 'remove':
                     if (isNaN(amount) || amount <= 0) return message.reply('Please provide a valid amount.');
                     await dbManager.removeMoney(targetUser.id, amount);
                     description = `Successfully removed **$${amount.toLocaleString()}** from **${targetUser.username}**'s account.`;
-                    color = '#16A34A';
                     break;
 
                 case 'reset':
                     await dbManager.resetMoney(targetUser.id);
                     description = `Successfully reset **${targetUser.username}**'s account to **$0**.`;
-                    color = '#16A34A';
                     break;
 
                 default:

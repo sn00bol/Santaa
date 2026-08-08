@@ -19,6 +19,7 @@ const client = new Client({
 // Command management
 const pfx = process.env.PFX;
 client.commands = new Collection();
+client.aliases = new Collection();
 
 // Function to recursively get all .js files in the commands directory and its subdirectories
 function getFilesRecursive(dir) {
@@ -56,6 +57,14 @@ commandFolders.forEach(folder => {
 
                 if (cmd && typeof cmd === 'object' && 'name' in cmd && 'description' in cmd && typeof cmd.execute === 'function') {
                     client.commands.set(cmd.name, cmd);
+                    if (Array.isArray(cmd.aliases)) {
+                        for (const rawAlias of cmd.aliases) {
+                            const alias = String(rawAlias).toLowerCase();
+                            if (alias && !client.commands.has(alias) && !client.aliases.has(alias)) {
+                                client.aliases.set(alias, cmd);
+                            }
+                        }
+                    }
                     // console.log(`Loaded from ${folder}: ${cmd.name}`); // debug @
                 } else {
                     // console.warn(`Skipped: ${filePath} (Missing name, description, or execute handler)`); // debug @
@@ -78,7 +87,7 @@ client.on('messageCreate', (message) => {
     const commandName = args.shift().toLowerCase();
 
     // cmd alias
-    const command = client.commands.get(commandName);
+    const command = client.commands.get(commandName) || client.aliases.get(commandName);
 
     // Check commands are able to run or not
     if (!command) return;

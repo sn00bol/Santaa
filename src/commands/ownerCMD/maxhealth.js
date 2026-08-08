@@ -3,7 +3,7 @@ const { getTotalStats } = require('../Utils/StatsCalculator');
 
 module.exports = {
     name: 'maxhealth',
-    description: 'Restore a user\'s health to max (Owner only)',
+    description: 'Revive him! (Owner only)',
     category: 'owner',
     usage: 'Zmaxhealth `@user`',
     async execute(message, args) {

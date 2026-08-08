@@ -4,7 +4,7 @@ const os = require('os');
 
 module.exports = {
     name: 'stat',
-    description: 'Show bot statistics (Owner only)',
+    description: 'Check out what bot doin (Owner only)',
     category: 'owner',
     usage: 'Zstat',
     async execute(message) {

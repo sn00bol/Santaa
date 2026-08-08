@@ -2,7 +2,7 @@ require('dotenv').config();
 
 module.exports = {
     name: 'clearstar',
-    description: 'Clear a user\'s Wanted Level (Owner only)',
+    description: 'Clear star yourself or someone else (Owner only)',
     category: 'owner',
     usage: 'Zclearstar `@user`',
     async execute(message, args) {

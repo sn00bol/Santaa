@@ -3,7 +3,7 @@ const { getTotalStats } = require('../Utils/StatsCalculator');
 
 module.exports = {
     name: 'maxstamina',
-    description: 'Restore a user\'s stamina to max (Owner only)',
+    description: 'GET BACK TO WORK!!! (Owner only)',
     category: 'owner',
     usage: 'Zmaxstamina `@user`',
     async execute(message, args) {

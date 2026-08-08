@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { isVisibleItem } = require('../../commands/Utils/itemVisibility');
 
 const RARITY_CONFIG = {
     COMMON: { weight: 40, label: 'Common', color: '⚪', exp: 5 },
@@ -43,6 +44,7 @@ const loadFish = () => {
                         console.warn(`Skipping fish file ${file} in ${rarityDir}: missing id/name/sell`);
                         continue;
                     }
+                    if (!isVisibleItem(fish)) continue;
                     // annotate rarity key
                     fish.rarity = rarity;
                     fishData[rarity].push(fish);

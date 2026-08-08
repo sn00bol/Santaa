@@ -2,35 +2,45 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, 
 const packageInfo = require('../../../package.json');
 require('dotenv').config();
 const { getMenuRow, getPaginationRow, getOptions, applySelectMenuDefaults } = require('../Utils/NavigateManager');
-const { DM, noDM, SLASH, noSLASH } = require('../Utils/config')
+const { DM, noDM, SLASH, noSLASH } = require('../Utils/config');
 
 // In-memory fallback cache for category selection (used if DB is unavailable)
 const lastHelpCategoriesByUser = new Map();
 
+const isVisibleCommand = (cmd) => cmd?.show !== false;
+const formatAliases = (cmd) => {
+    if (!cmd?.aliases) return '';
+    const aliasList = Array.isArray(cmd.aliases) ? cmd.aliases : [cmd.aliases];
+    const normalized = aliasList.map(a => String(a).trim()).filter(Boolean);
+    return normalized.length > 0 ? ` (aliases: ${normalized.map(a => '`' + a + '`').join(', ')})` : '';
+};
+
 module.exports = {
     name: 'help',
+    aliases: ['h'],
     description: 'Display help commands and bot information',
     category: 'gnr',
     usage: 'Zhelp `command`',
     async execute(message, args) {
-        const { commands } = message.client;
+        const { commands, aliases } = message.client;
 
         if (args && args.length > 0) {
             const cmdName = args[0].toLowerCase();
-            const command = commands.get(cmdName);
+            const command = commands.get(cmdName) || aliases.get(cmdName);
             if (!command) {
-                const similar = commands.find(c => c.name.includes(cmdName) || cmdName.includes(c.name));
+                const similar = commands.find(c => c.name.includes(cmdName) || cmdName.includes(c.name) || (Array.isArray(c.aliases) && c.aliases.some(a => a.includes(cmdName) || cmdName.includes(a))));
                 if (similar) {
                     return message.reply({ content: `Not found command, do you mean \`${similar.name}\`?`, ephemeral: true });
                 }
-                return message.reply({ content: `Not found command, do you mean \`${similar.name}\`?`, ephemeral: true });
+                return message.reply({ content: `Command not found.`, ephemeral: true });
             }
+            const aliasText = formatAliases(command);
             const cmdEmbed = new EmbedBuilder()
-                .setTitle(`**${command.name}**`)
+                .setTitle(`**${command.name}**${aliasText}`)
                 .setColor('Blue')
                 .addFields(
                     { name: 'Description', value: command.description || 'No description', inline: false },
-                    { name: 'Usage', value: command.usage ? `\`${command.usage}\`` : `\`Z${command.name}\``, inline: false }
+                    { name: 'Usage', value: command.usage ? `${command.usage}` : `\`Z${command.name}\`` || 'No usage provided.', inline: false }
                 );
             let notes = command.notes || '';
             if (['sell', 'trade'].includes(command.name)) {
@@ -59,9 +69,10 @@ module.exports = {
                 : ['all'];
         }
 
-        // Filter commands based on category and ownership
+        // Filter commands based on category, ownership, and visibility
         const getFilteredCmds = (categories) => {
             return commands.filter(cmd => {
+                if (!isVisibleCommand(cmd)) return false;
                 if (!isOwner && cmd.category === 'owner') return false;
                 if (categories.includes('all')) return true;
                 return categories.includes(cmd.category);
@@ -92,6 +103,7 @@ module.exports = {
 
             const displayContent = pagedCmds.map(cmd => {
                 const prefix = cmd.folder === 'adminCMD' ? '🛡️ ' : '';
+                const aliasText = formatAliases(cmd);
                 return `**${prefix}${cmd.name.toUpperCase()}** ${noDM} ${noSLASH}\n-# ${cmd.description || 'No description provided.'}`;
             }).join('\n\n') || 'No commands in this category.';
 

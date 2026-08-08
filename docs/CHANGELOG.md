@@ -1,8 +1,24 @@
-v1.2.0-alpha.0
-- Add some fish shop items
-- Add fish shop (ofc is blank lol)
+v1.2.0-alpha.1
+- Add a lot item again
+- Enable to show/hide for commands and items
+- Adding aliases
 
 # CHANGELOG
+# v1.2.0 - 8.xx.2026
+- Big upgrade UI/UX and brand new minigames for fishing (it really big upgrade I swear)
+- Add fish shop: fishing rod, bait, bucket
+- Add beach/sea map for fish and diverse rarity rate
+- Other: achievement (currently for fish), give money/items, show/hide items and commands
+- Now supporting alias commands
+- Modify some items and balancing stuff
+- Changing UI for some commands
+- Change every usage, warning or anything else to ephemeral message 
+- aye aye still planning wait yall
+
+Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc)
+
+Beta release: None
+
 # v1.1.1 - 7.27.2026
 - Add selling item, help command search
 - Add wanted level (affect to economy command and minigame)
@@ -30,6 +46,7 @@ Beta release: [1db5502](https://github.com/sn00bol/Santaa/commit/1db550288de11e6
 
 # v1.0.2 - 7.12.2026
 - Upgrade leaderboard and level command (become image no text lol)
+- Remove CHANGELOG.json
 - Fix cooldown and some stuff
 
 # v1.0.1 - 7.7.2026

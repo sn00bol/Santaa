@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { isVisibleItem } = require('../../commands/Utils/itemVisibility');
 
 const RARITY_CONFIG = {
     COMMON:    { weight: 50, label: 'Common',    emoji: '⚪', valueMultiplier: 1,   exp: 5   },
@@ -28,10 +29,10 @@ const loadMinerals = () => {
             const files = fs.readdirSync(rarityDir).filter(f => f.endsWith('.js'));
             for (const file of files) {
                 const mineral = require(path.join(rarityDir, file));
-                if (mineral && mineral.id) {
-                    mineral.rarity = rarity;
-                    mineralData[rarity].push(mineral);
-                }
+                if (!mineral || !mineral.id) continue;
+                if (!isVisibleItem(mineral)) continue;
+                mineral.rarity = rarity;
+                mineralData[rarity].push(mineral);
             }
         }
     }
