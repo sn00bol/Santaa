@@ -7,5 +7,6 @@ module.exports = {
     desc: `Man you could buy a worm bait with 5${CURRENCY_SYMBOL} not that hard`,
     type: [],
     is_sellable: false,
-    is_tradeable: false
+    is_tradeable: false,
+    show: false
 };

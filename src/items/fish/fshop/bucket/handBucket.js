@@ -2,9 +2,10 @@ module.exports = {
     id: 'YourHandLOL',
     name: 'Your bare hand',
     sell: 5,
-    desc: 'Soo... you could hold 2 fish in two hands... and how you using fishing rod?',
+    desc: 'Some random guy at Japan who obsession Mona Lisa hands said you hand better than her',
     type: [],
     capacity: 1, // BUCKET SPECIFIC
-    is_sellable: true,
-    is_tradeable: true
+    is_sellable: false,
+    is_tradeable: false,
+    show: false
 };

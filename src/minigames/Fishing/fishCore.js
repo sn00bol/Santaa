@@ -3,12 +3,12 @@ const path = require('path');
 const { isVisibleItem } = require('../../commands/Utils/itemVisibility');
 
 const RARITY_CONFIG = {
-    COMMON: { weight: 40, label: 'Common', color: '⚪', exp: 5 },
-    UNCOMMON: { weight: 30, label: 'Uncommon', color: '🟢', exp: 15 },
-    EPIC: { weight: 20, label: 'Epic', color: '🟣', exp: 30 }, // 20%
-    RARE: { weight: 9, label: 'Rare', color: '🔵', exp: 50 },     // 9%
-    LEGENDARY: { weight: 1, label: 'Legendary', color: '🟡', exp: 150 },
-    MYTHIC: { weight: 0.5, label: 'Mythic', color: '🔴', exp: 300 },
+    COMMON: { weight: 40, label: 'Common', exp: 5 },
+    UNCOMMON: { weight: 30, label: 'Uncommon', exp: 15 },
+    EPIC: { weight: 20, label: 'Epic', exp: 30 }, // 20%
+    RARE: { weight: 9, label: 'Rare', exp: 50 },     // 9%
+    LEGENDARY: { weight: 1, label: 'Legendary', exp: 150 },
+    MYTHIC: { weight: 0.5, label: 'Mythic', exp: 300 },
 };
 
 const fishData = {

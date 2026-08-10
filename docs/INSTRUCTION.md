@@ -72,11 +72,12 @@ The bot recursively scans all `.js` files in these folders
 
 module.exports = {
   name: 'hello',
+  aliases: ['hi'], // Not required to add
   description: 'Bot greeting command',
   category: 'gnr', // eco: Economic, gnr: General, owner: Owner, utl: Utils, mie: Minigames
   usage: '!hello', // really need, if you lazy to add then you could create a file to automatic add to all command
   notes: 'You can tag a user to greet them, or leave it blank to greet yourself.', // not necessary to add
-  show: true, // Visibility, normally default will set show
+  show: true, // Visibility, normally default will set true
   execute(message, args) {
     message.reply('Hello!');
   },
@@ -85,7 +86,7 @@ module.exports = {
 ```
 3. **Restart the bot.** (if you run `npm run dev` so you only have to save file)
 
-## 4. Item System (`src/items`)
+## 4. Items System (`src/items`)
 
 This folder contains only data, not command execution logic
 
@@ -115,7 +116,7 @@ module.exports = {
 Complex minigames are usually divided into 3 parts:
 - **Core (`...Core.js`):** Handles main logic and calculations
 - **UI (`...UI.js` or `...Board.js`):** Handles display and message formatting for the user
-- **Shop (...Shop.js)**
+- **Shop (`...Shop.js`):** Handle or a single commands to view/buy items (its same as shop)
 - **Main (`...js`):** Main command file connecting Core and UI
 
 (for ...list.js like fishlist or minelist, its just a list of items)
@@ -124,18 +125,24 @@ Simple or other minigames type: only 1 single file .js
 
 ## 6. Data Management (Database)
 
-The project uses SQLite, managed via two main modules in `database/`:
+The bot stores data in SQLite using two database files:
 
-### `dbmanager.js` (Database: `balance.db`)
-Manages finances and careers:
-- **`balances` table:** `balance` (cash), `bank` (bank), `total_earned` (total earned)
-- **`job_states` table:** Job status, number of times worked, time until fired
+### `database/balance.db` via `dbmanager.js`
+Use this for money, bank, jobs, and help preferences.
+- `balances`: user cash and bank data
+- `job_states`: current job info and cooldowns
+- `help_preferences`: last help categories per user
 
-### `rpgmanager.js` (Database: `rpg.db`)
-Manages role-playing elements:
-- **`inventory` table:** Stores items owned by the use
-- **`stats` table:** `health`, `stamina`, `attack`, `defense`, `level`, `exp`, `steals`, `equipped_items`
-- **`pvp_history` table:** PVP combat history, wins/losses
+### `database/rpg.db` via `rpgmanager.js`
+Use this for inventory, player stats, PVP history, and fishing progress.
+- `inventory`: every owned item record
+- `stats`: player stats + equipment + fishing profile
+- `pvp_history`: saved fight results
+
+Keep these points in mind:
+- `dbmanager.js` initializes `balance.db` and creates missing tables.
+- `rpgmanager.js` initializes `rpg.db` and makes sure old databases still work.
+- If you add new fields, update the create/alter statements in the correct manager file.
 
 ## 7. Boss & Memory System
 
@@ -145,7 +152,7 @@ Manages role-playing elements:
 
 ## 8. TO DO
 ### ⚠️ Things not to do
-- Do not delete/rename main folders: `commands`, `minigames`, `memes`, `items`, `database`
+- Do not delete/rename main folders: `commands`, `minigames`, `memes`, `items`, `database`, also other important folder: utils, items...
 - Do not modify the file scanning logic in `src/index.js` unless you fully understand it
 - Do not delete files without checking if they are imported anywhere
 

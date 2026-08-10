@@ -3,7 +3,7 @@ const { generateBalanceCard } = require('../Utils/imageGenerator');
 
 module.exports = {
     name: 'balance',
-    aliases: ['bal'],
+    aliases: ['bal', 'wallet'],
     description: 'Manage your currently balance and bank account',
     category: 'eco',
     usage: 'Zbalance `@user`',

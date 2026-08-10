@@ -2,7 +2,7 @@ module.exports = {
     id: 'mermaid',
     name: 'Mermaid',
     sell: 1200,
-    desc: 'The half human - fish species, they are the best singers but they are also known to be very dangerous, they can lure sailors to their death',
+    desc: 'I mean... can I take a picture with you? that song really calm me down',
     type: [],
     is_sellable: true,
     is_tradeable: true

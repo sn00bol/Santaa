@@ -13,3 +13,5 @@ Epic: 30 EXP
 Rare: 50 EXP
 Legendary: 150 EXP
 Mythic: 300 EXP
+
+(CAUTIONS: This is only default rarity percent, not correctly 100%)

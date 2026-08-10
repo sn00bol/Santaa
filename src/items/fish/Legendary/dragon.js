@@ -2,7 +2,7 @@ module.exports = {
     id: 'dragon',
     name: 'Dragon',
     sell: 420,
-    desc: 'I wonder why dragon living under water',
+    desc: 'You caught a dragon... I think you should open museum now',
     type: [],
     is_sellable: true,
     is_tradeable: true

@@ -4,9 +4,11 @@ const dbmanager = require('../../../database/dbmanager');
 const { getPaginationRow, applySelectMenuDefaults } = require('../Utils/NavigateManager');
 const { getTotalStats, allItemsCache } = require('../Utils/StatsCalculator');
 const { executeSell } = require('./sell');
+const { isVisibleItem } = require('../Utils/itemVisibility');
 
 module.exports = {
     name: 'inventory',
+    aliases: ['inv', 'bag'],
     description: 'Checking your inventory and profile stats',
     category: 'eco',
     usage: 'Zinventory `@user`',
@@ -21,7 +23,10 @@ module.exports = {
 
         const generateEmbedAndComponents = async (page) => {
             const userStats = await getTotalStats(message.author.id);
-            inventoryItems = await rpgmanager.getInventory(message.author.id);
+            inventoryItems = (await rpgmanager.getInventory(message.author.id)).filter(invItem => {
+                const itemDef = allItems.get(invItem.item_id);
+                return itemDef ? isVisibleItem(itemDef) : true;
+            });
             totalPages = Math.max(1, Math.ceil(inventoryItems.length / itemsPerPage));
 
             // Group items by item_id

@@ -21,7 +21,7 @@
 
 ### [ISSUES-005]: "ephemeral" for interaction response options is deprecated
 - **Status**: Not necessary to fix
-- **Detail**: the library shifted to managing message visibility via bitfield flags
+- **Detail**: the library shifted to managing message visibility via bitfield flags at log
 
 ### [ISSUES-006]: Jobs embed when using `Zjob work` its not optimized
 - **Status**: Fixed
@@ -61,7 +61,31 @@
 
 ---
 ## STILL NOT FIX OR OTHER ISSUE
-### [ISSUE-015]: Currently Not found
+### [ISSUE-015] Not using fishing rod durability
+- **Status**: Not fixed
+- **Detail**: At start v1.2.0-alpha.2, the durability specific type for fishing rod currently not using for somehow and I have to set random durability prevent bugs
+
+### [ISSUE-016]: fishing Now, buckets, skills, location not added
+- **Status**: Still in development
+- **Detail**: Currently which button had added: Shop, Equipment, the rest of them are unusable or still implemented
+
+### [ISSUE-017]: Time closing fish too fast
+- **Status**: Not fixed
+- **Detail**: Time closing command too fast, that all
+
+### [ISSUE-018]: Ưanted Level not working on fish
+- **Status**: Not added
+- **Detail**: Well who gonna add that when fish still unstable?
+
 ---
 # BUG
-### [BUG-000]: Non-bug currently found
+## FIXED BUGS OR CURRENTLY REVIEWED
+
+None
+
+---
+## STILL NOT FIX OR OTHER ISSUE
+
+### [BUG-001]: Equipment button on fish shop too slow to respond
+- **Status**: Not fixed
+- **Detail**: At the main menu this button work perfectly but at fish shop, normally it work but when goes in buying item it too slow to respond discord

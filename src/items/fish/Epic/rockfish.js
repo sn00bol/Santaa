@@ -2,7 +2,7 @@ module.exports = {
     id: 'rockfish',
     name: 'Rockfish',
     sell: 118,
-    desc: 'A tough reef dweller with bright colors and sharp fins',
+    desc: 'Some people say you cant catch this fish in the sea but I bet they never go to restaurant',
     type: [],
     is_sellable: true,
     is_tradeable: true

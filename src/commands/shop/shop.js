@@ -1,9 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 require('dotenv').config();
 const { getMenuRow } = require('../Utils/NavigateManager');
-const { isVisibleItem } = require('../Utils/itemVisibility');
-const fs = require('fs');
-const path = require('path');
+const { loadShopItems, sortShopItems, getShopItemCost } = require('../Utils/shopUtils');
 const dbmanager = require('../../../database/dbmanager');
 const rpgmanager = require('../../../database/rpgmanager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
@@ -34,14 +32,6 @@ module.exports = {
         const response = await message.channel.send({ embeds: [mainEmbed], components: [row] });
         const collector = response.createMessageComponentCollector({ time: 60000 });
 
-        const resolveShopItemsPath = (shopType) => {
-            const candidates = [
-                path.join(__dirname, '..', '..', 'items', 'shopItems', shopType),
-                path.join(__dirname, 'shopUtils', shopType)
-            ];
-            return candidates.find(candidate => fs.existsSync(candidate)) || candidates[0];
-        };
-
         collector.on('collect', async (i) => {
             if (i.user.id !== message.author.id) return i.reply({ content: 'Not your menu!', ephemeral: true });
 
@@ -51,21 +41,22 @@ module.exports = {
                     const item = response.shopItems?.get(itemId);
                     if (!item) return i.reply({ content: 'Item not found!', ephemeral: true });
 
+                    const cost = getShopItemCost(item);
                     const userDb = await dbmanager.getUser(i.user.id);
                     if (response.shopType === 'gepora') { // change this to your custom gepora shop folder in shoputils
-                        if (userDb.bank < item.cost) {
+                        if (userDb.bank < cost) {
                             return i.reply({ content: `You do not have enough ${CURRENCY_EMOJI} bank money to buy this!`, ephemeral: true });
                         }
-                        await dbmanager.removeBank(i.user.id, item.cost);
+                        await dbmanager.removeBank(i.user.id, cost);
                     } else if (response.shopType === 'kimori') { // change this to your custom food shop folder in shoputils
-                        if (userDb.balance < item.cost) {
+                        if (userDb.balance < cost) {
                             return i.reply({ content: `You do not have enough ${CURRENCY_EMOJI} money to buy this!`, ephemeral: true });
                         }
-                        await dbmanager.removeMoney(i.user.id, item.cost);
+                        await dbmanager.removeMoney(i.user.id, cost);
                     }
 
                     await rpgmanager.addItem(i.user.id, item.id, item.name);
-                    return i.reply({ content: `Successfully bought **${item.name}** for ${item.cost}  ${response.currencyEmoji}!`, ephemeral: true });
+                    return i.reply({ content: `Successfully bought **${item.name}** for ${cost}  ${response.currencyEmoji}!`, ephemeral: true });
                 }
 
                 let shopType = '';
@@ -90,39 +81,16 @@ module.exports = {
                     return;
                 }
 
-                // Load items from items/shopItems/[shopType]
-                const shopItemsPath = resolveShopItemsPath(shopType);
-                let itemFiles = [];
-                try {
-                    itemFiles = fs.readdirSync(shopItemsPath).filter(file => file.endsWith('.js'));
-                } catch (err) {
-                    console.error(err);
-                }
-
-                const shopItems = new Map();
+                const shopItems = loadShopItems(shopType);
                 const shopOptions = [
                     { label: 'Go Back', value: 'back', description: 'Return to main menu' }
                 ];
 
-                const shopItemEntries = [];
-                for (const file of itemFiles) {
-                    const item = require(path.join(shopItemsPath, file));
-                    if (!isVisibleItem(item)) continue;
-                    shopItems.set(item.id, item);
-                    shopItemEntries.push(item);
-                }
-
-                const sortedShopItems = shopItemEntries
-                    .sort((a, b) => {
-                        const priceA = Number(a.cost) || 0;
-                        const priceB = Number(b.cost) || 0;
-                        if (priceA !== priceB) return priceA - priceB;
-                        return String(a.name).localeCompare(String(b.name));
-                    })
+                const sortedShopItems = sortShopItems(shopItems)
                     .map(item => ({
                         label: item.name,
                         value: item.id,
-                        description: `Cost: ${item.cost} ${currencyName}`
+                        description: `Cost: ${getShopItemCost(item)} ${currencyName}`
                     }));
 
                 shopOptions.push(...sortedShopItems);

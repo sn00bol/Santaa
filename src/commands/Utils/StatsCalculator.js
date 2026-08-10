@@ -33,19 +33,26 @@ const loadItems = () => {
         path.join(__dirname, '..', '..', 'minigames', 'Fishing', 'fish')
     ];
 
-    for (const targetPath of targets) {
-        if (!fs.existsSync(targetPath)) continue;
-        const rarityDirs = fs.readdirSync(targetPath).filter(d => fs.lstatSync(path.join(targetPath, d)).isDirectory());
-        for (const rd of rarityDirs) {
-            const rdPath = path.join(targetPath, rd);
-            const files = fs.readdirSync(rdPath).filter(f => f.endsWith('.js'));
-
-            for (const file of files) {
-                const item = require(path.join(rdPath, file));
-                if (item && item.id) allItems.set(item.id, item);
+    // Recursively loads all .js item files from a directory tree
+    const loadFromDir = (dirPath) => {
+        if (!fs.existsSync(dirPath)) return;
+        for (const entry of fs.readdirSync(dirPath)) {
+            const fullPath = path.join(dirPath, entry);
+            if (fs.lstatSync(fullPath).isDirectory()) {
+                loadFromDir(fullPath);
+            } else if (entry.endsWith('.js')) {
+                try {
+                    const item = require(fullPath);
+                    if (item && item.id) allItems.set(item.id, item);
+                } catch (e) { /* skip invalid items */ }
             }
         }
+    };
+
+    for (const targetPath of targets) {
+        loadFromDir(targetPath);
     }
+
     return allItems;
 };
 

@@ -5,6 +5,7 @@ const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 
 module.exports = {
     name: 'minelist',
+    aliases: ['minel', 'minemenu'],
     description: 'Display all mineable minerals categorized by rarity',
     category: 'mie',
     usage: 'Zminelist',

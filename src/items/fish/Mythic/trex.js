@@ -2,7 +2,7 @@ module.exports = {
     id: 'trex',
     name: 'T-Rex',
     sell: 1000,
-    desc: 'The mighty T-Rex, a prehistoric predator that ruled the land with its ferocious bite and towering presence, now rules underwater',
+    desc: 'He is a predator, the evil, the stongest (maybe) and their ancestor is chicken... and somehow now he living underwater',
     type: [],
     is_sellable: true,
     is_tradeable: true

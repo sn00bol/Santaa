@@ -1,7 +1,9 @@
-v1.2.0-alpha.1
-- Add a lot item again
-- Enable to show/hide for commands and items
-- Adding aliases
+v1.2.0-alpha.2
+- Brand new UI/UX for fishing and fish list
+- What worked on this alpha: equipment, shop
+- Adding some alias for few commands
+- Some issues currently found, check out at ISSUES.md
+- HOTFIX coin emoji
 
 # CHANGELOG
 # v1.2.0 - 8.xx.2026
@@ -11,9 +13,8 @@ v1.2.0-alpha.1
 - Other: achievement (currently for fish), give money/items, show/hide items and commands
 - Now supporting alias commands
 - Modify some items and balancing stuff
-- Changing UI for some commands
-- Change every usage, warning or anything else to ephemeral message 
-- aye aye still planning wait yall
+- Bot now when running npm run kinda slower
+- Remove custom currency emoji
 
 Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03)
 

@@ -2,7 +2,7 @@ module.exports = {
     id: 'ethereal_trout',
     name: 'Ethereal Trout',
     sell: 800,
-    desc: 'A shimmering trout from the deep rift',
+    desc: 'This fish are so pretty, I never seen something like this before',
     type: [],
     is_sellable: true,
     is_tradeable: true

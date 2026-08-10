@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const config = require('../src/commands/Utils/config');
+const { parseFishingProfile, DEFAULT_FISHING_PROFILE } = require('../src/commands/Utils/fishingSchema');
 
 let db;
 
@@ -33,7 +34,8 @@ module.exports = {
                 equipped_item_id TEXT DEFAULT NULL,
                 equipped_items TEXT DEFAULT '[]',
                 wanted_level INTEGER DEFAULT 0,
-                wanted_updated_at INTEGER DEFAULT 0
+                wanted_updated_at INTEGER DEFAULT 0,
+                fishing_profile TEXT DEFAULT '{}'
             )
         `);
 
@@ -56,6 +58,7 @@ module.exports = {
         try { await db.exec(`ALTER TABLE stats ADD COLUMN equipped_items TEXT DEFAULT '[]';`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN wanted_level INTEGER DEFAULT 0;`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN wanted_updated_at INTEGER DEFAULT 0;`); } catch (e) {}
+        try { await db.exec(`ALTER TABLE stats ADD COLUMN fishing_profile TEXT DEFAULT '{}';`); } catch (e) {}
     },
 
     // Add item to inventory
@@ -77,21 +80,28 @@ module.exports = {
     async getStats(userId) {
         let stats = await db.get('SELECT * FROM stats WHERE user_id = ?', [userId]);
         if (!stats) {
-            await db.run('INSERT OR IGNORE INTO stats (user_id, health, stamina, attack, defense, level, exp, steals, equipped_item_id, wanted_level, wanted_updated_at) VALUES (?, 100, 100, 5, 2, 1, 0, 0, NULL, 0, 0)', [userId]);
-            stats = { user_id: userId, health: 100, stamina: 100, attack: 5, defense: 2, level: 1, exp: 0, steals: 0, equipped_item_id: null, wanted_level: 0, wanted_updated_at: 0, equipped_items: '[]' };
+            await db.run('INSERT OR IGNORE INTO stats (user_id, health, stamina, attack, defense, level, exp, steals, equipped_item_id, wanted_level, wanted_updated_at, fishing_profile) VALUES (?, 100, 100, 5, 2, 1, 0, 0, NULL, 0, 0, ?)', [userId, JSON.stringify(DEFAULT_FISHING_PROFILE)]);
+            stats = { user_id: userId, health: 100, stamina: 100, attack: 5, defense: 2, level: 1, exp: 0, steals: 0, equipped_item_id: null, wanted_level: 0, wanted_updated_at: 0, equipped_items: '[]', fishing_profile: DEFAULT_FISHING_PROFILE };
+        }
+
+        if (stats.fishing_profile) {
+            stats.fishing_profile = parseFishingProfile(stats.fishing_profile);
         } else {
-            // Decay wanted level
-            const now = Date.now();
-            if (stats.wanted_level > 0 && stats.wanted_updated_at > 0) {
-                const decayTime = config.wantedDecay || 24 * 60 * 60 * 1000;
-                if (now - stats.wanted_updated_at > decayTime) {
-                    const newWantedLevel = Math.max(0, stats.wanted_level - 10);
-                    await db.run('UPDATE stats SET wanted_level = ?, wanted_updated_at = ? WHERE user_id = ?', [newWantedLevel, now, userId]);
-                    stats.wanted_level = newWantedLevel;
-                    stats.wanted_updated_at = now;
-                }
+            stats.fishing_profile = { ...DEFAULT_FISHING_PROFILE };
+        }
+
+        // Decay wanted level
+        const now = Date.now();
+        if (stats.wanted_level > 0 && stats.wanted_updated_at > 0) {
+            const decayTime = config.wantedDecay || 24 * 60 * 60 * 1000;
+            if (now - stats.wanted_updated_at > decayTime) {
+                const newWantedLevel = Math.max(0, stats.wanted_level - 10);
+                await db.run('UPDATE stats SET wanted_level = ?, wanted_updated_at = ? WHERE user_id = ?', [newWantedLevel, now, userId]);
+                stats.wanted_level = newWantedLevel;
+                stats.wanted_updated_at = now;
             }
         }
+
         return stats;
     },
 
@@ -110,7 +120,7 @@ module.exports = {
     },
 
     // Specifically update attack/defense/level/exp
-    async updateProgress(userId, { attack, defense, level, exp, steals }) {
+    async updateProgress(userId, { attack, defense, level, exp, steals, fishing_profile }) {
         const updates = [];
         const params = [];
         if (attack !== undefined) { updates.push('attack = ?'); params.push(attack); }
@@ -118,6 +128,10 @@ module.exports = {
         if (level !== undefined) { updates.push('level = ?'); params.push(level); }
         if (exp !== undefined) { updates.push('exp = ?'); params.push(exp); }
         if (steals !== undefined) { updates.push('steals = ?'); params.push(steals); }
+        if (fishing_profile !== undefined) {
+            updates.push('fishing_profile = ?');
+            params.push(JSON.stringify(parseFishingProfile(fishing_profile)));
+        }
 
         if (updates.length === 0) return;
         params.push(userId);
@@ -152,6 +166,18 @@ module.exports = {
             return { changed: true };
         }
         return { changed: false };
+    },
+
+    async getFishingProfile(userId) {
+        const row = await db.get('SELECT fishing_profile FROM stats WHERE user_id = ?', [userId]);
+        if (!row) return { ...DEFAULT_FISHING_PROFILE };
+        return parseFishingProfile(row.fishing_profile);
+    },
+
+    async setFishingProfile(userId, profile) {
+        const fishingProfile = parseFishingProfile(profile);
+        await this.getStats(userId);
+        return await db.run('UPDATE stats SET fishing_profile = ? WHERE user_id = ?', [JSON.stringify(fishingProfile), userId]);
     },
 
     // Transfer an inventory item to another user (for trade)

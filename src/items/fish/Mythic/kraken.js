@@ -2,7 +2,7 @@ module.exports = {
     id: 'kraken',
     name: 'Kraken',
     sell: 920,
-    desc: 'The legendary sea monster, feare by a lot of sailor',
+    desc: 'They are real, I saw it on Japanese Manga... sorry my mistake',
     type: [],
     is_sellable: true,
     is_tradeable: true

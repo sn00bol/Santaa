@@ -2,7 +2,7 @@ module.exports = {
     id: 'coelacanth_legendary',
     name: 'Legendary Coelacanth',
     sell: 520,
-    desc: 'A living fossil from the depths, this rare fish is worth a king\'s ransom',
+    desc: 'Now hes feel legendary than any time, he could live hundred years',
     type: [],
     is_sellable: true,
     is_tradeable: true

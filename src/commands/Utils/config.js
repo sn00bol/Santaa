@@ -2,8 +2,8 @@
 // wtf is config.js? this is where contain settings function and some stuff
 
 // EMOJI CURRENCY
-const CURRENCY_EMOJI = '<a:coin:1526046578996154569>'; // your coin emoji
-const CURRENCY_SYMBOL = '🪙'; // fallback for canvas
+const CURRENCY_SYMBOL = '🪙';
+const CURRENCY_EMOJI = '🪙'; // use a standard unicode emoji for compatibility
 
 // Slash and DM
 const DM = '<:DM:1531243221374468176>';

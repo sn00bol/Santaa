@@ -1,7 +1,10 @@
 // Dont ask why fish.js here cuz im accidentally forgot and when move it into minigame it cause bug so imma leave it here for short time
 
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
 const { getRandomFish, calculateExp } = require('./fishCore');
+const fishUI = require('./fishUI');
+const fishShop = require('./fishShop');
+const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
 const rpgmanager = require('../../../database/rpgmanager');
 const { checkCooldown, getCooldownDuration } = require('../../commands/Utils/Cooldown');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
@@ -93,140 +96,181 @@ module.exports = {
             return;
         }
 
-        let gameState = 'IDLE'; // IDLE, WAITING, BITING
+        const stats = await rpgmanager.getStats(userId);
+        const profile = stats.fishing_profile || {};
 
-        const embed = new EmbedBuilder()
-            .setTitle('🎣 Fishing')
-            .setDescription('Cast your line into the water to begin...')
-            .setColor('Blue');
+        if (!profile.initialItemsGranted) {
+            const defaultItems = [
+                { id: 'defaultRod', quantity: 1 },
+                { id: 'defaultBucket', quantity: 1 },
+                { id: 'YourHandLOL', quantity: 1 },
+                { id: 'hand', quantity: 1 },
+                { id: 'finger', quantity: 1 }
+            ];
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('cast_line')
-                .setLabel('Cast Line 🎣')
-                .setStyle(ButtonStyle.Primary)
-        );
+            for (const { id, quantity } of defaultItems) {
+                const itemDef = allItemsCache.get(id);
+                if (!itemDef) continue;
+                for (let i = 0; i < quantity; i++) {
+                    await rpgmanager.addItem(userId, itemDef.id, itemDef.name);
+                }
+            }
 
-        const mainMsg = await message.reply({ embeds: [embed], components: [row] });
+            const wormDef = allItemsCache.get('worm');
+            if (wormDef) {
+                for (let i = 0; i < 5; i++) {
+                    await rpgmanager.addItem(userId, wormDef.id, wormDef.name);
+                }
+            }
 
+            profile.initialItemsGranted = true;
+            await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+        }
+
+        const container = fishUI.buildMainV2(profile);
+        const mainMsg = await message.reply({ components: [container], flags: [MessageFlags.IsComponentsV2] });
+
+        let shopState = null;
         const collector = mainMsg.createMessageComponentCollector({
             filter: i => i.user.id === userId,
             time: 120000
         });
 
         collector.on('collect', async i => {
-            if (i.customId === 'cast_line' && gameState === 'IDLE') {
-                const limitStatus = checkFishLimit(userId);
-                if (!limitStatus.allowed) {
-                    await i.update({
-                        content: limitStatus.message,
-                        embeds: [],
-                        components: []
-                    });
-                    collector.stop();
-                    return;
-                }
-
-                gameState = 'WAITING';
-
+            if (i.customId === 'fish_buckets') {
                 await i.update({
                     content: null,
-                    embeds: [
-                        new EmbedBuilder()
-                            .setTitle('🎣 Fishing')
-                            .setDescription('Waiting for a bite... 🌊\n*Be ready to reel it in!*')
-                            .setColor('Blue')
-                    ],
-                    components: []
+                    embeds: [],
+                    components: [fishUI.buildBucketV2()],
+                    flags: [MessageFlags.IsComponentsV2]
                 });
-
-                const waitTime = Math.floor(Math.random() * 5000) + 3000;
-
-                setTimeout(async () => {
-                    if (gameState !== 'WAITING') return;
-
-                    gameState = 'BITING';
-                    const reelRow = new ActionRowBuilder().addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('reel_in')
-                            .setLabel('REEL IT IN! 🎣')
-                            .setStyle(ButtonStyle.Danger)
-                    );
-
-                    try {
-                        await mainMsg.edit({
-                            content: '🚨 **BITE!**',
-                            components: [reelRow]
-                        });
-                    } catch (e) {
-                        console.error('Error updating bite message:', e);
-                    }
-
-                    // Failure if not reeled in within 5 seconds
-                    setTimeout(async () => {
-                        if (gameState === 'BITING') {
-                            gameState = 'IDLE';
-                            await mainMsg.edit({
-                                content: 'Too slow! The fish escaped... 🐟💨\n*(You took more than 5 seconds)*',
-                                components: [
-                                    new ActionRowBuilder().addComponents(
-                                        new ButtonBuilder()
-                                            .setCustomId('cast_line')
-                                            .setLabel('Try Again 🎣')
-                                            .setStyle(ButtonStyle.Primary)
-                                    )
-                                ]
-                            }).catch(() => { });
-                        }
-                    }, 5000);
-                }, waitTime);
+                return;
             }
-            else if (i.customId === 'reel_in' && gameState === 'BITING') {
-                gameState = 'IDLE';
 
-                // Increment catch count
-                checkFishLimit(userId, { markCatch: true });
+            if (i.customId === 'fish_skill') {
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildSkillV2()],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
 
-                const fish = getRandomFish();
-                if (!fish) {
-                    await i.update({ content: 'The fish got away! 💨', components: [] });
+            if (i.customId === 'fish_equipment') {
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildEquipmentV2(profile)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_location') {
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildLocationV2()],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_now') {
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildFishingNowV2()],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.isStringSelectMenu()) {
+                if (i.customId === 'fish_equipment_select_rod') {
+                    profile.equipment = profile.equipment || {};
+                    profile.equipment.currentRod = i.values[0];
+                    if (profile.equipment.currentRod === 'hand') {
+                        profile.equipment.currentBait = 'finger';
+                    }
+                    await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildEquipmentV2(profile)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
                     return;
                 }
 
-                // Add fish to inventory
-                await rpgmanager.addItem(userId, fish.id, fish.name);
+                if (i.customId === 'fish_equipment_select_bait') {
+                    profile.equipment = profile.equipment || {};
+                    profile.equipment.currentBait = i.values[0];
+                    await rpgmanager.updateProgress(userId, { fishing_profile: profile });
 
-                const expGain = calculateExp(fish);
-                const stats = await rpgmanager.getStats(userId);
-                let newExp = stats.exp + expGain;
-                let newLevel = stats.level;
-                const expNeeded = stats.level * 100;
-                if (newExp >= expNeeded) {
-                    newExp -= expNeeded;
-                    newLevel++;
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildEquipmentV2(profile)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                    return;
                 }
-                await rpgmanager.updateProgress(userId, { exp: newExp, level: newLevel });
-
-                const fishEmbed = new EmbedBuilder()
-                    .setTitle('🎣 Success!')
-                    .setDescription(`You reeled in a **${fish.name}**!\n\n**Rarity:** ${fish.rarity}\n**Value:** 💰${fish.sell}\n**EXP Gained:** ✨${expGain}`)
-                    .setColor('Gold')
-
-                await i.update({
-                    content: 'Nice catch!',
-                    embeds: [fishEmbed],
-                    components: [
-                        new ActionRowBuilder().addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('cast_line')
-                                .setLabel('Fish Again 🎣')
-                                .setStyle(ButtonStyle.Primary)
-                        )
-                    ]
-                });
-            } else {
-                await i.deferUpdate();
             }
+
+            if (i.customId === 'fish_equipment_back') {
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildMainV2(profile)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_shop' || i.customId === 'fish_equipment_shop') {
+                shopState = await fishShop.createFishShopState(userId, 'fish', true);
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishShop.buildFishShopContainer(shopState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (shopState) {
+                const result = await fishShop.handleFishShopInteraction(i, shopState);
+                if (result.handled) {
+                    if (result.action === 'back') {
+                        shopState = null;
+                        await i.update({
+                            content: null,
+                            embeds: [],
+                            components: [fishUI.buildMainV2(profile)],
+                            flags: [MessageFlags.IsComponentsV2]
+                        });
+                        return;
+                    }
+
+                    if (result.action === 'equipment') {
+                        shopState = null;
+                        await i.update({
+                            content: null,
+                            embeds: [],
+                            components: [fishUI.buildEquipmentV2(profile)],
+                            flags: [MessageFlags.IsComponentsV2]
+                        });
+                        return;
+                    }
+
+                    return;
+                }
+            }
+
+            await i.deferUpdate();
         });
     }
 };
