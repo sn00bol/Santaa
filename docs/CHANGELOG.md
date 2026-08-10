@@ -16,7 +16,7 @@ v1.2.0-alpha.2
 - Bot now when running npm run kinda slower
 - Remove custom currency emoji
 
-Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03)
+Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03), [8439a95](https://github.com/sn00bol/Santaa/commit/8439a958a0e2498e5eec93097a5397eb9421ce46)
 
 Beta release: None
 
