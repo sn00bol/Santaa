@@ -8,6 +8,8 @@ const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
 const rpgmanager = require('../../../database/rpgmanager');
 const { checkCooldown, getCooldownDuration } = require('../../commands/Utils/Cooldown');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
+const mapManager = require('./MapManager');
+const path = require('path');
 
 const fishCounts = new Map(); // userId -> { count, cooldownUntil }
 
@@ -98,6 +100,7 @@ module.exports = {
 
         const stats = await rpgmanager.getStats(userId);
         const profile = stats.fishing_profile || {};
+        const loadInventory = async () => await rpgmanager.getInventory(userId);
 
         if (!profile.initialItemsGranted) {
             const defaultItems = [
@@ -127,21 +130,23 @@ module.exports = {
             await rpgmanager.updateProgress(userId, { fishing_profile: profile });
         }
 
-        const container = fishUI.buildMainV2(profile);
+        const container = fishUI.buildMain(profile);
         const mainMsg = await message.reply({ components: [container], flags: [MessageFlags.IsComponentsV2] });
 
         let shopState = null;
         const collector = mainMsg.createMessageComponentCollector({
             filter: i => i.user.id === userId,
-            time: 120000
+            time: 600000 // 10 minutes, reset on each interaction
         });
 
         collector.on('collect', async i => {
+            collector.resetTimer(); // ISSUE-017: reset inactivity timer on every interaction
+
             if (i.customId === 'fish_buckets') {
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildBucketV2()],
+                    components: [fishUI.buildBucket()],
                     flags: [MessageFlags.IsComponentsV2]
                 });
                 return;
@@ -151,46 +156,145 @@ module.exports = {
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildSkillV2()],
+                    components: [fishUI.buildSkill()],
                     flags: [MessageFlags.IsComponentsV2]
                 });
                 return;
             }
 
             if (i.customId === 'fish_equipment') {
+                const inventory = await loadInventory();
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildEquipmentV2(profile)],
+                    components: [fishUI.buildEquipment(profile, inventory)],
                     flags: [MessageFlags.IsComponentsV2]
                 });
                 return;
             }
 
             if (i.customId === 'fish_location') {
+                const targetMapId = profile.currentMap || 'nomanssea';
+                const map = mapManager.getMap(targetMapId) || mapManager.getAllMaps()[0];
+                const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'fish', map.image);
+                
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildLocationV2()],
+                    components: [fishUI.buildLocation(profile, targetMapId)],
+                    files: [{ attachment: imagePath, name: map.image }],
                     flags: [MessageFlags.IsComponentsV2]
                 });
                 return;
             }
 
+            if (i.customId.startsWith('fish_location_travel_')) {
+                const targetMapId = i.customId.replace('fish_location_travel_', '');
+                profile.currentMap = targetMapId;
+                await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+                
+                await i.update({
+                    components: [fishUI.buildMain(profile)]
+                });
+                return;
+            }
+
             if (i.customId === 'fish_now') {
+                // Guard: redirect to Location if no map is set
+                if (!profile.currentMap) {
+                    const firstMap = mapManager.getAllMaps()[0];
+                    const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'fish', firstMap.image);
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildLocation(profile, firstMap.id)],
+                        files: [{ attachment: imagePath, name: firstMap.image }],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                    return;
+                }
+
+                profile.equipment = profile.equipment || {};
+                const currentRod = profile.equipment.currentRod || 'hand';
+                const isBareHand = currentRod === 'hand';
+
+                if (!isBareHand) {
+                    const durability = typeof profile.equipment.durability === 'number'
+                        ? profile.equipment.durability
+                        : 100;
+
+                    if (durability <= 0) {
+                        profile.equipment.currentRod = profile.fallbackRod || 'hand';
+                        profile.equipment.currentBait = 'finger';
+                        profile.equipment.durability = 0;
+                        await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+                        const inventory = await loadInventory();
+
+                        await i.update({
+                            components: [fishUI.buildEquipment(profile, inventory, '⚠️ Your fishing rod is broken! Falling back to bare hand.')]
+                        });
+                        return;
+                    }
+
+                    profile.equipment.durability = durability - 1;
+
+                    if (profile.equipment.durability <= 0) {
+                        profile.equipment.currentRod = profile.fallbackRod || 'hand';
+                        profile.equipment.currentBait = 'finger';
+                        profile.equipment.durability = 0;
+                        await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+
+                        const inventory = await loadInventory();
+                        await i.update({
+                            components: [fishUI.buildEquipment(profile, inventory, '💥 Your fishing rod just broke! Falling back to bare hand fishing.')]
+                        });
+                        return;
+                    }
+
+                    await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+                }
+
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildFishingNowV2()],
+                    components: [fishUI.buildFishingNow()],
                     flags: [MessageFlags.IsComponentsV2]
                 });
                 return;
             }
 
             if (i.isStringSelectMenu()) {
+                if (i.customId === 'fish_location_select') {
+                    const targetMapId = i.values[0];
+                    const map = mapManager.getMap(targetMapId) || mapManager.getAllMaps()[0];
+                    const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'fish', map.image);
+                    
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildLocation(profile, targetMapId)],
+                        files: [{ attachment: imagePath, name: map.image }],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                    return;
+                }
                 if (i.customId === 'fish_equipment_select_rod') {
+                    const selectedRod = i.values[0];
+                    const inventory = await loadInventory();
+                    const ownsRod = selectedRod === 'hand' || inventory.some(item => item.item_id === selectedRod);
+
+                    if (!ownsRod) {
+                        await i.update({
+                            content: null,
+                            embeds: [],
+                            components: [fishUI.buildEquipment(profile, inventory, 'You do not own this fishing rod.')],
+                            flags: [MessageFlags.IsComponentsV2]
+                        });
+                        return;
+                    }
+
                     profile.equipment = profile.equipment || {};
-                    profile.equipment.currentRod = i.values[0];
+                    profile.equipment.currentRod = selectedRod;
                     if (profile.equipment.currentRod === 'hand') {
                         profile.equipment.currentBait = 'finger';
                     }
@@ -199,21 +303,35 @@ module.exports = {
                     await i.update({
                         content: null,
                         embeds: [],
-                        components: [fishUI.buildEquipmentV2(profile)],
+                        components: [fishUI.buildEquipment(profile, inventory)],
                         flags: [MessageFlags.IsComponentsV2]
                     });
                     return;
                 }
 
                 if (i.customId === 'fish_equipment_select_bait') {
+                    const selectedBait = i.values[0];
+                    const inventory = await loadInventory();
+                    const ownsBait = selectedBait === 'finger' || inventory.some(item => item.item_id === selectedBait);
+
+                    if (!ownsBait) {
+                        await i.update({
+                            content: null,
+                            embeds: [],
+                            components: [fishUI.buildEquipment(profile, inventory, 'You do not own this bait.')],
+                            flags: [MessageFlags.IsComponentsV2]
+                        });
+                        return;
+                    }
+
                     profile.equipment = profile.equipment || {};
-                    profile.equipment.currentBait = i.values[0];
+                    profile.equipment.currentBait = selectedBait;
                     await rpgmanager.updateProgress(userId, { fishing_profile: profile });
 
                     await i.update({
                         content: null,
                         embeds: [],
-                        components: [fishUI.buildEquipmentV2(profile)],
+                        components: [fishUI.buildEquipment(profile, inventory)],
                         flags: [MessageFlags.IsComponentsV2]
                     });
                     return;
@@ -224,7 +342,9 @@ module.exports = {
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildMainV2(profile)],
+                    components: [fishUI.buildMain(profile)],
+                    files: [],
+                    attachments: [],
                     flags: [MessageFlags.IsComponentsV2]
                 });
                 return;
@@ -235,7 +355,7 @@ module.exports = {
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishShop.buildFishShopContainer(shopState)],
+                    components: [fishUI.buildShop(shopState)],
                     flags: [MessageFlags.IsComponentsV2]
                 });
                 return;
@@ -249,7 +369,7 @@ module.exports = {
                         await i.update({
                             content: null,
                             embeds: [],
-                            components: [fishUI.buildMainV2(profile)],
+                            components: [fishUI.buildMain(profile)],
                             flags: [MessageFlags.IsComponentsV2]
                         });
                         return;
@@ -257,10 +377,11 @@ module.exports = {
 
                     if (result.action === 'equipment') {
                         shopState = null;
+                        const inventory = await loadInventory();
                         await i.update({
                             content: null,
                             embeds: [],
-                            components: [fishUI.buildEquipmentV2(profile)],
+                            components: [fishUI.buildEquipment(profile, inventory)],
                             flags: [MessageFlags.IsComponentsV2]
                         });
                         return;

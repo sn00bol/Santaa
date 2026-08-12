@@ -2,14 +2,15 @@ const DEFAULT_FISHING_PROFILE = {
     level: 1,
     xp: 0,
     dailyStreak: 0,
-    currentMap: 'beach',
-    unlockedMaps: ['beach'],
+    currentMap: null,
+    unlockedMaps: [],
     historicalCatches: {
         Common: 0,
         Uncommon: 0,
         Rare: 0,
         Epic: 0,
         Legendary: 0,
+        Mythic: 0,
     },
     equipment: {
         currentRod: 'defaultRod',

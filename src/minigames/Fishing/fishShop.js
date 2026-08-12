@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
 const { resolveShopItemsPath, sortShopItems, getShopItemCost } = require('../../commands/Utils/shopUtils');
@@ -124,10 +124,6 @@ const buildFishShopCategoryListContainer = (state) => {
     );
 
     const navRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('fish_equipment')
-            .setLabel('Equipment')
-            .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId(SHOP_ACTIONS.BACK_TO_FISH)
             .setLabel(state.returnToFishing ? 'Back to fishing menu' : 'Back to categories')
@@ -291,9 +287,22 @@ module.exports = {
         });
 
         collector.on('collect', async (interaction) => {
+            collector.resetTimer();
             const result = await handleFishShopInteraction(interaction, state);
             if (result.handled) {
                 if (result.action === 'back') {
+                    await interaction.update({
+                        content: null,
+                        embeds: [],
+                        components: [buildFishShopContainer(state)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                }
+                if (result.action === 'equipment') {
+                    // Standalone shop: just go back to categories since there's no fishing session
+                    state.selectedItem = null;
+                    state.category = null;
+                    state.items = new Map();
                     await interaction.update({
                         content: null,
                         embeds: [],

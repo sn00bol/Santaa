@@ -73,8 +73,8 @@ The bot recursively scans all `.js` files in these folders
 module.exports = {
   name: 'hello',
   aliases: ['hi'], // Not required to add
-  description: 'Bot greeting command',
-  category: 'gnr', // eco: Economic, gnr: General, owner: Owner, utl: Utils, mie: Minigames
+  description: 'Bot greeting command', // Needed for help command
+  category: 'gnr', // eco: Economic, gnr: General, owner: Owner (Important, if you make a command literally cheat lol), utl: Utils, mie: Minigames
   usage: '!hello', // really need, if you lazy to add then you could create a file to automatic add to all command
   notes: 'You can tag a user to greet them, or leave it blank to greet yourself.', // not necessary to add
   show: true, // Visibility, normally default will set true
@@ -116,6 +116,7 @@ module.exports = {
 Complex minigames are usually divided into 3 parts:
 - **Core (`...Core.js`):** Handles main logic and calculations
 - **UI (`...UI.js` or `...Board.js`):** Handles display and message formatting for the user
+- **Map Manager (`MapManager.js`):** Where managed all map and random rarity
 - **Shop (`...Shop.js`):** Handle or a single commands to view/buy items (its same as shop)
 - **Main (`...js`):** Main command file connecting Core and UI
 

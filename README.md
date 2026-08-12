@@ -15,13 +15,24 @@
 
 ---
 
+## FEATURES
+- Good looking UI/UX (currently only on fish minigames lol)
+- Economy System: Balance, Jobs, Part Time, beg, crime, steal,...
+- Fun and advance minigames: PVP, fishing, mining, guess, olympac,...
+- Trading and shopping (ofc)
+- Using cheat legally with owner commands so you could flex anyone
+- Scanning commands using get files recursive and customize bot status
+- Lightweight and easily to manage database
+- Coding stuff and you notice that why tf a lot of README.md 
+
+
 ## PREREQUISITES
 
 Before do anything:
 
 1. **Node.js** (recommend v16 or higher)
 2. **Discord Bot Token**
-3. **Your Discord User ID** (for owner commands, so you can flex on everyone that you legally using cheat)
+3. **Your Discord User ID** (for owner commands)
 
 > **Note on Databases:**  
 > Currently bot using SQlite due to minimal usage, the bot may not operate stably when running "very" many servers, so switching to MongoDB is recommended (required to change a lot database)
@@ -36,15 +47,7 @@ cd Santaa
 npm install
 ```
 
-Now go fix that .env file (it's currently exampleenv.txt):
-```
-# Linux / MacOS
-cp exampleenv.txt .env
-
-# Windows
-copy exampleenv.txt .env
-```
-Open .env and put in your full information
+Now rename `.env.example` (remove .example) and put your full information
 
 Finally, We only have three way to run this bot:
 ```

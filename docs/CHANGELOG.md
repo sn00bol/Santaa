@@ -1,9 +1,12 @@
-v1.2.0-alpha.2
-- Brand new UI/UX for fishing and fish list
-- What worked on this alpha: equipment, shop
-- Adding some alias for few commands
-- Some issues currently found, check out at ISSUES.md
-- HOTFIX coin emoji
+v1.2.0-alpha.3
+- Add assets folder (for fish and mine too)
+- What worked on this alpha 3: equipment, shop, location
+- Fix equipment literally not using real fishing rod, bait item and owned (fr)
+- Fix equipment button at fish shop not working
+- Fix buildShop still blank on fishUI (ofc my coding skill again lol)
+- Fix Not using fishing rod durability and time closing too fast
+- Currently map not accurate (ofc only two image srry)
+- HOTFIX beg command
 
 # CHANGELOG
 # v1.2.0 - 8.xx.2026
@@ -11,10 +14,11 @@ v1.2.0-alpha.2
 - Add fish shop: fishing rod, bait, bucket
 - Add beach/sea map for fish and diverse rarity rate
 - Other: achievement (currently for fish), give money/items, show/hide items and commands
-- Now supporting alias commands
+- Supporting aliases command
 - Modify some items and balancing stuff
 - Bot now when running npm run kinda slower
 - Remove custom currency emoji
+- HOTFIX beg command
 
 Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03), [8439a95](https://github.com/sn00bol/Santaa/commit/8439a958a0e2498e5eec93097a5397eb9421ce46)
 

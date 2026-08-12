@@ -1,5 +1,7 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags, MediaGalleryBuilder, MediaGalleryItemBuilder } = require('discord.js');
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
+const fishShop = require('./fishShop');
+const mapManager = require('./MapManager');
 
 function resolveItemName(itemId, fallback) {
     const item = allItemsCache.get(itemId);
@@ -7,7 +9,7 @@ function resolveItemName(itemId, fallback) {
 }
 
 function getFishingRodOptions(currentRod, inventory = []) {
-    const rodIds = ['hand', 'defaultRod', 'sharkRod', 'bucketRod', 'kaboomRod', 'niceGlove'];
+    const rodIds = ['hand', 'defaultRod', 'sharkRod', 'bucketRod', 'kaboom', 'niceGlove'];
 
     return rodIds
         .map(id => {
@@ -23,7 +25,7 @@ function getFishingRodOptions(currentRod, inventory = []) {
             const maxDurability = isHand ? '∞' : (item.durability ?? '?');
 
             const description = isHand
-                ? undefined
+                ? 'Always available (your hand)'
                 : `Your owned: ${owned} | Durability: ${maxDurability}`;
 
             return {
@@ -36,20 +38,25 @@ function getFishingRodOptions(currentRod, inventory = []) {
         .filter(Boolean);
 }
 
-function getBaitOptions(currentBait) {
+function getBaitOptions(currentBait, inventory = []) {
     const baitIds = ['worm', 'jig', 'crank', 'finger'];
     return baitIds.map(id => {
         const item = allItemsCache.get(id);
+        const owned = id === 'finger' ? '∞' : inventory.filter(i => i.item_id === id).length;
+        const description = id === 'finger'
+            ? 'Always available (your finger)'
+            : `Your owned: ${owned}`;
+
         return {
             label: item ? item.name : id,
             value: id,
-            description: item?.desc?.slice(0, 50) || 'Fishing bait',
+            description: description,
             default: id === currentBait,
         };
     });
 }
 
-function buildMainV2(profile = {}) {
+function buildMain(profile = {}, noticeMessage = null) {
     const bucketSize = profile.bucket?.maxSpace || 5;
     const bucketCount = Array.isArray(profile.bucket?.currentItems) ? profile.bucket.currentItems.length : 0;
     const rodName = resolveItemName(profile.equipment?.currentRod, 'Bare Hand');
@@ -64,21 +71,25 @@ function buildMainV2(profile = {}) {
     const text1 = new TextDisplayBuilder()
         .setContent('# 🎣 Fishing\n> How its going? Feel boring old fish once? Now this time is literally different, pick your bucket and rods and catch some big fish!\n> **Daily Streak:** ' + (profile.dailyStreak || 0) + ' days');
 
+    const locationLine = profile.currentMap
+        ? `📍 ${mapManager.getMap(profile.currentMap)?.name || profile.currentMap}`
+        : `⚠️ No Location selected — **Pick one first!**`;
+
     const text2 = new TextDisplayBuilder()
-        .setContent(`**Current Equipment**\n${durabilityLine}\n\n**Bucket capacity:**\n${bucketLine}\n\n**Current Location**\n${profile.currentMap || 'Unknown'}`);
+        .setContent(`**Current Equipment**\n${durabilityLine}\n\n**Bucket capacity:**\n${bucketLine}\n\n**Current Location:**\n${locationLine}`);
 
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('fish_buckets')
-            .setLabel('Buckets')
+            .setLabel('View buckets')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('fish_skill')
-            .setLabel('Skills')
+            .setLabel('Upgrade skills')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
             .setCustomId('fish_shop')
-            .setLabel('Shop')
+            .setLabel('Visit shop')
             .setStyle(ButtonStyle.Secondary)
     );
 
@@ -94,13 +105,23 @@ function buildMainV2(profile = {}) {
         new ButtonBuilder()
             .setCustomId('fish_now')
             .setLabel('Fishing now')
-            .setStyle(ButtonStyle.Success)
+            .setStyle(profile.currentMap ? ButtonStyle.Success : ButtonStyle.Secondary)
+            .setDisabled(!profile.currentMap)
     );
 
-    return new ContainerBuilder()
+    const container = new ContainerBuilder()
         .addTextDisplayComponents(text1)
         .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(text2)
+        .addTextDisplayComponents(text2);
+
+    if (noticeMessage) {
+        const noticeText = new TextDisplayBuilder().setContent(`> ${noticeMessage}`);
+        container
+            .addSeparatorComponents(new SeparatorBuilder())
+            .addTextDisplayComponents(noticeText);
+    }
+
+    return container
         .addSeparatorComponents(new SeparatorBuilder())
         .addActionRowComponents(row1)
         .addActionRowComponents(row2);
@@ -133,9 +154,9 @@ function formatStatLine(current, max, label, length = 10) {
 
 
 
-function buildBucketV2() {
+function buildBucket() {
     const text = new TextDisplayBuilder()
-        .setContent('# 🎒 Buckets\nBucket UI will be implemented here.');
+        .setContent('# 🎒 Buckets\nStill in construction, stay still');
     const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('fish_equipment_back')
@@ -147,9 +168,9 @@ function buildBucketV2() {
         .addActionRowComponents(buttons);
 }
 
-function buildSkillV2() {
+function buildSkill() {
     const text = new TextDisplayBuilder()
-        .setContent('# 🧠 Skill\nSkill UI will be implemented here.');
+        .setContent('# 🧠 Skill\nStill in construction, stay still');
     const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('fish_equipment_back')
@@ -161,9 +182,102 @@ function buildSkillV2() {
         .addActionRowComponents(buttons);
 }
 
-function buildShopV2() {
+function buildShop(shopState) {
+    return fishShop.buildFishShopContainer(shopState);
+}
+
+function buildLocation(profile = {}, selectedMapId = null) {
+    const historicalCatches = profile.historicalCatches || {};
+    const currentMapId = profile.currentMap || 'nomanssea';
+    const targetMapId = selectedMapId || currentMapId;
+
+    const map = mapManager.getMap(targetMapId) || mapManager.getAllMaps()[0];
+    const isUnlocked = mapManager.isMapUnlocked(map.id, historicalCatches);
+
+    const titleText = new TextDisplayBuilder().setContent('# 📍 Choosing Location');
+
+    const gallery = new MediaGalleryBuilder()
+        .addItems(
+            new MediaGalleryItemBuilder()
+                .setURL(`attachment://${map.image}`)
+                .setDescription(map.name)
+        );
+
+    let descriptionText = `**${map.name}** (Tier ${map.tier})\n> ${map.description}\n\n`;
+
+    if (isUnlocked) {
+        descriptionText += `**Rarity Rates:**\n`;
+        const commonRate = map.rates.COMMON || 0;
+        const uncommonRate = map.rates.UNCOMMON || 0;
+        const rareRate = map.rates.RARE || 0;
+        const epicRate = map.rates.EPIC || 0;
+        const legendaryRate = map.rates.LEGENDARY || 0;
+        const mythicRate = map.rates.MYTHIC || 0;
+
+        descriptionText += `\`Common: ${commonRate}%\` | \`Uncommon: ${uncommonRate}%\`\n`;
+        if (rareRate > 0 || epicRate > 0 || legendaryRate > 0 || mythicRate > 0) {
+            descriptionText += `**Rare+:** \`Rare: ${rareRate}%\` `;
+            if (epicRate > 0) descriptionText += `| \`Epic: ${epicRate}%\` `;
+            if (legendaryRate > 0) descriptionText += `| \`Legendary: ${legendaryRate}%\` `;
+            if (mythicRate > 0) descriptionText += `| \`Mythic: ${mythicRate}%\``;
+            descriptionText += '\n';
+        }
+    } else {
+        descriptionText += `🔒 **LOCKED**\n**Requirements to unlock:** ${mapManager.getMapUnlockRequirements(map)}\n`;
+    }
+
+    const detailsText = new TextDisplayBuilder().setContent(descriptionText);
+
+    const allMaps = mapManager.getAllMaps();
+    const mapOptions = allMaps.map(m => {
+        const unlocked = mapManager.isMapUnlocked(m.id, historicalCatches);
+        return {
+            label: `${m.name} ${unlocked ? '' : '(Locked)'}`,
+            value: m.id,
+            description: `Tier ${m.tier}`,
+            default: m.id === targetMapId
+        };
+    }).slice(0, 25);
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('fish_location_select')
+        .setPlaceholder('Select a location to travel')
+        .addOptions(mapOptions);
+
+    const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+    const travelButtonRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`fish_location_travel_${map.id}`)
+            .setLabel(map.id === currentMapId ? 'Already here' : 'Travel')
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(!isUnlocked || map.id === currentMapId)
+    );
+
+    const navButtonRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('fish_equipment_back')
+            .setLabel('Go back')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('fish_now')
+            .setLabel('Fishing now')
+            .setStyle(ButtonStyle.Primary)
+    );
+
+    return new ContainerBuilder()
+        .addTextDisplayComponents(titleText)
+        .addMediaGalleryComponents(gallery)
+        .addActionRowComponents(selectRow)
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addTextDisplayComponents(detailsText)
+        .addActionRowComponents(travelButtonRow)
+        .addActionRowComponents(navButtonRow);
+}
+
+function buildFishingNow() {
     const text = new TextDisplayBuilder()
-        .setContent('# 🛒 Shop\nShop UI will be implemented here. This is where fishing rods and bait can be purchased.');
+        .setContent('# 🎣 Fishing now\nStill in construction, stay still');
     const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('fish_equipment_back')
@@ -175,35 +289,7 @@ function buildShopV2() {
         .addActionRowComponents(buttons);
 }
 
-function buildLocationV2() {
-    const text = new TextDisplayBuilder()
-        .setContent('# 📍 Location\nLocation UI will be implemented here.');
-    const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('fish_equipment_back')
-            .setLabel('Go back')
-            .setStyle(ButtonStyle.Secondary)
-    );
-    return new ContainerBuilder()
-        .addTextDisplayComponents(text)
-        .addActionRowComponents(buttons);
-}
-
-function buildFishingNowV2() {
-    const text = new TextDisplayBuilder()
-        .setContent('# 🎣 Fishing now\nFishing minigame will start from here.');
-    const buttons = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('fish_equipment_back')
-            .setLabel('Go back')
-            .setStyle(ButtonStyle.Secondary)
-    );
-    return new ContainerBuilder()
-        .addTextDisplayComponents(text)
-        .addActionRowComponents(buttons);
-}
-
-function buildEquipmentV2(profile = {}, inventory = []) {
+function buildEquipment(profile = {}, inventory = [], infoMessage = null) {
     const bucketSize = profile.bucket?.maxSpace || 5;
     const bucketCount = Array.isArray(profile.bucket?.currentItems) ? profile.bucket.currentItems.length : 0;
 
@@ -220,17 +306,15 @@ function buildEquipmentV2(profile = {}, inventory = []) {
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, '', 10);
 
     const text1 = new TextDisplayBuilder()
-        .setContent('# 🪝 Equipment\n> Pick yourself a tool and some bait to bring with you.\n> If you have none, that\'s alright! Your bare hand will suffice.\n> You can always check out the /shop view to buy more equipment.');
+        .setContent('# 🪝 Equipment\n> Select your favorite fishing rod and some bait you had brought in shopping');
 
     let rodInfo = '';
     if (isBareHand) {
         rodInfo = '• Free fishing rod\n• Never worry about durability\n• Only use finger bait (ofc lol)';
     } else {
-        rodInfo = `🎣 **Fishing Rod: ${rodName}**\n**Durability:**\n${durabilityLine}\n\n**Stats:**\n• No stats currently`;
+        rodInfo = `**Durability:**\n${durabilityLine}\n\n**Stats:**\n• No stats currently`; // Currently these item dont have any stats lol
     }
     const text2 = new TextDisplayBuilder().setContent(rodInfo);
-
-
 
     const currentRod = profile.equipment?.currentRod || 'hand';
     const currentBait = profile.equipment?.currentBait || 'worm';
@@ -243,7 +327,7 @@ function buildEquipmentV2(profile = {}, inventory = []) {
     const baitSelect = new StringSelectMenuBuilder()
         .setCustomId('fish_equipment_select_bait')
         .setPlaceholder('Choose bait')
-        .setOptions(getBaitOptions(currentBait))
+        .setOptions(getBaitOptions(currentBait, inventory))
         .setDisabled(String(currentRod).toLowerCase() === 'hand');
 
     const row1 = new ActionRowBuilder().addComponents(rodSelect);
@@ -259,22 +343,31 @@ function buildEquipmentV2(profile = {}, inventory = []) {
             .setStyle(ButtonStyle.Success)
     );
 
-    return new ContainerBuilder()
+    const builder = new ContainerBuilder()
         .addTextDisplayComponents(text1)
         .addSeparatorComponents(new SeparatorBuilder())
-        .addActionRowComponents(row1)
+        .addActionRowComponents(row1);
+
+    if (infoMessage) {
+        const infoText = new TextDisplayBuilder().setContent(`> ${infoMessage}`);
+        builder.addSeparatorComponents(new SeparatorBuilder()).addTextDisplayComponents(infoText);
+    }
+
+    builder
         .addTextDisplayComponents(text2)
         .addSeparatorComponents(new SeparatorBuilder())
         .addActionRowComponents(row2)
         .addActionRowComponents(row3);
+
+    return builder;
 }
 
 module.exports = {
-    buildMainV2,
-    buildBucketV2,
-    buildSkillV2,
-    buildShopV2,
-    buildLocationV2,
-    buildFishingNowV2,
-    buildEquipmentV2,
+    buildMain,
+    buildBucket,
+    buildSkill,
+    buildShop,
+    buildLocation,
+    buildFishingNow,
+    buildEquipment,
 };

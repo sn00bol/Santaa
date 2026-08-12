@@ -1,5 +1,5 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
-const { CURRENCY_SYMBOL } = require('./config');
+const { CURRENCY_EMOJI } = require('./config');
 
 // Colors
 const bgColor = '#1E1E2E';
@@ -263,10 +263,10 @@ async function generateBalanceCard(displayName, user, data) {
 
   // Stat rows: label | value
   const stats = [
-    { label: 'Wallet', value: `${Number(data.balance).toLocaleString()}${CURRENCY_SYMBOL}`, color: accentColor },
-    { label: 'Bank', value: `${Number(data.bank).toLocaleString()}${CURRENCY_SYMBOL}`, color: successColor },
-    { label: 'Inventory', value: `${Number(data.inventoryValue).toLocaleString()}${CURRENCY_SYMBOL}`, color: '#CBA6F7' },
-    { label: 'Net Worth', value: `${Number(data.totalAssets).toLocaleString()}${CURRENCY_SYMBOL}`, color: '#F9E2AF' },
+    { label: 'Wallet', value: `${Number(data.balance).toLocaleString()}${CURRENCY_EMOJI}`, color: accentColor },
+    { label: 'Bank', value: `${Number(data.bank).toLocaleString()}${CURRENCY_EMOJI}`, color: successColor },
+    { label: 'Inventory', value: `${Number(data.inventoryValue).toLocaleString()}${CURRENCY_EMOJI}`, color: '#CBA6F7' },
+    { label: 'Net Worth', value: `${Number(data.totalAssets).toLocaleString()}${CURRENCY_EMOJI}`, color: '#F9E2AF' },
   ];
 
   const statStartY = 110;

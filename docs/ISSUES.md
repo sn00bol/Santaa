@@ -59,21 +59,30 @@
 - **Status**: Fixed
 - **Detail**: The wanted level decay too short (I set it on config.js only have 10 seconds for decay)
 
+### [ISSUE-015] Not using fishing rod durability
+- **Status**: Fixed
+- **Detail**: At start v1.2.0-alpha.2, the durability specific type for fishing rod currently not using for somehow and I have to set random durability prevent bugs (v1.2.0-alpha.3 fixed it)
+
+### [ISSUE-017]: Time closing fish too fast
+- **Status**: Fixed
+- **Detail**: Time closing command too fast, on v1.2.0-alpha.3 change 2 minutes to 10 minutes
+
+### [ISSUE-019]: Fishing equipment not using "real" item
+- **Status**: Fixed
+- **Detail**: Before fix equipment literally using "ghost" item which is mean always owned zero, random durability, and bait too
+
+### [ISSUE-020]: When use "Zbeg @user", it ask "beg for money?" and when accept it it give money without that user permission
+- **Status**: Fixed
+- **Detail**: detail on issue name bruh
+
 ---
 ## STILL NOT FIX OR OTHER ISSUE
-### [ISSUE-015] Not using fishing rod durability
-- **Status**: Not fixed
-- **Detail**: At start v1.2.0-alpha.2, the durability specific type for fishing rod currently not using for somehow and I have to set random durability prevent bugs
 
 ### [ISSUE-016]: fishing Now, buckets, skills, location not added
 - **Status**: Still in development
-- **Detail**: Currently which button had added: Shop, Equipment, the rest of them are unusable or still implemented
+- **Detail**: Currently which button had added: Shop, Equipment, location, the rest of them are unusable or still developing
 
-### [ISSUE-017]: Time closing fish too fast
-- **Status**: Not fixed
-- **Detail**: Time closing command too fast, that all
-
-### [ISSUE-018]: Ưanted Level not working on fish
+### [ISSUE-018]: Wanted Level not working on fish
 - **Status**: Not added
 - **Detail**: Well who gonna add that when fish still unstable?
 
@@ -81,11 +90,11 @@
 # BUG
 ## FIXED BUGS OR CURRENTLY REVIEWED
 
-None
+### [BUG-001]: Equipment button on fish shop too slow to respond
+- **Status**: Fixed
+- **Detail**: At the main menu this button work perfectly but at fish shop, normally it work but when goes in buying item it too slow to respond discord
 
 ---
 ## STILL NOT FIX OR OTHER ISSUE
 
-### [BUG-001]: Equipment button on fish shop too slow to respond
-- **Status**: Not fixed
-- **Detail**: At the main menu this button work perfectly but at fish shop, normally it work but when goes in buying item it too slow to respond discord
+### [BUG-002]: Still not found
