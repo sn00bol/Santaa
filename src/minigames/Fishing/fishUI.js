@@ -275,18 +275,113 @@ function buildLocation(profile = {}, selectedMapId = null) {
         .addActionRowComponents(navButtonRow);
 }
 
-function buildFishingNow() {
+function buildFishingNow(profile) {
+    const bucketSize = profile.bucket?.maxSpace || 5;
+    const bucketCount = Array.isArray(profile.bucket?.currentItems) ? profile.bucket.currentItems.length : 0;
+    const rodName = resolveItemName(profile.equipment?.currentRod, 'Bare Hand');
+    const isBareHand = String(profile.equipment?.currentRod || '').toLowerCase() === 'hand' || rodName.toLowerCase().includes('hand');
+    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? 0);
+    const durabilityMax = isBareHand ? '∞' : '100';
+
+    const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, rodName, 10);
+    const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), '', 10);
+
     const text = new TextDisplayBuilder()
-        .setContent('# 🎣 Fishing now\nStill in construction, stay still');
+        .setContent('# 🎣 Fishing now\n> Get ready! The fish are biting. Keep your eyes on the line and reel them in as soon as you feel a tug!');
+
+    const statsText = new TextDisplayBuilder()
+        .setContent(`**Current Status**\n${durabilityLine}\n${bucketLine}`);
+
     const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('fish_equipment_back')
             .setLabel('Go back')
             .setStyle(ButtonStyle.Secondary)
     );
+
     return new ContainerBuilder()
         .addTextDisplayComponents(text)
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addTextDisplayComponents(statsText)
         .addActionRowComponents(buttons);
+}
+
+function buildWaitingEmbed(profile) {
+    const bucketSize = profile.bucket?.maxSpace || 5;
+    const bucketCount = Array.isArray(profile.bucket?.currentItems) ? profile.bucket.currentItems.length : 0;
+    const rodName = resolveItemName(profile.equipment?.currentRod, 'Bare Hand');
+    const isBareHand = String(profile.equipment?.currentRod || '').toLowerCase() === 'hand' || rodName.toLowerCase().includes('hand');
+    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? 0);
+    const durabilityMax = isBareHand ? '∞' : '100';
+
+    const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, rodName, 10);
+    const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), '', 10);
+
+    return new EmbedBuilder()
+        .setTitle('Waiting for a bite... 🌊')
+        .setDescription('Be ready to reel it in!')
+        .addFields(
+            { name: 'Bucket Space', value: bucketLine },
+            { name: 'Durability', value: durabilityLine }
+        )
+        .setColor('#3498db');
+}
+
+function buildTugOfWarEmbed(profile, position, mapImage) {
+    const bucketSize = profile.bucket?.maxSpace || 5;
+    const bucketCount = Array.isArray(profile.bucket?.currentItems) ? profile.bucket.currentItems.length : 0;
+    const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), '', 10);
+
+    const barLength = 12;
+    const bar = new Array(barLength).fill('█');
+    const fishIndex = Math.max(0, Math.min(barLength - 1, Math.floor(position ?? 0)));
+    bar[fishIndex] = '🐟';
+    const barString = `🎣[${bar.join('')}]🌊`;
+
+    return new EmbedBuilder()
+        .setTitle('🎣 Tug of War!')
+        .setDescription(`Reel in the fish before it escapes!\n\n${barString}`)
+        .setImage(`attachment://${mapImage}`)
+        .addFields({ name: 'Bucket Space', value: bucketLine })
+        .setColor('#e67e22');
+}
+
+function buildResultEmbed(success, fish, profile, failMessage = null) {
+    const bucketSize = profile.bucket?.maxSpace || 5;
+    const bucketCount = Array.isArray(profile.bucket?.currentItems) ? profile.bucket.currentItems.length : 0;
+    const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), '', 10);
+
+    if (success) {
+        return new EmbedBuilder()
+            .setTitle('🎉 You caught a fish!')
+            .setDescription(`**${fish.name}**\n${fish.rarityLabel || 'Common'}\n${fish.description || 'A fine catch!'}`)
+            .setImage(fish.image || null)
+            .addFields({ name: 'Bucket Space', value: bucketLine })
+            .setColor('#2ecc71');
+    } else {
+        return new EmbedBuilder()
+            .setTitle('🎣 Fish got away...')
+            .setDescription(failMessage || 'The fish had flee to the freedom... wanna try it again?')
+            .addFields({ name: 'Bucket Space', value: bucketLine })
+            .setColor('#e74c3c');
+    }
+}
+
+function buildResultButtons() {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('fish_equipment_back')
+            .setLabel('Go back')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('fish_shop')
+            .setLabel('Open shop')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('fish_now')
+            .setLabel('Fish again')
+            .setStyle(ButtonStyle.Success)
+    );
 }
 
 function buildEquipment(profile = {}, inventory = [], infoMessage = null) {
@@ -309,10 +404,14 @@ function buildEquipment(profile = {}, inventory = [], infoMessage = null) {
         .setContent('# 🪝 Equipment\n> Select your favorite fishing rod and some bait you had brought in shopping');
 
     let rodInfo = '';
-    if (isBareHand) {
-        rodInfo = '• Free fishing rod\n• Never worry about durability\n• Only use finger bait (ofc lol)';
+    const ownedRod = inventory.some(item => String(item.item_id) === String(rodId));
+    const rodItem = allItemsCache.get(rodId);
+
+    if (!ownedRod) {
+        rodInfo = `**Durability:**\n${durabilityLine}\n\n**Stats:**\n• No stats currently`;
     } else {
-        rodInfo = `**Durability:**\n${durabilityLine}\n\n**Stats:**\n• No stats currently`; // Currently these item dont have any stats lol
+        const rodStatsText = rodItem ? (rodItem.stat || rodItem.stats || '• No stats currently') : '• No stats currently';
+        rodInfo = `**Durability:**\n${durabilityLine}\n\n**Stats:**\n${rodStatsText}`;
     }
     const text2 = new TextDisplayBuilder().setContent(rodInfo);
 
@@ -369,5 +468,9 @@ module.exports = {
     buildShop,
     buildLocation,
     buildFishingNow,
+    buildWaitingEmbed,
+    buildTugOfWarEmbed,
+    buildResultEmbed,
+    buildResultButtons,
     buildEquipment,
 };

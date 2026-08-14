@@ -1,16 +1,13 @@
-v1.2.0-alpha.3
-- Add assets folder (for fish and mine too)
-- What worked on this alpha 3: equipment, shop, location
-- Fix equipment literally not using real fishing rod, bait item and owned (fr)
-- Fix equipment button at fish shop not working
-- Fix buildShop still blank on fishUI (ofc my coding skill again lol)
-- Fix Not using fishing rod durability and time closing too fast
-- Currently map not accurate (ofc only two image srry)
-- HOTFIX beg command
+v1.2.0-alpha.4
+- What worked on this alpha 4: equipment, shop, location, fishing now
+- Tug of War fishing minigame still slow and not smoothly
+- Add damage item when win fishing, add fishing rod stats and some map for tier 1
+- Fixing some bug
 
 # CHANGELOG
 # v1.2.0 - 8.xx.2026
 - Big upgrade UI/UX and brand new minigames for fishing (it really big upgrade I swear)
+- Add a lot of new fish
 - Add fish shop: fishing rod, bait, bucket
 - Add beach/sea map for fish and diverse rarity rate
 - Other: achievement (currently for fish), give money/items, show/hide items and commands

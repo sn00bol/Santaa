@@ -1,7 +1,7 @@
-// Dont ask why fish.js here cuz im accidentally forgot and when move it into minigame it cause bug so imma leave it here for short time
-
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
 const { getRandomFish, calculateExp } = require('./fishCore');
+const fs = require('fs');
+const path = require('path');
 const fishUI = require('./fishUI');
 const fishShop = require('./fishShop');
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
@@ -9,7 +9,6 @@ const rpgmanager = require('../../../database/rpgmanager');
 const { checkCooldown, getCooldownDuration } = require('../../commands/Utils/Cooldown');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
 const mapManager = require('./MapManager');
-const path = require('path');
 
 const fishCounts = new Map(); // userId -> { count, cooldownUntil }
 
@@ -133,14 +132,211 @@ module.exports = {
         const container = fishUI.buildMain(profile);
         const mainMsg = await message.reply({ components: [container], flags: [MessageFlags.IsComponentsV2] });
 
+        async function handleFishingResult(success) {
+            endTugOfWar();
+            
+            if (success) {
+                const map = mapManager.getMap(profile.currentMap) || mapManager.getAllMaps()[0];
+                const tier = map.tier;
+                let winFish = false;
+                let winItem = false;
+
+                const roll = Math.random();
+                if (tier <= 2) {
+                    if (roll < 0.6) winFish = true; else winItem = true;
+                } else {
+                    if (roll < 0.5) winFish = true; else winItem = true;
+                }
+
+                if (winFish) {
+                    const rodId = profile.equipment?.currentRod || 'hand';
+                    const baitId = profile.equipment?.currentBait || 'finger';
+                    const rod = require('./fishCore').ROD_STATS[rodId] || require('./fishCore').ROD_STATS.hand;
+                    
+                    const multiCatch = rod.multiCatch || 1;
+                    const catchCount = typeof multiCatch === 'object' ? Math.floor(Math.random() * (multiCatch.max - multiCatch.min + 1)) + multiCatch.min : multiCatch;
+                    
+                    const caughtFishList = [];
+                    for (let i = 0; i < catchCount; i++) {
+                        const fish = getRandomFish(rodId, baitId);
+                        if (fish) caughtFishList.push(fish);
+                    }
+
+                    if (caughtFishList.length === 0) return await handleFishingResult(false);
+                    
+                    let fishDisplay = '';
+                    for (const fish of caughtFishList) {
+                        await rpgmanager.addItem(userId, fish.id, fish.name);
+                        fishDisplay += `**${fish.name}** (${fish.rarityLabel})\n`;
+                    }
+                    
+                    await mainMsg.edit({
+                        content: null,
+                        embeds: [],
+                        components: [
+                            new ContainerBuilder()
+                                .addTextDisplayComponents(
+                                    new TextDisplayBuilder()
+                                        .setContent(`# 🎉 You caught ${caughtFishList.length} fish!\n${fishDisplay}\n\n${fishUI.buildResultEmbed(true, caughtFishList[0], profile).data.fields[0].value}`)
+                                )
+                                .addActionRowComponents([fishUI.buildResultButtons()])
+                        ],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                } else {
+                    // Handle random item (Damage Item)
+                    const randomItem = await getRandomDamageItem();
+                    if (randomItem) {
+                        await rpgmanager.addItem(userId, randomItem.id, `${randomItem.name} (Damage Item)`);
+                    }
+                    
+                    await mainMsg.edit({
+                        content: null,
+                        embeds: [],
+                        components: [
+                            new ContainerBuilder()
+                                .addTextDisplayComponents(
+                                    new TextDisplayBuilder()
+                                        .setContent(`# 🎣 You caught some junk!\n> You caught some junk instead of a fish!\n\n${fishUI.buildResultEmbed(false, null, profile).data.fields[0].value}`)
+                                )
+                                .addActionRowComponents([fishUI.buildResultButtons()])
+                        ],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                }
+            } else {
+                await mainMsg.edit({
+                    content: null,
+                    embeds: [],
+                    components: [
+                            new ContainerBuilder()
+                                .addTextDisplayComponents(
+                                    new TextDisplayBuilder()
+                                        .setContent(`# 🎣 Fish got away...\n> The fish had flee to the freedom... wanna try it again?\n\n${fishUI.buildResultEmbed(false, null, profile).data.fields[0].value}`)
+                                )
+                                .addActionRowComponents([fishUI.buildResultButtons()])
+                        ],
+                        flags: [MessageFlags.IsComponentsV2]
+                });
+            }
+        }
+
+        async function getRandomDamageItem() {
+            const itemPool = [];
+            // Correct paths based on workspace structure
+            const shopPaths = [
+                path.join(__dirname, '..', '..', 'items', 'shopItems', 'gepora'),
+                path.join(__dirname, '..', '..', 'items', 'shopItems', 'kimori'),
+                path.join(__dirname, '..', '..', 'items', 'fish', 'fshop', 'fishingRod')
+            ];
+
+            for (const p of shopPaths) {
+                if (fs.existsSync(p)) {
+                    const files = fs.readdirSync(p).filter(f => f.endsWith('.js'));
+                    for (const f of files) {
+                        try {
+                            const item = require(path.join(p, f));
+                            
+                            // Skip default items and bait
+                            if (['hand', 'defaultRod', 'worm', 'jig', 'crank', 'finger'].includes(item.id)) continue;
+                            
+                            // We include items that have any special stats, durability, or capacity
+                            // Or just any item from these folders to ensure we get "junk"
+                            if (item.stats || item.durability || item.capacity || true) {
+                                itemPool.push(item);
+                            }
+                        } catch (e) {}
+                    }
+                }
+            }
+
+            if (itemPool.length === 0) return null;
+            return itemPool[Math.floor(Math.random() * itemPool.length)];
+        }
+
         let shopState = null;
         const collector = mainMsg.createMessageComponentCollector({
             filter: i => i.user.id === userId,
             time: 600000 // 10 minutes, reset on each interaction
         });
 
+        // Tug of War State
+        let tugOfWar = {
+            active: false,
+            position: 6,
+            interval: null,
+            timeout: null,
+            mapImage: null,
+            renderLock: false,
+            tickLock: false
+        };
+
+        const endTugOfWar = (result) => {
+            tugOfWar.active = false;
+            if (tugOfWar.interval) clearTimeout(tugOfWar.interval);
+            if (tugOfWar.timeout) clearTimeout(tugOfWar.timeout);
+            tugOfWar.interval = null;
+            tugOfWar.timeout = null;
+            return result;
+        };
+
+        const renderTugOfWar = async (overridePosition = null) => {
+            if (!tugOfWar.active || tugOfWar.renderLock) return;
+            tugOfWar.renderLock = true;
+            try {
+                const currentPosition = overridePosition ?? tugOfWar.position;
+                await mainMsg.edit({
+                    embeds: [],
+                    components: [
+                        new ContainerBuilder()
+                            .addTextDisplayComponents(
+                                new TextDisplayBuilder()
+                                    .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, currentPosition, tugOfWar.mapImage).data.description}\n\n${fishUI.buildWaitingEmbed(profile).data.fields[0].value}`)
+                            )
+                            .addActionRowComponents([
+                                new ActionRowBuilder().addComponents(
+                                    new ButtonBuilder()
+                                        .setCustomId('fish_reel_in')
+                                        .setLabel('🎣 REEL IN!')
+                                        .setStyle(ButtonStyle.Success)
+                                )
+                            ])
+                    ],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+            } catch (e) {
+                console.error('Error rendering tug-of-war state:', e);
+            } finally {
+                tugOfWar.renderLock = false;
+            }
+        };
+
         collector.on('collect', async i => {
-            collector.resetTimer(); // ISSUE-017: reset inactivity timer on every interaction
+            collector.resetTimer();
+
+            if (tugOfWar.active && i.customId === 'fish_reel_in') {
+                if (tugOfWar.renderLock) {
+                    await i.deferUpdate();
+                    return;
+                }
+
+                const rodId = profile.equipment?.currentRod || 'hand';
+                const baitId = profile.equipment?.currentBait || 'finger';
+                const rodPower = require('./fishCore').ROD_STATS[rodId]?.reelPower || 3;
+                const baitPower = require('./fishCore').BAIT_STATS[baitId]?.reelPower || 3;
+
+                const totalReelPower = Number(Math.max(3.2, (rodPower + baitPower) * 0.9).toFixed(1));
+
+                tugOfWar.position -= totalReelPower;
+                if (tugOfWar.position <= 0) {
+                    await i.deferUpdate();
+                    return await handleFishingResult(true);
+                }
+
+                await i.deferUpdate();
+                await renderTugOfWar();
+                return;
+            }
 
             if (i.customId === 'fish_buckets') {
                 await i.update({
@@ -252,14 +448,108 @@ module.exports = {
                     }
 
                     await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+
+                    if (currentRod === 'kaboom') {
+                        const inventoryRows = await rpgmanager.getInventory(userId);
+                        const kaboomEntry = inventoryRows.find(item => item.item_id === 'kaboom');
+                        if (kaboomEntry) {
+                            await rpgmanager.removeItem(kaboomEntry.id);
+                        }
+
+                        profile.equipment.currentRod = profile.fallbackRod || 'hand';
+                        profile.equipment.currentBait = 'finger';
+                        profile.equipment.durability = 0;
+                        await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+
+                        const inventory = await loadInventory();
+                        await i.update({
+                            content: null,
+                            embeds: [],
+                            components: [fishUI.buildEquipment(profile, inventory, '💥 Dynamite Kaboom has been used up! Falling back to bare hand fishing.')],
+                            flags: [MessageFlags.IsComponentsV2]
+                        });
+                        return;
+                    }
                 }
 
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildFishingNow()],
+                    components: [fishUI.buildFishingNow(profile)],
                     flags: [MessageFlags.IsComponentsV2]
                 });
+
+                const waitTime = Math.floor(Math.random() * (5000 - 2000 + 1)) + 2000;
+                setTimeout(async () => {
+                    try {
+                        const map = mapManager.getMap(profile.currentMap) || mapManager.getAllMaps()[0];
+                        const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'fish', map.image);
+                        
+                        tugOfWar.active = true;
+                        tugOfWar.position = 6;
+                        tugOfWar.mapImage = map.image;
+
+                        const tickTugOfWar = async () => {
+                            if (!tugOfWar.active || tugOfWar.tickLock) return;
+                            tugOfWar.tickLock = true;
+                            try {
+                                const rodId = profile.equipment?.currentRod || 'hand';
+                                const baitId = profile.equipment?.currentBait || 'finger';
+                                const rodPower = require('./fishCore').ROD_STATS[rodId]?.reelPower || 3;
+                                const baitPower = require('./fishCore').BAIT_STATS[baitId]?.reelPower || 3;
+
+                                const drift = Number(Math.min(0.45, 0.18 + ((baitPower || 3) / 10) * 0.12).toFixed(2));
+                                tugOfWar.position += drift;
+                                if (tugOfWar.position >= 12) {
+                                    await handleFishingResult(false);
+                                    return;
+                                }
+
+                                await renderTugOfWar();
+                            } catch (e) {
+                                console.error('Error in tug-of-war tick:', e);
+                            } finally {
+                                tugOfWar.tickLock = false;
+                                if (tugOfWar.active) {
+                                    tugOfWar.interval = setTimeout(tickTugOfWar, 500);
+                                }
+                            }
+                        };
+
+                        tugOfWar.interval = setTimeout(tickTugOfWar, 500);
+
+                        // Time limit
+                        tugOfWar.timeout = setTimeout(async () => {
+                            if (tugOfWar.active) {
+                                await handleFishingResult(false);
+                            }
+                        }, 15000);
+
+                        await mainMsg.edit({
+                            content: null,
+                            embeds: [],
+                            components: [
+                                new ContainerBuilder()
+                                    .addTextDisplayComponents(
+                                        new TextDisplayBuilder()
+                                        .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, tugOfWar.position, tugOfWar.mapImage).data.description}`)
+                                    )
+                                    .addActionRowComponents([
+                                        new ActionRowBuilder().addComponents(
+                                            new ButtonBuilder()
+                                                .setCustomId('fish_reel_in')
+                                                .setLabel('🎣 REEL IN!')
+                                                .setStyle(ButtonStyle.Success)
+                                        )
+                                    ])
+                            ],
+                            files: [{ attachment: imagePath, name: map.image }],
+                            flags: [MessageFlags.IsComponentsV2]
+                        });
+                    } catch (e) {
+                        console.error('Error transitioning to Tug of War:', e);
+                    }
+                }, waitTime);
                 return;
             }
 
@@ -287,7 +577,7 @@ module.exports = {
                         await i.update({
                             content: null,
                             embeds: [],
-                            components: [fishUI.buildEquipment(profile, inventory, 'You do not own this fishing rod.')],
+                            components: [fishUI.buildEquipment(profile, inventory, 'You dont own this item!')],
                             flags: [MessageFlags.IsComponentsV2]
                         });
                         return;

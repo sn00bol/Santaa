@@ -3,7 +3,7 @@ module.exports = {
     name: 'Public swimming pool',
     tier: 1,
     description: 'Wait, why are you fishing here?',
-    image: 'RandomSea.png',
+    image: 'pool.png',
     rates: {
     "COMMON": 80,
     "UNCOMMON": 19,

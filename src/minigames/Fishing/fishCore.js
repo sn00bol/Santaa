@@ -11,6 +11,22 @@ const RARITY_CONFIG = {
     MYTHIC: { weight: 0.5, label: 'Mythic', exp: 300 },
 };
 
+const ROD_STATS = {
+    hand: { reelPower: 3, mythicBoost: 1, multiCatch: 1, rarityPenalty: 0 },
+    defaultRod: { reelPower: 4, mythicBoost: 1, multiCatch: 1, rarityPenalty: 0 },
+    sharkRod: { reelPower: 3, mythicBoost: 2, multiCatch: 1, rarityPenalty: 0 },
+    kaboom: { reelPower: 3, mythicBoost: 1, multiCatch: 3, rarityPenalty: 10 },
+    bucketRod: { reelPower: 3, mythicBoost: 1, multiCatch: { min: 3, max: 5 }, rarityPenalty: 20 },
+    niceGlove: { reelPower: 3, mythicBoost: 1, multiCatch: 2, rarityPenalty: 0 },
+};
+
+const BAIT_STATS = {
+    finger: { reelPower: 3, rarityLimit: 'RARE', rateBoost: 1 },
+    crank: { reelPower: 3, rarityLimit: null, rateBoost: 1.2 },
+    jig: { reelPower: 5, rarityLimit: null, rateBoost: 1 },
+    worm: { reelPower: 3, rarityLimit: null, rateBoost: 1.1 },
+};
+
 const fishData = {
     COMMON: [],
     UNCOMMON: [],
@@ -58,16 +74,42 @@ const loadFish = () => {
 
 loadFish();
 
-function getRandomFish() {
-    const roll = Math.random() * 100;
+function getRandomFish(rodId = 'hand', baitId = 'finger') {
+    const rod = ROD_STATS[rodId] || ROD_STATS.hand;
+    const bait = BAIT_STATS[baitId] || BAIT_STATS.finger;
+
+    let roll = Math.random() * 100;
     let accumulatedWeight = 0;
     let selectedRarity = 'COMMON';
 
+    // Apply Mythic Boost from SharkRod
+    const mythicWeight = RARITY_CONFIG.MYTHIC.weight * (rod.mythicBoost || 1);
+    
+    // Adjust weights based on rod rarity penalty (for Kaboom/BucketRod)
+    const penalty = rod.rarityPenalty || 0;
+
     for (const [rarity, config] of Object.entries(RARITY_CONFIG)) {
-        accumulatedWeight += config.weight;
+        let weight = config.weight;
+        if (rarity === 'MYTHIC') weight = mythicWeight;
+        if (penalty > 0 && (rarity === 'MYTHIC' || rarity === 'LEGENDARY')) {
+            weight = Math.max(0.1, weight - penalty);
+        }
+        
+        accumulatedWeight += weight;
         if (roll <= accumulatedWeight) {
             selectedRarity = rarity;
             break;
+        }
+    }
+
+    // Apply Bait Rarity Limit (Finger)
+    if (bait.rarityLimit) {
+        const limits = { 'COMMON': 1, 'UNCOMMON': 2, 'EPIC': 3, 'RARE': 4, 'LEGENDARY': 5, 'MYTHIC': 6 };
+        const currentLimit = limits[bait.rarityLimit];
+        const selectedLimit = limits[selectedRarity];
+        if (selectedLimit > currentLimit) {
+            const allowedRarities = Object.keys(RARITY_CONFIG).filter(r => limits[r] <= currentLimit);
+            selectedRarity = allowedRarities[Math.floor(Math.random() * allowedRarities.length)];
         }
     }
 
@@ -75,7 +117,6 @@ function getRandomFish() {
     if (pool.length === 0) return null;
 
     const fish = pool[Math.floor(Math.random() * pool.length)];
-    // ensure returned fish includes rarity key and label
     return { ...fish, rarity: selectedRarity, rarityLabel: RARITY_CONFIG[selectedRarity].label };
 }
 
@@ -93,5 +134,7 @@ module.exports = {
     getRandomFish,
     calculateExp,
     RARITY_CONFIG,
+    ROD_STATS,
+    BAIT_STATS,
     fishData
 };

@@ -3,7 +3,7 @@ module.exports = {
     name: 'No Mans Sea',
     tier: 1,
     description: 'Land of no mans... according to legendary they said there something special about this place...',
-    image: 'Lake1.png',
+    image: 'nomanssea.png',
     rates: {
         "COMMON": 55,
         "UNCOMMON": 44,

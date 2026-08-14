@@ -78,13 +78,17 @@
 ---
 ## STILL NOT FIX OR OTHER ISSUE
 
-### [ISSUE-016]: fishing Now, buckets, skills, location not added
+### [ISSUE-016]: buckets, skills not added
 - **Status**: Still in development
-- **Detail**: Currently which button had added: Shop, Equipment, location, the rest of them are unusable or still developing
+- **Detail**: Currently which button had added: Shop, Equipment, location, fishing now the rest of them are unusable or still developing
 
 ### [ISSUE-018]: Wanted Level not working on fish
 - **Status**: Not added
 - **Detail**: Well who gonna add that when fish still unstable?
+
+### [ISSUE-019]: Buckets capacity on fishing now not working
+- **Status**: Not fixed
+- **Detail**: After user winning on fishing minigames, you could notice that buckets capacity not change anything because not adding buckets on alpha 4
 
 ---
 # BUG
@@ -94,7 +98,11 @@
 - **Status**: Fixed
 - **Detail**: At the main menu this button work perfectly but at fish shop, normally it work but when goes in buying item it too slow to respond discord
 
+### [BUG-002]: Click "reel in" button to fast
+- **Status**: Discord problem
+- **Detail**: At fish tug of war minigames, if user clicking reel in too fast make bot couldnt respond in time, had fixed but discord moment again
+
 ---
 ## STILL NOT FIX OR OTHER ISSUE
 
-### [BUG-002]: Still not found
+### [BUG-003]: Still not found

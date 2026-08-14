@@ -25,19 +25,26 @@ module.exports = {
             const userStats = await getTotalStats(message.author.id);
             inventoryItems = (await rpgmanager.getInventory(message.author.id)).filter(invItem => {
                 const itemDef = allItems.get(invItem.item_id);
-                return itemDef ? isVisibleItem(itemDef) : true;
+                if (!itemDef) return true;
+                
+                // Hide specific items
+                const fishingItems = ['hand', 'defaultRod', 'sharkRod', 'bucketRod', 'kaboom', 'niceGlove', 'worm', 'jig', 'crank', 'finger', 'defaultBucket'];
+                if (fishingItems.includes(invItem.item_id)) return false;
+
+                return isVisibleItem(itemDef);
             });
             totalPages = Math.max(1, Math.ceil(inventoryItems.length / itemsPerPage));
 
-            // Group items by item_id
+            // Group items by item_id and item_name (to separate Damage Items)
             const groupedItems = [];
             const counts = {};
             inventoryItems.forEach(item => {
-                if (!counts[item.item_id]) {
-                    counts[item.item_id] = { ...item, count: 1 };
-                    groupedItems.push(counts[item.item_id]);
+                const groupKey = `${item.item_id}_${item.item_name}`;
+                if (!counts[groupKey]) {
+                    counts[groupKey] = { ...item, count: 1 };
+                    groupedItems.push(counts[groupKey]);
                 } else {
-                    counts[item.item_id].count++;
+                    counts[groupKey].count++;
                 }
             });
 
@@ -80,7 +87,7 @@ module.exports = {
                 // Add Item Select Menu
                 let selectOptions = currentItems.map((item, index) => ({
                     label: `${start + index + 1}. ${item.item_name}`,
-                    value: item.item_id.toString(), // the item_id
+                    value: `${item.item_id}_${item.item_name}`, // Use combined key to distinguish Damage Items
                     description: `Quantity: x${item.count}`
                 }));
                 selectOptions = applySelectMenuDefaults(selectOptions, selectedInventoryIds);
@@ -101,7 +108,7 @@ module.exports = {
             // Add Interaction Buttons if items are selected
             if (selectedInventoryIds.length > 0) {
                 // Verify all selected items still exist in inventory
-                const selectedInvItems = groupedItems.filter(i => selectedInventoryIds.includes(i.item_id.toString()));
+                const selectedInvItems = groupedItems.filter(i => selectedInventoryIds.includes(`${i.item_id}_${i.item_name}`));
                 
                 if (selectedInvItems.length > 0) {
                     const btnRow = new ActionRowBuilder();
@@ -190,7 +197,6 @@ module.exports = {
                     return;
                 }
 
-                // ── Sell button (separate branch — must deferReply before any async work) ──
                 if (i.customId === 'inv_sell') {
                     if (selectedInventoryIds.length === 0) return i.reply({ content: 'Select an item first!', ephemeral: true });
                     
@@ -224,9 +230,10 @@ module.exports = {
                 if (i.customId === 'inv_use' || i.customId === 'inv_equip' || i.customId === 'inv_unequip') {
                     if (selectedInventoryIds.length !== 1) return i.reply({ content: 'Select exactly one item!', ephemeral: true });
                     
-                    const selectedInventoryId = selectedInventoryIds[0];
+                    const selectedKey = selectedInventoryIds[0];
+                    const [selectedInventoryId, selectedItemName] = selectedKey.split('_');
                     const rawInventory = await rpgmanager.getInventory(i.user.id);
-                    const itemInstance = rawInventory.find(item => item.item_id.toString() === selectedInventoryId);
+                    const itemInstance = rawInventory.find(item => item.item_id.toString() === selectedInventoryId && item.item_name === selectedItemName);
 
                     if (!itemInstance) return i.reply({ content: 'Item not found in inventory!', ephemeral: true });
 

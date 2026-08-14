@@ -72,7 +72,7 @@ The bot recursively scans all `.js` files in these folders
 
 module.exports = {
   name: 'hello',
-  aliases: ['hi'], // Not required to add
+  aliases: ['hi', 'hallo'], // Not required to add
   description: 'Bot greeting command', // Needed for help command
   category: 'gnr', // eco: Economic, gnr: General, owner: Owner (Important, if you make a command literally cheat lol), utl: Utils, mie: Minigames
   usage: '!hello', // really need, if you lazy to add then you could create a file to automatic add to all command
@@ -106,11 +106,25 @@ module.exports = {
     is_tradeable: true
     // show: false
 };
-
 // By default, you can define is_sellable: true and is_tradeable: true to indicate if the item can be sold or traded.
 // If not specified, they might have default fallback behaviors depending on the command.
 // Show: hide or show items in shop. If omitted, items appear in shop by default.
 ```
+Another specific type:
+```js
+module.exports = {
+    ...
+    // Fishing
+    durability: 50, // For fishing rod, when if zero its will break and fallback to hand.js items
+    capacity: 5, // For buckets
+    stats: "• get random 3-5 fish in one time but very worse (mostly get common 80-90%)\n• Durability hard to break\n• Cannot use any bait", // Needed to view stats on fishing equipment
+
+    // Other
+    effects: { health: 10, stamina: 20 }, // Consumable type, for reviving health and stamina
+    stats: { health: 1000, stamina: 1000, attack: 500, defense: 500 }, // Equippable type, for PVP stuff
+}
+```
+
 ## 5. Minigames System (`src/minigames`)
 
 Complex minigames are usually divided into 3 parts:
