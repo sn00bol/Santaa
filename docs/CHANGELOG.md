@@ -1,8 +1,11 @@
-v1.2.0-alpha.4
-- What worked on this alpha 4: equipment, shop, location, fishing now
-- Tug of War fishing minigame still slow and not smoothly
-- Add damage item when win fishing, add fishing rod stats and some map for tier 1
-- Fixing some bug
+v1.2.0-alpha.5
+- What worked on this alpha 5: ofc all
+- Modify some stuff at travel button
+- The codebase not fully optimized so can cause some delay or respond time error (SOMETIMES)
+- Upgrading skill could be not working smoothly
+- Tug of war kinda easy to play (will fix it at beta)
+- Fixed Dynamite kaboom and bucket rods only take 3 fish and no items (I SWEAR, dont judge me)
+- Fixed another issues
 
 # CHANGELOG
 # v1.2.0 - 8.xx.2026
@@ -13,7 +16,7 @@ v1.2.0-alpha.4
 - Other: achievement (currently for fish), give money/items, show/hide items and commands
 - Supporting aliases command
 - Modify some items and balancing stuff
-- Bot now when running npm run kinda slower
+- Bot now when running npm run kinda slower (somtimes little bit fast)
 - Remove custom currency emoji
 - HOTFIX beg command
 

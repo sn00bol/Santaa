@@ -63,34 +63,34 @@
 - **Status**: Fixed
 - **Detail**: At start v1.2.0-alpha.2, the durability specific type for fishing rod currently not using for somehow and I have to set random durability prevent bugs (v1.2.0-alpha.3 fixed it)
 
-### [ISSUE-017]: Time closing fish too fast
+### [ISSUE-016]: Time closing fish too fast
 - **Status**: Fixed
 - **Detail**: Time closing command too fast, on v1.2.0-alpha.3 change 2 minutes to 10 minutes
 
-### [ISSUE-019]: Fishing equipment not using "real" item
+### [ISSUE-017]: Fishing equipment not using "real" item
 - **Status**: Fixed
 - **Detail**: Before fix equipment literally using "ghost" item which is mean always owned zero, random durability, and bait too
 
-### [ISSUE-020]: When use "Zbeg @user", it ask "beg for money?" and when accept it it give money without that user permission
+### [ISSUE-018]: When use "Zbeg @user", it ask "beg for money?" and when accept it it give money without that user permission
 - **Status**: Fixed
 - **Detail**: detail on issue name bruh
+
+### [ISSUE-019]: Buckets capacity on after won fishing now not working (or only view not total buckets capacity)
+- **Status**: Fixed
+- **Detail**: After user winning on fishing minigames, you could notice that buckets capacity not change anything because not adding buckets on alpha 4, after alpha 5 its currently work but wrong capacity (or maybe)
 
 ---
 ## STILL NOT FIX OR OTHER ISSUE
 
-### [ISSUE-016]: buckets, skills not added
-- **Status**: Still in development
-- **Detail**: Currently which button had added: Shop, Equipment, location, fishing now the rest of them are unusable or still developing
-
-### [ISSUE-018]: Wanted Level not working on fish
-- **Status**: Not added
-- **Detail**: Well who gonna add that when fish still unstable?
-
-### [ISSUE-019]: Buckets capacity on fishing now not working
+### [ISSUE-019]: Fishing skill at select option broken
 - **Status**: Not fixed
-- **Detail**: After user winning on fishing minigames, you could notice that buckets capacity not change anything because not adding buckets on alpha 4
+- **Detail**: Somehow my coding skill have began and its compeletely broken, navigate dont work, upgrade not work... will fix it at beta
 
+### [ISSUE-020]: Tug of war gameplay always drainning even click fast as flash
+- **Status**: Not fixed
+- **Detail**: the name described it
 ---
+
 # BUG
 ## FIXED BUGS OR CURRENTLY REVIEWED
 

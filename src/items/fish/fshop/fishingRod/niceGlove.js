@@ -6,7 +6,7 @@ module.exports = {
     type: [],
     // Specific type for fishing rod
     durability: Infinity,
-    stats: "• get 2 fish in one time\n• Never worry about durability\n• Cannot use any bait",
+    stats: "• get 2 fish or items in one time\n• Never worry about durability\n• Cannot use any bait",
 
     is_sellable: true,
     is_tradeable: true

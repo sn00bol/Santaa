@@ -4,7 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const fishUI = require('./fishUI');
 const fishShop = require('./fishShop');
+const fishBucket = require('./fishBucket');
+const fishSkills = require('./fishSkills');
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
+const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 const rpgmanager = require('../../../database/rpgmanager');
 const { checkCooldown, getCooldownDuration } = require('../../commands/Utils/Cooldown');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
@@ -129,11 +132,13 @@ module.exports = {
             await rpgmanager.updateProgress(userId, { fishing_profile: profile });
         }
 
-        const container = fishUI.buildMain(profile);
+        const mainInventory = await loadInventory();
+        const container = fishUI.buildMain(profile, mainInventory);
         const mainMsg = await message.reply({ components: [container], flags: [MessageFlags.IsComponentsV2] });
 
         async function handleFishingResult(success) {
             endTugOfWar();
+            const inventoryNow = await loadInventory();
             
             if (success) {
                 const map = mapManager.getMap(profile.currentMap) || mapManager.getAllMaps()[0];
@@ -141,12 +146,36 @@ module.exports = {
                 let winFish = false;
                 let winItem = false;
 
+                // Get current rod and skill levels
+                const currentRod = profile.equipment?.currentRod || 'hand';
+                const handLoversLevel = fishSkills.getSkillLevel(profile, 'hand_lovers');
+                const bazookanistLevel = fishSkills.getSkillLevel(profile, 'bazookanist');
+                const bucketsEnhancedLevel = fishSkills.getSkillLevel(profile, 'buckets_enhanced');
+                const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
+                
+                // Calculate skill effects
+                // hand_lovers: +3% + level * 0.55% fish vs junk chance (hand only)
+                const handLoversEffect = currentRod === 'hand' 
+                    ? 0.03 + handLoversLevel * 0.0055 
+                    : 0;
+                
+                // bazookanist/buckets_enhanced: reduce rarity penalty
+                const bazookanistEffect = currentRod === 'kaboom' 
+                    ? 0.5 + (bazookanistLevel - 1) * 0.25 
+                    : 0;
+                const bucketsEnhancedEffect = currentRod === 'bucketRod' 
+                    ? 0.5 + (bucketsEnhancedLevel - 1) * 0.25 
+                    : 0;
+                
+                // Apply skill effects to roll threshold
+                // Base thresholds: tier <= 2 uses 0.6, tier > 2 uses 0.5
+                // Skill effects reduce the junk chance (increase fish chance)
+                const baseThreshold = tier <= 2 ? 0.6 : 0.5;
+                const adjustedThreshold = baseThreshold - handLoversEffect - bazookanistEffect - bucketsEnhancedEffect;
+                
                 const roll = Math.random();
-                if (tier <= 2) {
-                    if (roll < 0.6) winFish = true; else winItem = true;
-                } else {
-                    if (roll < 0.5) winFish = true; else winItem = true;
-                }
+                const effectiveThreshold = Math.max(0, Math.min(1, adjustedThreshold));
+                if (roll < effectiveThreshold) winFish = true; else winItem = true;
 
                 if (winFish) {
                     const rodId = profile.equipment?.currentRod || 'hand';
@@ -165,10 +194,16 @@ module.exports = {
                     if (caughtFishList.length === 0) return await handleFishingResult(false);
                     
                     let fishDisplay = '';
+                    let bucketNotice = '';
                     for (const fish of caughtFishList) {
                         await rpgmanager.addItem(userId, fish.id, fish.name);
+                        const bucketPlace = fishBucket.placeCaughtFish(profile, inventoryNow, fish);
+                        if (bucketPlace && !bucketPlace.placed && bucketPlace.reason === 'full') {
+                            bucketNotice = `\n> ⚠️ **${bucketPlace.bucketName}** is full! The overflow fish went to your general inventory (\`Zinventory\`) instead.`;
+                        }
                         fishDisplay += `**${fish.name}** (${fish.rarityLabel})\n`;
                     }
+                    await rpgmanager.updateProgress(userId, { fishing_profile: profile });
                     
                     await mainMsg.edit({
                         content: null,
@@ -177,7 +212,7 @@ module.exports = {
                             new ContainerBuilder()
                                 .addTextDisplayComponents(
                                     new TextDisplayBuilder()
-                                        .setContent(`# 🎉 You caught ${caughtFishList.length} fish!\n${fishDisplay}\n\n${fishUI.buildResultEmbed(true, caughtFishList[0], profile).data.fields[0].value}`)
+                                        .setContent(`# 🎉 You caught ${caughtFishList.length} fish!\n${fishDisplay}${bucketNotice}\n\n${fishUI.buildResultEmbed(true, caughtFishList[0], profile, null, inventoryNow).data.fields[0].value}`)
                                 )
                                 .addActionRowComponents([fishUI.buildResultButtons()])
                         ],
@@ -185,9 +220,22 @@ module.exports = {
                     });
                 } else {
                     // Handle random item (Damage Item)
-                    const randomItem = await getRandomDamageItem();
-                    if (randomItem) {
-                        await rpgmanager.addItem(userId, randomItem.id, `${randomItem.name} (Damage Item)`);
+                    const rodId = profile.equipment?.currentRod || 'hand';
+                    const rod = require('./fishCore').ROD_STATS[rodId] || require('./fishCore').ROD_STATS.hand;
+                    
+                    const multiCatch = rod.multiCatch || 1;
+                    const catchCount = typeof multiCatch === 'object' ? Math.floor(Math.random() * (multiCatch.max - multiCatch.min + 1)) + multiCatch.min : multiCatch;
+
+                    const caughtItemList = [];
+                    for (let i = 0; i < catchCount; i++) {
+                        const randomItem = await getRandomDamageItem();
+                        if (randomItem) caughtItemList.push(randomItem);
+                    }
+
+                    let itemDisplay = '';
+                    for (const item of caughtItemList) {
+                        await rpgmanager.addItem(userId, item.id, `${item.name} (Damage Item)`);
+                        itemDisplay += `**${item.name}**\n`;
                     }
                     
                     await mainMsg.edit({
@@ -197,7 +245,7 @@ module.exports = {
                             new ContainerBuilder()
                                 .addTextDisplayComponents(
                                     new TextDisplayBuilder()
-                                        .setContent(`# 🎣 You caught some junk!\n> You caught some junk instead of a fish!\n\n${fishUI.buildResultEmbed(false, null, profile).data.fields[0].value}`)
+                                        .setContent(`# 🎣 You caught some junk!\n> You caught ${caughtItemList.length} junk item(s) instead of a fish!\n${itemDisplay}\n${fishUI.buildResultEmbed(false, null, profile, null, inventoryNow).data.fields[0].value}`)
                                 )
                                 .addActionRowComponents([fishUI.buildResultButtons()])
                         ],
@@ -212,7 +260,7 @@ module.exports = {
                             new ContainerBuilder()
                                 .addTextDisplayComponents(
                                     new TextDisplayBuilder()
-                                        .setContent(`# 🎣 Fish got away...\n> The fish had flee to the freedom... wanna try it again?\n\n${fishUI.buildResultEmbed(false, null, profile).data.fields[0].value}`)
+                                        .setContent(`# 🎣 Fish got away...\n> The fish had flee to the freedom... wanna try it again?\n\n${fishUI.buildResultEmbed(false, null, profile, null, inventoryNow).data.fields[0].value}`)
                                 )
                                 .addActionRowComponents([fishUI.buildResultButtons()])
                         ],
@@ -255,6 +303,8 @@ module.exports = {
         }
 
         let shopState = null;
+        let bucketState = { view: 'overview', bucketKey: null, page: 0, showFishSelect: false };
+        let skillState = { view: 'main', branch: null, skillIndex: 0 };
         const collector = mainMsg.createMessageComponentCollector({
             filter: i => i.user.id === userId,
             time: 600000 // 10 minutes, reset on each interaction
@@ -291,7 +341,7 @@ module.exports = {
                         new ContainerBuilder()
                             .addTextDisplayComponents(
                                 new TextDisplayBuilder()
-                                    .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, currentPosition, tugOfWar.mapImage).data.description}\n\n${fishUI.buildWaitingEmbed(profile).data.fields[0].value}`)
+                                    .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, currentPosition, tugOfWar.mapImage, tugOfWar.inventory).data.description}\n\n${fishUI.buildWaitingEmbed(profile, tugOfWar.inventory).data.fields[0].value}`)
                             )
                             .addActionRowComponents([
                                 new ActionRowBuilder().addComponents(
@@ -312,7 +362,15 @@ module.exports = {
         };
 
         collector.on('collect', async i => {
+            // Fix: Allow navigation buttons (prev/next) and branch select to work even when in branch view
+            if (skillState.view === 'branch' && 
+                !i.customId.startsWith('fish_skill') && 
+                i.customId !== 'fish_equipment_back') {
+                await i.deferUpdate();
+                return;
+            }
             collector.resetTimer();
+            try {
 
             if (tugOfWar.active && i.customId === 'fish_reel_in') {
                 if (tugOfWar.renderLock) {
@@ -324,8 +382,9 @@ module.exports = {
                 const baitId = profile.equipment?.currentBait || 'finger';
                 const rodPower = require('./fishCore').ROD_STATS[rodId]?.reelPower || 3;
                 const baitPower = require('./fishCore').BAIT_STATS[baitId]?.reelPower || 3;
+                const imSmarterLevel = fishSkills.getSkillLevel(profile, 'im_smarter');
 
-                const totalReelPower = Number(Math.max(3.2, (rodPower + baitPower) * 0.9).toFixed(1));
+                const totalReelPower = Number(Math.max(3.2, (rodPower + baitPower + imSmarterLevel * 0.2) * 0.9).toFixed(1));
 
                 tugOfWar.position -= totalReelPower;
                 if (tugOfWar.position <= 0) {
@@ -339,12 +398,130 @@ module.exports = {
             }
 
             if (i.customId === 'fish_buckets') {
+                bucketState = { view: 'overview', bucketKey: null, page: 0, showFishSelect: false };
+                const inventory = await loadInventory();
+                // Seed / migrate bucket containers and re-sync the profile mirrors.
+                fishBucket.getOwnedBuckets(profile, inventory);
+                await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildBucket()],
+                    components: [fishUI.buildBucket(profile, inventory, bucketState)],
                     flags: [MessageFlags.IsComponentsV2]
                 });
+                return;
+            }
+
+            // ── Buckets sub-menu navigation & actions ─────────────────────
+            if (i.customId === 'fish_bucket_back') {
+                bucketState = { view: 'overview', bucketKey: null, page: 0, showFishSelect: false };
+                const inventory = await loadInventory();
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildBucket(profile, inventory, bucketState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            // NavigateManager pagination bar (customIds: first/prev/next/last).
+            // Overview -> page through the 5 free bucket slots; detail -> hop
+            // between buckets.
+            if (['first', 'prev', 'next', 'last'].includes(i.customId) && (bucketState.view === 'overview' || bucketState.view === 'detail')) {
+                const inventory = await loadInventory();
+                const ownedNow = fishBucket.getOwnedBuckets(profile, inventory);
+
+                if (bucketState.view === 'overview') {
+                    const maxPages = Math.max(1, Math.ceil(ownedNow.length / fishBucket.FREE_SLOT_COUNT));
+                    const page = Math.min(Math.max(0, bucketState.page || 0), maxPages - 1);
+                    let nextPage = page;
+                    if (i.customId === 'first') nextPage = 0;
+                    else if (i.customId === 'prev') nextPage = Math.max(0, page - 1);
+                    else if (i.customId === 'next') nextPage = Math.min(maxPages - 1, page + 1);
+                    else if (i.customId === 'last') nextPage = maxPages - 1;
+                    bucketState.page = nextPage;
+                } else {
+                    const nav = fishBucket.getBucketNavigation(profile, inventory, bucketState.bucketKey);
+                    let index = nav.index;
+                    if (i.customId === 'first') index = 0;
+                    else if (i.customId === 'prev') index = Math.max(0, index - 1);
+                    else if (i.customId === 'next') index = Math.min(nav.total - 1, index + 1);
+                    else if (i.customId === 'last') index = nav.total - 1;
+                    const target = ownedNow[index];
+                    if (target) bucketState.bucketKey = target.rowId;
+                }
+
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildBucket(profile, inventory, bucketState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_bucket_lock') {
+                const inventory = await loadInventory();
+                fishBucket.toggleBucketLock(profile, bucketState.bucketKey);
+                await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildBucket(profile, inventory, bucketState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_bucket_select_fish_toggle') {
+                const inventory = await loadInventory();
+                bucketState.showFishSelect = !bucketState.showFishSelect;
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildBucket(profile, inventory, bucketState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_bucket_sell_all') {
+                const inventory = await loadInventory();
+                const scope = bucketState.view === 'detail' ? bucketState.bucketKey : 'all';
+                const result = await fishBucket.sellAllFish(userId, profile, inventory, scope);
+
+                // sellAllFish replaces container arrays, so re-sync the mirrors
+                // (currentItems / maxSpace) before persisting.
+                const freshInventory = await loadInventory();
+                fishBucket.getOwnedBuckets(profile, freshInventory);
+                await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+
+                if (!result.ok) {
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildBucket(profile, freshInventory, bucketState)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                    await i.followUp({ content: result.message, ephemeral: true });
+                    return;
+                }
+
+                const soldLines = result.sold.slice(0, 10).map(s => `**${s.name}** \`x${s.count}\` — ${CURRENCY_EMOJI}${s.earned.toLocaleString()}`).join('\n');
+                const moreLine = result.sold.length > 10 ? `\n…and ${result.sold.length - 10} more type(s)` : '';
+                const summary = result.soldCount > 0
+                    ? `> **Sold ${result.soldCount} fish** for **${result.totalEarned.toLocaleString()}${CURRENCY_EMOJI}**!\n${soldLines}${moreLine}`
+                    : '> Nothing was sold — the bucket(s) are empty or only hold unsellable fish.';
+
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildBucket(profile, freshInventory, bucketState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                await i.followUp({ content: summary, ephemeral: true });
                 return;
             }
 
@@ -352,9 +529,148 @@ module.exports = {
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildSkill()],
+                    components: [fishUI.buildSkill(profile, skillState)],
                     flags: [MessageFlags.IsComponentsV2]
                 });
+                return;
+            }
+
+            if (i.customId === 'fish_skill_branch') {
+                const selected = i.values[0];
+                // 'main' means all skills view, otherwise switch to specific branch
+                if (selected === 'main') {
+                    skillState = { view: 'main', branch: null, skillIndex: 0 };
+                } else {
+                    skillState = { view: 'branch', branch: selected, skillIndex: 0 };
+                }
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildSkill(profile, skillState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_skill_unlock_max') {
+                let skillId = null;
+                if (skillState.branch && fishSkills.SKILL_BRANCHES[skillState.branch]) {
+                    const skills = fishSkills.SKILL_BRANCHES[skillState.branch].skills;
+                    const idx = Math.max(0, Math.min(skillState.skillIndex || 0, skills.length - 1));
+                    skillId = skills[idx].id;
+                }
+
+                if (skillId) {
+                    const result = fishSkills.unlockSkillLevel(profile, skillId);
+                    if (result.ok) {
+                        await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+                        await i.update({
+                            content: null,
+                            embeds: [],
+                            components: [fishUI.buildSkill(profile, skillState)],
+                            flags: [MessageFlags.IsComponentsV2]
+                        });
+                    } else {
+                        await i.followUp({ content: result.message, ephemeral: true });
+                    }
+                } else {
+                    await i.followUp({ content: 'Skill not found.', ephemeral: true });
+                }
+                return;
+            }
+
+            if (i.customId === 'fish_skill_unlock_all') {
+                let skillId = null;
+                if (skillState.branch && fishSkills.SKILL_BRANCHES[skillState.branch]) {
+                    const skills = fishSkills.SKILL_BRANCHES[skillState.branch].skills;
+                    const idx = Math.max(0, Math.min(skillState.skillIndex || 0, skills.length - 1));
+                    skillId = skills[idx].id;
+                }
+
+                if (skillId) {
+                    const found = fishSkills.findSkill(skillId);
+                    const skillDef = found.skill;
+                    const currentLevel = fishSkills.getSkillLevel(profile, skillId);
+                    const levelsToGain = skillDef.maxLevel - currentLevel;
+                    const totalCost = levelsToGain * (skillDef.cost || 1);
+                    const available = fishSkills.getAvailablePoints(profile);
+
+                    if (available < totalCost) {
+                        await i.followUp({ content: `Not enough skill points to max this skill! You need **${totalCost}** but have **${available}**.`, ephemeral: true });
+                        return;
+                    }
+
+                    profile.skill = profile.skill || {};
+                    profile.skill.levels = profile.skill.levels || {};
+                    profile.skill.levels[skillId] = skillDef.maxLevel;
+
+                    await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildSkill(profile, skillState)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                } else {
+                    await i.followUp({ content: 'Skill not found.', ephemeral: true });
+                }
+                return;
+            }
+
+            if (i.customId === 'fish_skill_reset') {
+                // Reset all skills - refund all points
+                fishSkills.resetSkills(profile);
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildSkill(profile, skillState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_skill_back') {
+                skillState = { view: 'main', branch: null, skillIndex: 0 };
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [fishUI.buildSkill(profile, skillState)],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
+
+            if (i.customId === 'fish_skill_prev') {
+                // Navigate to previous skill in branch (loop)
+                if (skillState.branch && fishSkills.SKILL_BRANCHES[skillState.branch]) {
+                    const skills = fishSkills.SKILL_BRANCHES[skillState.branch].skills;
+                    let newIndex = skillState.skillIndex - 1;
+                    if (newIndex < 0) newIndex = skills.length - 1;
+                    skillState = { ...skillState, skillIndex: newIndex };
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildSkill(profile, skillState)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                }
+                return;
+            }
+
+            if (i.customId === 'fish_skill_next') {
+                // Navigate to next skill in branch (loop)
+                if (skillState.branch && fishSkills.SKILL_BRANCHES[skillState.branch]) {
+                    const skills = fishSkills.SKILL_BRANCHES[skillState.branch].skills;
+                    let newIndex = skillState.skillIndex + 1;
+                    if (newIndex >= skills.length) newIndex = 0;
+                    skillState = { ...skillState, skillIndex: newIndex };
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildSkill(profile, skillState)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                }
                 return;
             }
 
@@ -389,8 +705,9 @@ module.exports = {
                 profile.currentMap = targetMapId;
                 await rpgmanager.updateProgress(userId, { fishing_profile: profile });
                 
+                const inventory = await loadInventory();
                 await i.update({
-                    components: [fishUI.buildMain(profile)]
+                    components: [fishUI.buildMain(profile, inventory)]
                 });
                 return;
             }
@@ -415,9 +732,11 @@ module.exports = {
                 const isBareHand = currentRod === 'hand';
 
                 if (!isBareHand) {
+                    const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
+                    const maxDurability = 100 + imStrongerLevel * 10;
                     const durability = typeof profile.equipment.durability === 'number'
                         ? profile.equipment.durability
-                        : 100;
+                        : maxDurability;
 
                     if (durability <= 0) {
                         profile.equipment.currentRod = profile.fallbackRod || 'hand';
@@ -472,10 +791,11 @@ module.exports = {
                     }
                 }
 
+                const inventory = await loadInventory();
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildFishingNow(profile)],
+                    components: [fishUI.buildFishingNow(profile, inventory)],
                     flags: [MessageFlags.IsComponentsV2]
                 });
 
@@ -488,6 +808,7 @@ module.exports = {
                         tugOfWar.active = true;
                         tugOfWar.position = 6;
                         tugOfWar.mapImage = map.image;
+                        tugOfWar.inventory = inventory;
 
                         const tickTugOfWar = async () => {
                             if (!tugOfWar.active || tugOfWar.tickLock) return;
@@ -499,7 +820,10 @@ module.exports = {
                                 const baitPower = require('./fishCore').BAIT_STATS[baitId]?.reelPower || 3;
 
                                 const drift = Number(Math.min(0.45, 0.18 + ((baitPower || 3) / 10) * 0.12).toFixed(2));
-                                tugOfWar.position += drift;
+                                // Reduce drift if user is clicking fast (simulated by checking if position is low)
+                                // Or simply lower the base drift to make it fairer.
+                                const adjustedDrift = tugOfWar.position < 4 ? drift * 0.5 : drift;
+                                tugOfWar.position += adjustedDrift;
                                 if (tugOfWar.position >= 12) {
                                     await handleFishingResult(false);
                                     return;
@@ -532,7 +856,7 @@ module.exports = {
                                 new ContainerBuilder()
                                     .addTextDisplayComponents(
                                         new TextDisplayBuilder()
-                                        .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, tugOfWar.position, tugOfWar.mapImage).data.description}`)
+                                        .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, tugOfWar.position, tugOfWar.mapImage, tugOfWar.inventory).data.description}`)
                                     )
                                     .addActionRowComponents([
                                         new ActionRowBuilder().addComponents(
@@ -626,13 +950,55 @@ module.exports = {
                     });
                     return;
                 }
+
+                if (i.customId === 'fish_bucket_select') {
+                    const selected = i.values[0];
+                    const inventory = await loadInventory();
+                    if (selected === 'all') {
+                        bucketState = { view: 'overview', bucketKey: null, page: 0, showFishSelect: false };
+                    } else {
+                        bucketState = { view: 'detail', bucketKey: selected, page: 0, showFishSelect: false };
+                    }
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildBucket(profile, inventory, bucketState)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                    return;
+                }
+
+                if (i.customId === 'fish_bucket_fish_select') {
+                    const [key, indexStr] = i.values[0].split(':');
+                    const fishIndex = Number(indexStr);
+                    const inventory = await loadInventory();
+
+                    const result = await fishBucket.sellFishFromBucket(userId, profile, inventory, key, fishIndex);
+                    await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+
+                    if (!result.ok) {
+                        await i.reply({ content: result.message, ephemeral: true });
+                        return;
+                    }
+
+                    const freshInventory = await loadInventory();
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [fishUI.buildBucket(profile, freshInventory, bucketState)],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                    await i.followUp({ content: `> Sold **${result.name}** for **${result.earned.toLocaleString()}${CURRENCY_EMOJI}**!`, ephemeral: true });
+                    return;
+                }
             }
 
             if (i.customId === 'fish_equipment_back') {
+                const inventory = await loadInventory();
                 await i.update({
                     content: null,
                     embeds: [],
-                    components: [fishUI.buildMain(profile)],
+                    components: [fishUI.buildMain(profile, inventory)],
                     files: [],
                     attachments: [],
                     flags: [MessageFlags.IsComponentsV2]
@@ -656,10 +1022,11 @@ module.exports = {
                 if (result.handled) {
                     if (result.action === 'back') {
                         shopState = null;
+                        const inventory = await loadInventory();
                         await i.update({
                             content: null,
                             embeds: [],
-                            components: [fishUI.buildMain(profile)],
+                            components: [fishUI.buildMain(profile, inventory)],
                             flags: [MessageFlags.IsComponentsV2]
                         });
                         return;
@@ -682,6 +1049,12 @@ module.exports = {
             }
 
             await i.deferUpdate();
+            } catch (error) {
+                // Never let an unexpected error leave the interaction
+                // unacknowledged (Discord would report "didn't respond in time").
+                console.error('Fish interaction error:', error);
+                await i.deferUpdate().catch(() => { });
+            }
         });
     }
 };

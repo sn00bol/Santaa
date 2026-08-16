@@ -26,13 +26,20 @@ const DEFAULT_FISHING_PROFILE = {
         maxSpace: 5,
         currentItems: [],
         fallbackBucket: 'YourHandLOL',
+        // Per-bucket state keyed by the REAL inventory row id of each owned
+        // bucket copy: { "<inventoryRowId>": { locked: bool, items: [{ id, name }] } }
+        containers: {},
     },
     fallbackRod: 'hand',
     initialItemsGranted: false,
     skill: {
+        // Legacy fields (kept for backward compat)
         profit: 0,
         fishingSkill: 0,
         duration: 0,
+        // New skill system
+        totalPoints: 0,    // cumulative points earned from catches
+        levels: {},        // { skillId: levelNumber, ... }
     },
     durability: 100,
 };
@@ -78,10 +85,20 @@ function parseFishingProfile(raw) {
         bucket: {
             ...DEFAULT_FISHING_PROFILE.bucket,
             ...(parsed.bucket || {}),
+            // Fresh per-call object so distinct profiles never share the default
+            // containers reference (mutating one profile would leak into another).
+            containers: (parsed.bucket && parsed.bucket.containers && typeof parsed.bucket.containers === 'object')
+                ? parsed.bucket.containers
+                : {},
         },
         skill: {
             ...DEFAULT_FISHING_PROFILE.skill,
             ...(parsed.skill || {}),
+            // Always ensure levels is a plain object, never undefined
+            levels: (parsed.skill && parsed.skill.levels && typeof parsed.skill.levels === 'object')
+                ? parsed.skill.levels
+                : {},
+            totalPoints: Number((parsed.skill && parsed.skill.totalPoints) || 0),
         },
     };
 

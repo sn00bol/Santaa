@@ -223,7 +223,10 @@ const handleFishShopInteraction = async (interaction, state) => {
             }
 
             const userDb = await dbmanager.getUser(interaction.user.id);
-            const cost = getShopItemCost(item);
+            const baseCost = getShopItemCost(item);
+            // shopping_god skill: - level * 2% to purchase prices
+            const shoppingGodLevel = fishSkills.getSkillLevel(profile, 'shopping_god');
+            const cost = Math.round(baseCost * (1 - shoppingGodLevel * 0.02));
             if (userDb.balance < cost) {
                 await interaction.reply({ content: `You do not have enough ${CURRENCY_EMOJI} to buy this item.`, ephemeral: true });
                 return { handled: true };

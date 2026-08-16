@@ -3,7 +3,7 @@ const rpgmanager = require('../../../database/rpgmanager');
 const dbmanager = require('../../../database/dbmanager');
 const { allItemsCache } = require('../Utils/StatsCalculator');
 
-async function executeSellMultiple(userId, itemsToSell, replyFn) {
+async function sellItemsCore(userId, itemsToSell) {
     let totalEarned = 0;
     const soldItems = [];
     const inventory = await rpgmanager.getInventory(userId);
@@ -17,6 +17,7 @@ async function executeSellMultiple(userId, itemsToSell, replyFn) {
     let equippedArr = [];
     try { equippedArr = JSON.parse(userStats.equipped_items || '[]'); } catch (e) { }
 
+    let equippedChanged = false;
     for (const { itemData, quantity } of itemsToSell) {
         if (!itemData.is_sellable || (itemData.sell ?? 0) <= 0) continue;
         
@@ -27,6 +28,7 @@ async function executeSellMultiple(userId, itemsToSell, replyFn) {
         if (isEquipped) {
             await rpgmanager.unequipItem(userId, itemData.id);
             equippedArr = equippedArr.filter(id => id !== itemData.id);
+            equippedChanged = true;
         }
 
         const toRemove = matchingItems.slice(0, quantity);
@@ -36,22 +38,31 @@ async function executeSellMultiple(userId, itemsToSell, replyFn) {
 
         const earned = itemData.sell * quantity;
         totalEarned += earned;
-        soldItems.push(`**${itemData.name}** \`x${quantity}\` ($${earned.toLocaleString()})`);
+        soldItems.push({ itemId: itemData.id, name: itemData.name, quantity, earned });
     }
 
-    if (soldItems.length === 0) {
+    if (totalEarned > 0) {
+        await dbmanager.addMoney(userId, totalEarned, { trackEarning: true });
+    }
+
+    return { totalEarned, soldItems, equippedChanged };
+}
+
+async function executeSellMultiple(userId, itemsToSell, replyFn) {
+    const result = await sellItemsCore(userId, itemsToSell);
+    if (result.soldItems.length === 0) {
         return replyFn({ content: "No items could be sold." });
     }
 
-    await dbmanager.addMoney(userId, totalEarned, { trackEarning: true });
+    const soldLines = result.soldItems.map(item => `**${item.name}** \`x${item.quantity}\` ($${item.earned.toLocaleString()})`);
     const userDb = await dbmanager.getUser(userId);
 
     const embed = new EmbedBuilder()
         .setTitle('Bulk Sale Successful!')
         .setColor(0x57F287)
-        .setDescription(soldItems.join('\n'))
+        .setDescription(soldLines.join('\n'))
         .addFields(
-            { name: 'Total Earned', value: `**$${totalEarned.toLocaleString()}**`, inline: true },
+            { name: 'Total Earned', value: `**$${result.totalEarned.toLocaleString()}**`, inline: true },
             { name: 'Your Balance', value: `$${userDb.balance.toLocaleString()}`, inline: true }
         )
         .setTimestamp();
@@ -95,21 +106,11 @@ async function executeSell(userId, itemData, quantity, replyFn) {
         return false;
     }
 
-    // Unequip if equipped before selling
-    const userStats = await rpgmanager.getStats(userId);
-    let equippedArr = [];
-    try { equippedArr = JSON.parse(userStats.equipped_items || '[]'); } catch (e) { }
-
-    const isEquipped = equippedArr.includes(itemData.id);
-    if (isEquipped) await rpgmanager.unequipItem(userId, itemData.id);
-
-    // Remove items from inventory
-    const toRemove = matchingItems.slice(0, quantity);
-    for (const inv of toRemove) await rpgmanager.removeItem(inv.id);
-
-    // Add money to balance
-    const totalEarned = unitPrice * quantity;
-    await dbmanager.addMoney(userId, totalEarned, { trackEarning: true });
+    const result = await sellItemsCore(userId, [{ itemData, quantity }]);
+    if (result.soldItems.length === 0) {
+        await replyFn("Failed to sell item.");
+        return false;
+    }
 
     // Build result embed
     const userDb = await dbmanager.getUser(userId);
@@ -120,10 +121,10 @@ async function executeSell(userId, itemData, quantity, replyFn) {
         .addFields(
             { name: 'Item', value: `**${itemData.name}** x${quantity}`, inline: true },
             { name: 'Unit Price', value: `$${unitPrice.toLocaleString()}`, inline: true },
-            { name: 'Total Earned', value: `**$${totalEarned.toLocaleString()}**`, inline: true },
+            { name: 'Total Earned', value: `**$${result.totalEarned.toLocaleString()}**`, inline: true },
             { name: 'Your Balance', value: `$${userDb.balance.toLocaleString()}`, inline: false },
         )
-        .setFooter({ text: isEquipped ? 'Item was unequipped before selling.' : `Remaining in inventory: ${matchingItems.length - quantity}x ${itemData.name}` })
+        .setFooter({ text: result.equippedChanged ? 'Item was unequipped before selling.' : `Remaining in inventory: ${matchingItems.length - quantity}x ${itemData.name}` })
         .setTimestamp();
 
     await replyFn({ embeds: [embed] });
@@ -138,6 +139,7 @@ module.exports = {
 
     executeSell, // re-exported for use by inventory.js sell button
     executeSellMultiple, // export bulk sell
+    sellItemsCore, // export core sell logic
 
     async execute(message, args) {
         if (!args || args.length === 0) {
