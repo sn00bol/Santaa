@@ -20,7 +20,7 @@ v1.2.0-alpha.5
 - Remove custom currency emoji
 - HOTFIX beg command
 
-Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03), [8439a95](https://github.com/sn00bol/Santaa/commit/8439a958a0e2498e5eec93097a5397eb9421ce46), [9cc4f14](https://github.com/sn00bol/Santaa/commit/9cc4f141e0f52f387d4c458e033eacff16445d94), [a7d6aa4](https://github.com/sn00bol/Santaa/commit/a7d6aa486291dde1e154f66bc37de90b5bb5dca7)
+Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03), [8439a95](https://github.com/sn00bol/Santaa/commit/8439a958a0e2498e5eec93097a5397eb9421ce46), [9cc4f14](https://github.com/sn00bol/Santaa/commit/9cc4f141e0f52f387d4c458e033eacff16445d94), [a7d6aa4](https://github.com/sn00bol/Santaa/commit/a7d6aa486291dde1e154f66bc37de90b5bb5dca7), [2ecf639](https://github.com/sn00bol/Santaa/commit/2ecf6393129044fcc2f3885639d13d08ad0381ac)
 
 Beta release: None
 
