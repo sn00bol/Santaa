@@ -133,12 +133,25 @@ module.exports = {
         }
 
         const mainInventory = await loadInventory();
+        let cachedInventory = mainInventory; // Cache inventory to reduce DB calls
+        let inventoryCacheTime = Date.now();
+        const CACHE_DURATION = 5000; // 5 seconds cache
+        
+        const getCachedInventory = async () => {
+            const now = Date.now();
+            if (now - inventoryCacheTime > CACHE_DURATION) {
+                cachedInventory = await loadInventory();
+                inventoryCacheTime = now;
+            }
+            return cachedInventory;
+        };
+        
         const container = fishUI.buildMain(profile, mainInventory);
         const mainMsg = await message.reply({ components: [container], flags: [MessageFlags.IsComponentsV2] });
 
         async function handleFishingResult(success) {
             endTugOfWar();
-            const inventoryNow = await loadInventory();
+            const inventoryNow = await getCachedInventory();
             
             if (success) {
                 const map = mapManager.getMap(profile.currentMap) || mapManager.getAllMaps()[0];
@@ -318,7 +331,10 @@ module.exports = {
             timeout: null,
             mapImage: null,
             renderLock: false,
-            tickLock: false
+            tickLock: false,
+            lastReelTime: 0,
+            fishStrength: 0,
+            tickCount: 0
         };
 
         const endTugOfWar = (result) => {
@@ -327,6 +343,9 @@ module.exports = {
             if (tugOfWar.timeout) clearTimeout(tugOfWar.timeout);
             tugOfWar.interval = null;
             tugOfWar.timeout = null;
+            tugOfWar.lastReelTime = 0;
+            tugOfWar.fishStrength = 0;
+            tugOfWar.tickCount = 0;
             return result;
         };
 
@@ -341,7 +360,7 @@ module.exports = {
                         new ContainerBuilder()
                             .addTextDisplayComponents(
                                 new TextDisplayBuilder()
-                                    .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, currentPosition, tugOfWar.mapImage, tugOfWar.inventory).data.description}\n\n${fishUI.buildWaitingEmbed(profile, tugOfWar.inventory).data.fields[0].value}`)
+                                    .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, currentPosition, tugOfWar.mapImage, tugOfWar.inventory, tugOfWar.fishStrength).data.description}\n\n${fishUI.buildWaitingEmbed(profile, tugOfWar.inventory).data.fields[0].value}`)
                             )
                             .addActionRowComponents([
                                 new ActionRowBuilder().addComponents(
@@ -384,9 +403,12 @@ module.exports = {
                 const baitPower = require('./fishCore').BAIT_STATS[baitId]?.reelPower || 3;
                 const imSmarterLevel = fishSkills.getSkillLevel(profile, 'im_smarter');
 
-                const totalReelPower = Number(Math.max(3.2, (rodPower + baitPower + imSmarterLevel * 0.2) * 0.9).toFixed(1));
+                // Reduced reel power for better balance - requires more clicks
+                const totalReelPower = Number(Math.max(1.5, (rodPower + baitPower + imSmarterLevel * 0.15) * 0.4).toFixed(1));
 
                 tugOfWar.position -= totalReelPower;
+                tugOfWar.lastReelTime = Date.now(); // Update last reel time
+                
                 if (tugOfWar.position <= 0) {
                     await i.deferUpdate();
                     return await handleFishingResult(true);
@@ -399,7 +421,7 @@ module.exports = {
 
             if (i.customId === 'fish_buckets') {
                 bucketState = { view: 'overview', bucketKey: null, page: 0, showFishSelect: false };
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 // Seed / migrate bucket containers and re-sync the profile mirrors.
                 fishBucket.getOwnedBuckets(profile, inventory);
                 await rpgmanager.updateProgress(userId, { fishing_profile: profile });
@@ -430,7 +452,7 @@ module.exports = {
             // Overview -> page through the 5 free bucket slots; detail -> hop
             // between buckets.
             if (['first', 'prev', 'next', 'last'].includes(i.customId) && (bucketState.view === 'overview' || bucketState.view === 'detail')) {
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 const ownedNow = fishBucket.getOwnedBuckets(profile, inventory);
 
                 if (bucketState.view === 'overview') {
@@ -463,7 +485,7 @@ module.exports = {
             }
 
             if (i.customId === 'fish_bucket_lock') {
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 fishBucket.toggleBucketLock(profile, bucketState.bucketKey);
                 await rpgmanager.updateProgress(userId, { fishing_profile: profile });
                 await i.update({
@@ -476,7 +498,7 @@ module.exports = {
             }
 
             if (i.customId === 'fish_bucket_select_fish_toggle') {
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 bucketState.showFishSelect = !bucketState.showFishSelect;
                 await i.update({
                     content: null,
@@ -488,13 +510,13 @@ module.exports = {
             }
 
             if (i.customId === 'fish_bucket_sell_all') {
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 const scope = bucketState.view === 'detail' ? bucketState.bucketKey : 'all';
                 const result = await fishBucket.sellAllFish(userId, profile, inventory, scope);
 
                 // sellAllFish replaces container arrays, so re-sync the mirrors
                 // (currentItems / maxSpace) before persisting.
-                const freshInventory = await loadInventory();
+                const freshInventory = await getCachedInventory();
                 fishBucket.getOwnedBuckets(profile, freshInventory);
                 await rpgmanager.updateProgress(userId, { fishing_profile: profile });
 
@@ -675,7 +697,7 @@ module.exports = {
             }
 
             if (i.customId === 'fish_equipment') {
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 await i.update({
                     content: null,
                     embeds: [],
@@ -705,7 +727,7 @@ module.exports = {
                 profile.currentMap = targetMapId;
                 await rpgmanager.updateProgress(userId, { fishing_profile: profile });
                 
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 await i.update({
                     components: [fishUI.buildMain(profile, inventory)]
                 });
@@ -743,7 +765,7 @@ module.exports = {
                         profile.equipment.currentBait = 'finger';
                         profile.equipment.durability = 0;
                         await rpgmanager.updateProgress(userId, { fishing_profile: profile });
-                        const inventory = await loadInventory();
+                        const inventory = await getCachedInventory();
 
                         await i.update({
                             components: [fishUI.buildEquipment(profile, inventory, '⚠️ Your fishing rod is broken! Falling back to bare hand.')]
@@ -759,7 +781,7 @@ module.exports = {
                         profile.equipment.durability = 0;
                         await rpgmanager.updateProgress(userId, { fishing_profile: profile });
 
-                        const inventory = await loadInventory();
+                        const inventory = await getCachedInventory();
                         await i.update({
                             components: [fishUI.buildEquipment(profile, inventory, '💥 Your fishing rod just broke! Falling back to bare hand fishing.')]
                         });
@@ -780,7 +802,7 @@ module.exports = {
                         profile.equipment.durability = 0;
                         await rpgmanager.updateProgress(userId, { fishing_profile: profile });
 
-                        const inventory = await loadInventory();
+                        const inventory = await getCachedInventory();
                         await i.update({
                             content: null,
                             embeds: [],
@@ -791,7 +813,7 @@ module.exports = {
                     }
                 }
 
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 await i.update({
                     content: null,
                     embeds: [],
@@ -809,6 +831,9 @@ module.exports = {
                         tugOfWar.position = 6;
                         tugOfWar.mapImage = map.image;
                         tugOfWar.inventory = inventory;
+                        tugOfWar.lastReelTime = 0; // Track when user last clicked reel in
+                        tugOfWar.fishStrength = 0; // Fish strength that increases over time
+                        tugOfWar.tickCount = 0; // Track number of ticks for progressive difficulty
 
                         const tickTugOfWar = async () => {
                             if (!tugOfWar.active || tugOfWar.tickLock) return;
@@ -819,11 +844,35 @@ module.exports = {
                                 const rodPower = require('./fishCore').ROD_STATS[rodId]?.reelPower || 3;
                                 const baitPower = require('./fishCore').BAIT_STATS[baitId]?.reelPower || 3;
 
-                                const drift = Number(Math.min(0.45, 0.18 + ((baitPower || 3) / 10) * 0.12).toFixed(2));
-                                // Reduce drift if user is clicking fast (simulated by checking if position is low)
-                                // Or simply lower the base drift to make it fairer.
-                                const adjustedDrift = tugOfWar.position < 4 ? drift * 0.5 : drift;
-                                tugOfWar.position += adjustedDrift;
+                                // Progressive difficulty: fish gets stronger over time
+                                tugOfWar.tickCount++;
+                                const strengthIncrease = Math.min(0.8, tugOfWar.tickCount * 0.02); // Cap at 0.8 additional strength
+                                tugOfWar.fishStrength = strengthIncrease;
+
+                                // Calculate base drift with better scaling
+                                const baseDrift = 0.08 + ((baitPower || 3) / 10) * 0.08;
+                                const drift = Number(Math.min(0.25, baseDrift + tugOfWar.fishStrength).toFixed(2));
+                                
+                                // Smooth drift reduction based on recent user activity
+                                const now = Date.now();
+                                const timeSinceLastReel = now - tugOfWar.lastReelTime;
+                                
+                                // Calculate drift reduction factor (0.1 to 1.0)
+                                let driftFactor = 1.0;
+                                if (timeSinceLastReel < 500) {
+                                    driftFactor = 0.1; // Very effective if clicking very fast
+                                } else if (timeSinceLastReel < 1000) {
+                                    driftFactor = 0.3; // Effective if clicking within 1 second
+                                } else if (timeSinceLastReel < 2000) {
+                                    driftFactor = 0.6; // Partially effective if clicking within 2 seconds
+                                }
+                                
+                                const adjustedDrift = drift * driftFactor;
+                                
+                                // Apply drift with minimum threshold to ensure some movement
+                                const finalDrift = Math.max(0.02, adjustedDrift);
+                                tugOfWar.position += finalDrift;
+                                
                                 if (tugOfWar.position >= 12) {
                                     await handleFishingResult(false);
                                     return;
@@ -835,12 +884,13 @@ module.exports = {
                             } finally {
                                 tugOfWar.tickLock = false;
                                 if (tugOfWar.active) {
-                                    tugOfWar.interval = setTimeout(tickTugOfWar, 500);
+                                    tugOfWar.interval = setTimeout(tickTugOfWar, 500); // Faster tick for smoother gameplay
                                 }
                             }
                         };
 
-                        tugOfWar.interval = setTimeout(tickTugOfWar, 500);
+                        // Add initial delay for smooth start
+                        tugOfWar.interval = setTimeout(tickTugOfWar, 1500);
 
                         // Time limit
                         tugOfWar.timeout = setTimeout(async () => {
@@ -856,7 +906,7 @@ module.exports = {
                                 new ContainerBuilder()
                                     .addTextDisplayComponents(
                                         new TextDisplayBuilder()
-                                        .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, tugOfWar.position, tugOfWar.mapImage, tugOfWar.inventory).data.description}`)
+                                        .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, tugOfWar.position, tugOfWar.mapImage, tugOfWar.inventory, tugOfWar.fishStrength).data.description}`)
                                     )
                                     .addActionRowComponents([
                                         new ActionRowBuilder().addComponents(
@@ -894,7 +944,7 @@ module.exports = {
                 }
                 if (i.customId === 'fish_equipment_select_rod') {
                     const selectedRod = i.values[0];
-                    const inventory = await loadInventory();
+                    const inventory = await getCachedInventory();
                     const ownsRod = selectedRod === 'hand' || inventory.some(item => item.item_id === selectedRod);
 
                     if (!ownsRod) {
@@ -925,7 +975,7 @@ module.exports = {
 
                 if (i.customId === 'fish_equipment_select_bait') {
                     const selectedBait = i.values[0];
-                    const inventory = await loadInventory();
+                    const inventory = await getCachedInventory();
                     const ownsBait = selectedBait === 'finger' || inventory.some(item => item.item_id === selectedBait);
 
                     if (!ownsBait) {
@@ -953,7 +1003,7 @@ module.exports = {
 
                 if (i.customId === 'fish_bucket_select') {
                     const selected = i.values[0];
-                    const inventory = await loadInventory();
+                    const inventory = await getCachedInventory();
                     if (selected === 'all') {
                         bucketState = { view: 'overview', bucketKey: null, page: 0, showFishSelect: false };
                     } else {
@@ -971,7 +1021,7 @@ module.exports = {
                 if (i.customId === 'fish_bucket_fish_select') {
                     const [key, indexStr] = i.values[0].split(':');
                     const fishIndex = Number(indexStr);
-                    const inventory = await loadInventory();
+                    const inventory = await getCachedInventory();
 
                     const result = await fishBucket.sellFishFromBucket(userId, profile, inventory, key, fishIndex);
                     await rpgmanager.updateProgress(userId, { fishing_profile: profile });
@@ -981,7 +1031,7 @@ module.exports = {
                         return;
                     }
 
-                    const freshInventory = await loadInventory();
+                    const freshInventory = await getCachedInventory();
                     await i.update({
                         content: null,
                         embeds: [],
@@ -994,7 +1044,7 @@ module.exports = {
             }
 
             if (i.customId === 'fish_equipment_back') {
-                const inventory = await loadInventory();
+                const inventory = await getCachedInventory();
                 await i.update({
                     content: null,
                     embeds: [],
@@ -1018,11 +1068,11 @@ module.exports = {
             }
 
             if (shopState) {
-                const result = await fishShop.handleFishShopInteraction(i, shopState);
+                const result = await fishShop.handleFishShopInteraction(i, shopState, profile);
                 if (result.handled) {
                     if (result.action === 'back') {
                         shopState = null;
-                        const inventory = await loadInventory();
+                        const inventory = await getCachedInventory();
                         await i.update({
                             content: null,
                             embeds: [],
@@ -1034,7 +1084,7 @@ module.exports = {
 
                     if (result.action === 'equipment') {
                         shopState = null;
-                        const inventory = await loadInventory();
+                        const inventory = await getCachedInventory();
                         await i.update({
                             content: null,
                             embeds: [],

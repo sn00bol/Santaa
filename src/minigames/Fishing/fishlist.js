@@ -1,5 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
-const { RARITY_CONFIG, fishData } = require('./fishCore');
+const { RARITY_CONFIG, getFishData } = require('./fishCore');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 
@@ -35,6 +35,7 @@ module.exports = {
         };
 
         const generateContainer = (category, page, disabled = false) => {
+            const fishData = getFishData();
             const fishList = [...(fishData[category] || [])].sort((a, b) => {
                 return (a.sell - b.sell) || a.name.localeCompare(b.name);
             });
@@ -100,6 +101,7 @@ module.exports = {
                     case 'next': currentPage++; break;
                     case 'first': currentPage = 0; break;
                     case 'last': {
+                        const fishData = getFishData();
                         const totalPages = Math.ceil((fishData[currentCategory] || []).length / itemsPerPage);
                         currentPage = Math.max(0, totalPages - 1);
                         break;

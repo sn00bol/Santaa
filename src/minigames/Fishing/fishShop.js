@@ -6,6 +6,7 @@ const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 const { isVisibleItem } = require('../../commands/Utils/itemVisibility');
 const dbmanager = require('../../../database/dbmanager');
 const rpgmanager = require('../../../database/rpgmanager');
+const fishSkills = require('./fishSkills');
 
 const SHOP_ACTIONS = {
     BACK_TO_FISH: 'fish_shop_back_to_fish',
@@ -21,6 +22,11 @@ const CATEGORY_MAP = {
     buckets: { label: 'Buckets', folder: 'bucket' },
     rods: { label: 'Fishing rods', folder: 'fishingRod' },
 };
+
+// Cache for shop items to avoid repeated filesystem operations
+const shopItemsCache = new Map();
+let shopCacheTime = 0;
+const SHOP_CACHE_DURATION = 300000; // 5 minutes cache
 
 const buildFishShopContainer = (state) => {
     const header = new TextDisplayBuilder()
@@ -67,6 +73,14 @@ const loadFishShopCategoryItems = (shopType, categoryKey) => {
     const category = CATEGORY_MAP[categoryKey];
     if (!category) return new Map();
 
+    const cacheKey = `${shopType}_${categoryKey}`;
+    const now = Date.now();
+    
+    // Check cache first
+    if (shopItemsCache.has(cacheKey) && (now - shopCacheTime) < SHOP_CACHE_DURATION) {
+        return shopItemsCache.get(cacheKey);
+    }
+
     const shopRoot = resolveShopItemsPath(shopType);
     const categoryPath = path.join(shopRoot, category.folder);
     const items = new Map();
@@ -95,6 +109,11 @@ const loadFishShopCategoryItems = (shopType, categoryKey) => {
     };
 
     traverse(categoryPath);
+    
+    // Cache the result
+    shopItemsCache.set(cacheKey, items);
+    shopCacheTime = now;
+    
     return items;
 };
 
@@ -170,7 +189,7 @@ const buildFishShopItemContainer = async (state, itemId) => {
         .addActionRowComponents(actionRow);
 };
 
-const handleFishShopInteraction = async (interaction, state) => {
+const handleFishShopInteraction = async (interaction, state, profile = null) => {
     if (interaction.isButton()) {
         if (interaction.customId === SHOP_ACTIONS.BACK_TO_FISH) {
             if (state.returnToFishing) {

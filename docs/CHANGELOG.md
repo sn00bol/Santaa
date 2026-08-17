@@ -1,11 +1,8 @@
-v1.2.0-alpha.5
-- What worked on this alpha 5: ofc all
-- Modify some stuff at travel button
-- The codebase not fully optimized so can cause some delay or respond time error (SOMETIMES)
-- Upgrading skill could be not working smoothly
-- Tug of war kinda easy to play (will fix it at beta)
-- Fixed Dynamite kaboom and bucket rods only take 3 fish and no items (I SWEAR, dont judge me)
-- Fixed another issues
+v1.2.0-beta.0
+- Optimized fix delay, respond time error, cannot reduce line code btw
+- Add fish strength to tug of war
+- fix upgrading skill could be not working smoothly
+- Make tug of war little bit harder
 
 # CHANGELOG
 # v1.2.0 - 8.xx.2026

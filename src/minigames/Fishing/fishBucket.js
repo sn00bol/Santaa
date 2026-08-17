@@ -7,6 +7,36 @@ const rpgmanager = require('../../../database/rpgmanager');
 
 const FREE_SLOT_COUNT = 5;
 
+// Cache for skill levels to reduce repeated skill lookups
+let skillCache = new Map();
+let skillCacheTime = 0;
+const SKILL_CACHE_DURATION = 5000; // 5 seconds cache
+
+const getCachedSkillLevel = (profile, skillId) => {
+    const cacheKey = `${profile.skill?.totalPoints || 0}_${skillId}`;
+    const now = Date.now();
+    
+    if (skillCache.has(cacheKey) && (now - skillCacheTime) < SKILL_CACHE_DURATION) {
+        return skillCache.get(cacheKey);
+    }
+    
+    const level = fishSkills.getSkillLevel(profile, skillId);
+    skillCache.set(cacheKey, level);
+    skillCacheTime = now;
+    
+    return level;
+};
+
+// Cache for owned buckets to reduce repeated calculations
+let ownedBucketsCache = null;
+let ownedBucketsCacheKey = null;
+let ownedBucketsCacheTime = 0;
+const OWNED_BUCKETS_CACHE_DURATION = 3000; // 3 seconds cache
+
+const getCacheKey = (profile, inventory) => {
+    return `${profile.bucket?.currentBucket || 'default'}_${inventory.length}_${profile.skill?.totalPoints || 0}`;
+};
+
 function isBucketItemDefinition(itemDef) {
     return Boolean(itemDef)
         && typeof itemDef.capacity === 'number'
@@ -71,10 +101,18 @@ function containersOfBucket(profile, bucketKey) {
  * owned copy). Never a hardcoded list — checks the real item `capacity`.
  */
 function getOwnedBuckets(profile = {}, inventory = []) {
+    const cacheKey = getCacheKey(profile, inventory);
+    const now = Date.now();
+    
+    // Check cache first
+    if (ownedBucketsCache && ownedBucketsCacheKey === cacheKey && (now - ownedBucketsCacheTime) < OWNED_BUCKETS_CACHE_DURATION) {
+        return ownedBucketsCache;
+    }
+    
     ensureContainers(profile, inventory);
     syncActiveBucket(profile, inventory);
 
-    const oneHandLevel = fishSkills.getSkillLevel(profile, 'one_hand');
+    const oneHandLevel = getCachedSkillLevel(profile, 'one_hand');
     const activeItemId = profile.bucket.currentBucket || 'defaultBucket';
     let activeAssigned = false;
     const owned = [];
@@ -99,6 +137,11 @@ function getOwnedBuckets(profile = {}, inventory = []) {
             isActive,
         });
     }
+
+    // Cache the result
+    ownedBucketsCache = owned;
+    ownedBucketsCacheKey = cacheKey;
+    ownedBucketsCacheTime = now;
 
     return owned;
 }
@@ -159,6 +202,9 @@ function getContainerState(profile, bucketKey) {
 function toggleBucketLock(profile, bucketKey) {
     const state = getContainerState(profile, bucketKey);
     state.locked = !state.locked;
+    // Invalidate cache when lock state changes
+    ownedBucketsCache = null;
+    ownedBucketsCacheKey = null;
     return state.locked;
 }
 
@@ -179,12 +225,15 @@ function placeCaughtFish(profile, inventory, fish) {
 
     const state = getContainerState(profile, target.rowId);
     state.items.push({ id: fish.id, name: fish.name });
+    // Invalidate cache when fish is placed
+    ownedBucketsCache = null;
+    ownedBucketsCacheKey = null;
     return { placed: true, bucketName: target.name, capacity: target.capacity };
 }
 
 async function sellFishFromBucket(userId, profile, inventory, bucketKey, fishIndex) {
     const owned = getOwnedBuckets(profile, inventory);
-    const sellersManLevel = fishSkills.getSkillLevel(profile, 'sellers_man');
+    const sellersManLevel = getCachedSkillLevel(profile, 'sellers_man');
 
     const bucket = owned.find(entry => String(entry.rowId) === String(bucketKey));
     if (!bucket) return { ok: false, message: 'Bucket not found.' };
@@ -206,6 +255,9 @@ async function sellFishFromBucket(userId, profile, inventory, bucketKey, fishInd
 
     const state = getContainerState(profile, bucketKey);
     state.items.splice(Math.floor(fishIndex), 1);
+    // Invalidate cache when fish is sold
+    ownedBucketsCache = null;
+    ownedBucketsCacheKey = null;
 
     const sold = result.soldItems[0];
     return {
@@ -218,7 +270,7 @@ async function sellFishFromBucket(userId, profile, inventory, bucketKey, fishInd
 
 async function sellAllFish(userId, profile, inventory, bucketKeyOrAll) {
     const owned = getOwnedBuckets(profile, inventory);
-    const sellersManLevel = fishSkills.getSkillLevel(profile, 'sellers_man');
+    const sellersManLevel = getCachedSkillLevel(profile, 'sellers_man');
 
     let scope = [];
     if (bucketKeyOrAll === 'all') {

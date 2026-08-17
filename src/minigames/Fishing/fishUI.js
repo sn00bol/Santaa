@@ -452,7 +452,9 @@ function buildSkill(profile = {}, skillState = null) {
 
     const rodNote = skill.rodRequired ? `\n> 🎣 Only activates when using **${skill.rodRequired}**.` : '';
 
-    const skillHeader = `## ${skill.name}\n> ${skill.desc}${rodNote}${prereqWarning}`;
+    // Extract only the general description (without specific numbers)
+    const generalDesc = skill.desc.split('.').slice(0, 1).join('.') + '.';
+    const skillHeader = `## ${skill.name}\n> ${generalDesc}${rodNote}${prereqWarning}`;
     const skillBody = `**Skill Point:** ${availablePoints}\n\n${levelList}`;
 
     // Prev/next buttons
@@ -647,7 +649,7 @@ function buildWaitingEmbed(profile, inventory = null) {
         .setColor('#3498db');
 }
 
-function buildTugOfWarEmbed(profile, position, mapImage, inventory = null) {
+function buildTugOfWarEmbed(profile, position, mapImage, inventory = null, fishStrength = 0) {
     const bucketSummary = resolveBucketSummary(profile, inventory);
     const bucketSize = bucketSummary.capacity || 5;
     const bucketCount = bucketSummary.filled;
@@ -659,9 +661,13 @@ function buildTugOfWarEmbed(profile, position, mapImage, inventory = null) {
     bar[fishIndex] = '🐟';
     const barString = `🎣[${bar.join('')}]🌊`;
 
+    // Show fish strength indicator
+    const strengthLevel = fishStrength < 0.2 ? 'Weak' : fishStrength < 0.4 ? 'Normal' : fishStrength < 0.6 ? 'Strong' : 'Very Strong';
+    const strengthBar = '░'.repeat(Math.min(10, Math.floor(fishStrength * 10))) + '█'.repeat(10 - Math.min(10, Math.floor(fishStrength * 10)));
+
     return new EmbedBuilder()
         .setTitle('🎣 Tug of War!')
-        .setDescription(`Reel in the fish before it escapes!\n\n${barString}`)
+        .setDescription(`Reel in the fish before it escapes!\n\n${barString}\n\n**Fish Strength:** ${strengthLevel}\n\`${strengthBar}\``)
         .setImage(`attachment://${mapImage}`)
         .addFields({ name: 'Bucket Space', value: bucketLine })
         .setColor('#e67e22');

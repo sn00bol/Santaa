@@ -1,6 +1,6 @@
 {
   "name": "santaa",
-  "version": "1.2.0-alpha.5",
+  "version": "1.2.0-beta.0",
   "description": "Ho ho ho! Santa like to fishing and he have a gold bucket!",
   "main": "src/index.js",
   "scripts": {

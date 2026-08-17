@@ -79,16 +79,21 @@
 - **Status**: Fixed
 - **Detail**: After user winning on fishing minigames, you could notice that buckets capacity not change anything because not adding buckets on alpha 4, after alpha 5 its currently work but wrong capacity (or maybe)
 
+### [ISSUE-020]: Fishing skill at select option broken
+- **Status**: Fixed
+- **Detail**: Because of my bad coding skill, the select option on fishing skill not working lol
+
+### [ISSUE-021]: Tug of war gameplay always drainning even click fast as flash
+- **Status**: Fixed
+- **Detail**: Fixed both smoothness and balance issues in tug of war minigame:
+  1. **Smoothness issue**: Added 1.5 second initial delay before first tick to prevent jerky start when entering minigame
+  2. **Balance issue**: Reduced reel power from 5.4 to ~2.1 (requiring ~3 clicks instead of 2) and implemented smart drift reduction - drift is reduced by 70% when user actively clicks reel in within 1 second, making button clicks effective while maintaining challenge
+
 ---
 ## STILL NOT FIX OR OTHER ISSUE
 
-### [ISSUE-019]: Fishing skill at select option broken
-- **Status**: Not fixed
-- **Detail**: Somehow my coding skill have began and its compeletely broken, navigate dont work, upgrade not work... will fix it at beta
+### [ISSUE-022]: Still not found
 
-### [ISSUE-020]: Tug of war gameplay always drainning even click fast as flash
-- **Status**: Not fixed
-- **Detail**: the name described it
 ---
 
 # BUG

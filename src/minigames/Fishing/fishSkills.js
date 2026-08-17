@@ -34,7 +34,7 @@ const SKILL_BRANCHES = {
             {
                 id: 'shopping_god',
                 name: 'Shopping God',
-                desc: 'Reduces item prices in the fishing shop. Each level cuts an additional 2% off the cost.',
+                desc: 'Reduces item prices in the fishing shop.',
                 maxLevel: 5,
                 cost: 1,
                 effectPerLevel: (level) => level * 2, // % discount
@@ -42,7 +42,7 @@ const SKILL_BRANCHES = {
             {
                 id: 'sellers_man',
                 name: 'The Sellers Man',
-                desc: 'When selling fish, gain a bonus on the sell price. Starts at +3%, increasing by 0.25% each level.',
+                desc: 'When selling fish, gain a bonus on the sell price.',
                 maxLevel: 6,
                 cost: 1,
                 effectPerLevel: (level) => 3 + (level - 1) * 0.25, // % bonus
@@ -56,7 +56,7 @@ const SKILL_BRANCHES = {
             {
                 id: 'hand_lovers',
                 name: 'The Hand Lovers',
-                desc: 'When fishing bare-handed, boosts the chance of catching fish instead of junk. Starts at +3%, +0.55% per level.',
+                desc: 'When fishing bare-handed, boosts the chance of catching fish instead of junk.',
                 maxLevel: 6,
                 cost: 1,
                 rodRequired: 'hand',
@@ -65,7 +65,7 @@ const SKILL_BRANCHES = {
             {
                 id: 'bazookanist',
                 name: 'Bazookanist',
-                desc: 'Only works with Dynamite Kaboom. Slightly improves the rarity penalty from explosions. Starts at +0.5%, +0.25% per level.',
+                desc: 'Only works with Dynamite Kaboom. Improves the rarity penalty from explosions.',
                 maxLevel: 5,
                 cost: 1,
                 rodRequired: 'kaboom',
@@ -74,7 +74,7 @@ const SKILL_BRANCHES = {
             {
                 id: 'im_stronger',
                 name: "Im stronger, Im better!",
-                desc: 'Increases the maximum durability of all fishing rods. Each level adds +10 max durability.',
+                desc: 'Increases the maximum durability of all fishing rods.',
                 maxLevel: 5,
                 cost: 1,
                 effectPerLevel: (level) => level * 10, // bonus max durability
@@ -82,7 +82,7 @@ const SKILL_BRANCHES = {
             {
                 id: 'im_smarter',
                 name: 'IM SMARTER!',
-                desc: 'Increases the reel power of all fishing rods. Each level adds +0.2 reel power.',
+                desc: 'Increases the reel power of all fishing rods.',
                 maxLevel: 5,
                 cost: 1,
                 effectPerLevel: (level) => level * 0.2, // bonus reel power
@@ -90,7 +90,7 @@ const SKILL_BRANCHES = {
             {
                 id: 'buckets_enhanced',
                 name: 'Buckets Enhanced',
-                desc: 'Only works with A Bucket rod. Reduces the rarity penalty from bucket fishing. Starts at +0.5%, +0.25% per level.',
+                desc: 'Only works with A Bucket rod. Reduces the rarity penalty from bucket fishing.',
                 maxLevel: 6,
                 cost: 1,
                 rodRequired: 'bucketRod',
@@ -105,7 +105,7 @@ const SKILL_BRANCHES = {
             {
                 id: 'one_hand',
                 name: 'One hand hold buckets, one hand hold fishing rod, last one hold a fish',
-                desc: 'Increases the capacity of every bucket you own. Each level adds +1 slot.',
+                desc: 'Increases the capacity of every bucket you own.',
                 maxLevel: 2,
                 cost: 1,
                 effectPerLevel: (level) => level, // extra capacity per bucket
@@ -227,12 +227,40 @@ function awardSkillPoints(profile, rarity) {
 /**
  * Build the Roman-numeral level progress text for a skill.
  * ✔️ = unlocked, ✖️ = locked
+ * Each level now includes a description of the effect at that level.
  */
 function buildLevelList(profile, skill) {
     const current = getSkillLevel(profile, skill.id);
     return Array.from({ length: skill.maxLevel }, (_, i) => {
         const emoji = i < current ? '✔️' : '✖️';
-        return `${emoji} ${ROMAN[i] || (i + 1)}`;
+        const level = i + 1;
+        const effect = skill.effectPerLevel(level);
+        
+        // Generate level-specific description based on skill type
+        let levelDesc = '';
+        if (skill.id === 'shopping_god') {
+            levelDesc = `Reduce items prices in fishing shop for ${effect}%`;
+        } else if (skill.id === 'sellers_man') {
+            levelDesc = `Gain +${effect}% bonus on sell price`;
+        } else if (skill.id === 'hand_lovers') {
+            levelDesc = `+${effect}% fish chance when bare-handed`;
+        } else if (skill.id === 'bazookanist') {
+            levelDesc = `Reduce rarity penalty by ${effect}% with Dynamite Kaboom`;
+        } else if (skill.id === 'im_stronger') {
+            levelDesc = `+${effect} max durability for all rods`;
+        } else if (skill.id === 'im_smarter') {
+            levelDesc = `+${effect} reel power for all rods`;
+        } else if (skill.id === 'buckets_enhanced') {
+            levelDesc = `Reduce rarity penalty by ${effect}% with A Bucket rod`;
+        } else if (skill.id === 'one_hand') {
+            levelDesc = `+${effect} slot per bucket`;
+        } else if (skill.id === 'slot_6' || skill.id === 'slot_7') {
+            levelDesc = `Unlock this bucket slot`;
+        } else {
+            levelDesc = `Level ${level} effect`;
+        }
+        
+        return `${emoji} **${ROMAN[i] || level}** ${levelDesc}`;
     }).join('\n');
 }
 

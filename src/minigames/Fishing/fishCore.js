@@ -27,6 +27,11 @@ const BAIT_STATS = {
     worm: { reelPower: 3, rarityLimit: null, rateBoost: 1.1 },
 };
 
+// Cached fish data to avoid repeated filesystem operations
+let fishDataCache = null;
+let fishDataCacheTime = 0;
+const FISH_DATA_CACHE_DURATION = 60000; // 1 minute cache
+
 const fishData = {
     COMMON: [],
     UNCOMMON: [],
@@ -72,6 +77,16 @@ const loadFish = () => {
     }
 };
 
+const getFishData = () => {
+    const now = Date.now();
+    if (!fishDataCache || (now - fishDataCacheTime) > FISH_DATA_CACHE_DURATION) {
+        loadFish();
+        fishDataCache = JSON.parse(JSON.stringify(fishData));
+        fishDataCacheTime = now;
+    }
+    return fishDataCache || fishData;
+};
+
 loadFish();
 
 function getRandomFish(rodId = 'hand', baitId = 'finger') {
@@ -113,7 +128,8 @@ function getRandomFish(rodId = 'hand', baitId = 'finger') {
         }
     }
 
-    const pool = fishData[selectedRarity];
+    const cachedFishData = getFishData();
+    const pool = cachedFishData[selectedRarity];
     if (pool.length === 0) return null;
 
     const fish = pool[Math.floor(Math.random() * pool.length)];
@@ -136,5 +152,6 @@ module.exports = {
     RARITY_CONFIG,
     ROD_STATS,
     BAIT_STATS,
-    fishData
+    fishData,
+    getFishData
 };
