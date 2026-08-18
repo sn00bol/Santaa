@@ -5,7 +5,6 @@ require('dotenv').config();
 
 module.exports = {
     name: 'give',
-    aliases: ['pay', 'tang'],
     description: 'Give money or items to another user',
     category: ['eco', 'owner'],
     usage: 'Zgive `@user` `item/amount` [quantity]',
