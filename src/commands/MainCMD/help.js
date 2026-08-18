@@ -73,8 +73,19 @@ module.exports = {
         const getFilteredCmds = (categories) => {
             return commands.filter(cmd => {
                 if (!isVisibleCommand(cmd)) return false;
-                if (!isOwner && cmd.category === 'owner') return false;
+
+                // An owner-only command is one whose category is 'owner' or is an array containing only 'owner'
+                const isOwnerOnly = Array.isArray(cmd.category)
+                    ? (cmd.category.includes('owner') && cmd.category.every(cat => cat === 'owner'))
+                    : cmd.category === 'owner';
+
+                if (!isOwner && isOwnerOnly) return false;
                 if (categories.includes('all')) return true;
+
+                // Match if any of the command's categories are in the selected categories list
+                if (Array.isArray(cmd.category)) {
+                    return cmd.category.some(cat => categories.includes(cat));
+                }
                 return categories.includes(cmd.category);
             });
         };

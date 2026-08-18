@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
 const { getRandomFish, calculateExp } = require('./fishCore');
 const fs = require('fs');
 const path = require('path');
@@ -203,6 +203,8 @@ module.exports = {
                         const fish = getRandomFish(rodId, baitId);
                         if (fish) caughtFishList.push(fish);
                     }
+                    lastCaughtFish = caughtFishList; // Store for release functionality
+
 
                     if (caughtFishList.length === 0) return await handleFishingResult(false);
                     
@@ -227,7 +229,7 @@ module.exports = {
                                     new TextDisplayBuilder()
                                         .setContent(`# 🎉 You caught ${caughtFishList.length} fish!\n${fishDisplay}${bucketNotice}\n\n${fishUI.buildResultEmbed(true, caughtFishList[0], profile, null, inventoryNow).data.fields[0].value}`)
                                 )
-                                .addActionRowComponents([fishUI.buildResultButtons()])
+                                .addActionRowComponents([fishUI.buildResultButtons(true)])
                         ],
                         flags: [MessageFlags.IsComponentsV2]
                     });
@@ -260,7 +262,7 @@ module.exports = {
                                     new TextDisplayBuilder()
                                         .setContent(`# 🎣 You caught some junk!\n> You caught ${caughtItemList.length} junk item(s) instead of a fish!\n${itemDisplay}\n${fishUI.buildResultEmbed(false, null, profile, null, inventoryNow).data.fields[0].value}`)
                                 )
-                                .addActionRowComponents([fishUI.buildResultButtons()])
+                                .addActionRowComponents([fishUI.buildResultButtons(false)])
                         ],
                         flags: [MessageFlags.IsComponentsV2]
                     });
@@ -269,14 +271,14 @@ module.exports = {
                 await mainMsg.edit({
                     content: null,
                     embeds: [],
-                    components: [
-                            new ContainerBuilder()
-                                .addTextDisplayComponents(
-                                    new TextDisplayBuilder()
-                                        .setContent(`# 🎣 Fish got away...\n> The fish had flee to the freedom... wanna try it again?\n\n${fishUI.buildResultEmbed(false, null, profile, null, inventoryNow).data.fields[0].value}`)
-                                )
-                                .addActionRowComponents([fishUI.buildResultButtons()])
-                        ],
+                        components: [
+                                new ContainerBuilder()
+                                    .addTextDisplayComponents(
+                                        new TextDisplayBuilder()
+                                            .setContent(`# 🎣 Fish got away...\n> The fish had flee to the freedom... wanna try it again?\n\n${fishUI.buildResultEmbed(false, null, profile, null, inventoryNow).data.fields[0].value}`)
+                                    )
+                                    .addActionRowComponents([fishUI.buildResultButtons(false)])
+                                ],
                         flags: [MessageFlags.IsComponentsV2]
                 });
             }
@@ -318,6 +320,7 @@ module.exports = {
         let shopState = null;
         let bucketState = { view: 'overview', bucketKey: null, page: 0, showFishSelect: false };
         let skillState = { view: 'main', branch: null, skillIndex: 0 };
+        let lastCaughtFish = []; // Track fish from the last successful catch
         const collector = mainMsg.createMessageComponentCollector({
             filter: i => i.user.id === userId,
             time: 600000 // 10 minutes, reset on each interaction
@@ -390,6 +393,96 @@ module.exports = {
             }
             collector.resetTimer();
             try {
+
+            if (i.customId === 'fish_release') {
+                if (!lastCaughtFish || lastCaughtFish.length === 0) {
+                    await i.reply({ content: 'No fish to release!', ephemeral: true });
+                    return;
+                }
+
+                const currentRod = profile.equipment?.currentRod || 'hand';
+                if (currentRod === 'kaboom' || currentRod === 'bucketRod') {
+                    const options = [
+                        { label: 'Release All', value: 'all', description: 'Release all caught fish' },
+                        ...lastCaughtFish.map((f, idx) => ({
+                            label: `${idx + 1}. ${f.name}`,
+                            value: `fish_${idx}`,
+                            description: f.rarityLabel
+                        }))
+                    ].slice(0, 25);
+
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [
+                            new ContainerBuilder()
+                                .addTextDisplayComponents(
+                                    new TextDisplayBuilder().setContent(`# 🌊 Release Fish\nWhich fish would you like to release back into the wild?`)
+                                )
+                                .addActionRowComponents([
+                                    new ActionRowBuilder().addComponents(
+                                        new StringSelectMenuBuilder()
+                                            .setCustomId('fish_release_select')
+                                            .setPlaceholder('Select fish to release')
+                                            .addOptions(options)
+                                    ),
+                                    new ActionRowBuilder().addComponents(
+                                        new ButtonBuilder().setCustomId('fish_equipment_back').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
+                                    )
+                                ])
+                        ],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                    return;
+                } else {
+                    for (const fish of lastCaughtFish) {
+                        await rpgmanager.removeItem(fish.id);
+                    }
+                    lastCaughtFish = [];
+                    await i.update({
+                        content: null,
+                        embeds: [],
+                        components: [
+                            new ContainerBuilder()
+                                .addTextDisplayComponents(
+                                    new TextDisplayBuilder().setContent(`# 🌊 Released!\n> With all kind of your heart, you decided to release the fish!`)
+                                )
+                                .addActionRowComponents([fishUI.buildResultButtons(false)])
+                        ],
+                        flags: [MessageFlags.IsComponentsV2]
+                    });
+                    return;
+                }
+            }
+
+            if (i.customId === 'fish_release_select') {
+                const selectedValue = i.values[0];
+                if (selectedValue === 'all') {
+                    for (const fish of lastCaughtFish) {
+                        await rpgmanager.removeItem(fish.id);
+                    }
+                } else {
+                    const index = Number(selectedValue.replace('fish_', ''));
+                    const fish = lastCaughtFish[index];
+                    if (fish) {
+                        await rpgmanager.removeItem(fish.id);
+                    }
+                }
+                lastCaughtFish = [];
+                await i.update({
+                    content: null,
+                    embeds: [],
+                    components: [
+                        new ContainerBuilder()
+                            .addTextDisplayComponents(
+                                new TextDisplayBuilder().setContent(`# 🌊 Released!\n> The fish have been released back into the wild. ❤️`)
+                            )
+                            .addActionRowComponents([fishUI.buildResultButtons(false)])
+                    ],
+                    flags: [MessageFlags.IsComponentsV2]
+                });
+                return;
+            }
 
             if (tugOfWar.active && i.customId === 'fish_reel_in') {
                 if (tugOfWar.renderLock) {

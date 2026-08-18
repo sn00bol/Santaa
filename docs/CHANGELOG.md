@@ -1,17 +1,20 @@
-v1.2.0-beta.0
-- Optimized fix delay, respond time error, cannot reduce line code btw
-- Add fish strength to tug of war
-- fix upgrading skill could be not working smoothly
-- Make tug of war little bit harder
+v1.2.0-beta.1
+- Add give money/items
+- Add achievements (literally wikipedia with no description)
+- Add release fish if you so kind (sorry who mistouch lol)
+- Fix remain bugs
+- Upgrade instruction cuz it goin to oudate again
+- Official v1.2.0 release date
 
 # CHANGELOG
-# v1.2.0 - 8.xx.2026
+# v1.2.0 - 8.21.2026
 - Big upgrade UI/UX and brand new minigames for fishing (it really big upgrade I swear)
 - Add a lot of new fish
 - Add fish shop: fishing rod, bait, bucket
 - Add beach/sea map for fish and diverse rarity rate
-- Other: achievement (currently for fish), give money/items, show/hide items and commands
+- Other: achievement (currently for fish and other stuff), give money/items, show/hide items and commands
 - Supporting aliases command
+- Allow to add diverse categories
 - Modify some items and balancing stuff
 - Bot now when running npm run kinda slower (somtimes little bit fast)
 - Remove custom currency emoji

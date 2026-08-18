@@ -695,8 +695,8 @@ function buildResultEmbed(success, fish, profile, failMessage = null, inventory 
     }
 }
 
-function buildResultButtons() {
-    return new ActionRowBuilder().addComponents(
+function buildResultButtons(canRelease = false) {
+    const buttons = [
         new ButtonBuilder()
             .setCustomId('fish_equipment_back')
             .setLabel('Go back')
@@ -708,8 +708,19 @@ function buildResultButtons() {
         new ButtonBuilder()
             .setCustomId('fish_now')
             .setLabel('Fish again')
-            .setStyle(ButtonStyle.Success)
-    );
+            .setStyle(ButtonStyle.Success),
+    ];
+
+    if (canRelease) {
+        buttons.push(
+            new ButtonBuilder()
+                .setCustomId('fish_release')
+                .setLabel('Release')
+                .setStyle(ButtonStyle.Primary)
+        );
+    }
+
+    return new ActionRowBuilder().addComponents(buttons);
 }
 
 function buildEquipment(profile = {}, inventory = [], infoMessage = null) {
