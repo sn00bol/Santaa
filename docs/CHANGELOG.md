@@ -1,10 +1,5 @@
-v1.2.0-beta.3
-- modify some items and balancing stuff
-- Add all assets for remain tier map
-- Ready some stuff to pull into main branch
-
 # CHANGELOG
-# v1.2.0 - 8.21.2026
+# v1.2.0 - 8.19.2026
 - Big upgrade UI/UX for fishing (it really big upgrade I swear)
 - New tug of war gameplay for fishing with: fish strength based on fish rarity, 50/50 to get random fish or junk,... 
 - Add 53 new fish to all rarity (10 fish for every rarity, 3 fish for mythic)
