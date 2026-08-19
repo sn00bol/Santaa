@@ -3,7 +3,7 @@ module.exports = {
     name: 'T-Rex',
     sell: 1000,
     desc: 'He is a predator, the evil, the stongest (maybe) and their ancestor is chicken... and somehow now he living underwater',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

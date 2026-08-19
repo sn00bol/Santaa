@@ -3,7 +3,7 @@ module.exports = {
     name: 'Sword Fish',
     sell: 65,
     desc: 'A fish with a sword, I mean they could pvp with us',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

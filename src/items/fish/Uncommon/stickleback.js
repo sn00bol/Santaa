@@ -3,7 +3,7 @@ module.exports = {
     name: 'Stickleback',
     sell: 48,
     desc: 'fierce little fish with spines that makes other fish think twice',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

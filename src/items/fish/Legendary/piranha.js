@@ -3,7 +3,7 @@ module.exports = {
     name: 'Piranha',
     sell: 505,
     desc: 'Dont get too close to its mouth, unless you want to lose your finger',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

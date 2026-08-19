@@ -3,7 +3,7 @@ module.exports = {
     name: 'Tench',
     sell: 45,
     desc: 'This peaceful lake fish is often called the doctor fish of the water',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

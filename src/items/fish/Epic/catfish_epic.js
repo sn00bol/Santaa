@@ -3,7 +3,7 @@ module.exports = {
     name: 'Giant Catfish',
     sell: 110,
     desc: 'Well he literally giant than his species',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

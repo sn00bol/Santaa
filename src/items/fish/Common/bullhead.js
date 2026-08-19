@@ -3,7 +3,7 @@ module.exports = {
     name: 'Bullhead',
     sell: 12,
     desc: 'Hard-headed and hardy, this catfish cousin can survive almost anywhere.',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelect
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
+const { FISH_RARITY_EMOJI, RARITY_CONFIG: FISH_RARITY_CONFIG } = require('./fishCore');
 const fishShop = require('./fishShop');
 const fishBucket = require('./fishBucket');
 const mapManager = require('./MapManager');
@@ -190,7 +191,7 @@ function buildBucketCompactLine(bucket) {
     const badges = [];
     if (bucket.locked) badges.push('🔒');
     if (bucket.isActive) badges.push('**(Active)**');
-    return `**${bucket.name}**${badges.length ? ' ' + badges.join(' ') : ''}\n• ${bucket.items.length} / ${bucket.capacity} Fish (${CURRENCY_EMOJI}${value.toLocaleString()})`;
+    return `**${bucket.name}**${badges.length ? ' ' + badges.join(' ') : ''}\n• ${bucket.items.length} / ${bucket.capacity} Fish (${value.toLocaleString()} ${CURRENCY_EMOJI})`;
 }
 
 function safeSlice(text, maxLen) {
@@ -205,13 +206,13 @@ function safeSlice(text, maxLen) {
 function buildBucketDetailText(bucket) {
     if (!bucket) return '*No bucket selected.*';
     const value = bucketSellValue(bucket.items);
-    const head = `• ${bucket.items.length} / ${bucket.capacity} Fish (${CURRENCY_EMOJI}${value.toLocaleString()})`;
+    const head = `• ${bucket.items.length} / ${bucket.capacity} Fish (${value.toLocaleString()} ${CURRENCY_EMOJI})`;
     if (bucket.items.length === 0) return `${head}\n\n*No fish in this bucket yet.*`;
     const fishLines = bucket.items.map((entry, index) => {
         const def = allItemsCache.get(entry.id);
         const name = (def && def.name) || entry.name || entry.id;
         const sellValue = (def && def.sell) || 0;
-        return `**${index + 1}.** ${name} — ${CURRENCY_EMOJI}${Number(sellValue).toLocaleString()}`;
+        return `**${index + 1}.** ${name} — ${Number(sellValue).toLocaleString()} ${CURRENCY_EMOJI}`;
     });
     return `${head}\n\n${fishLines.slice(0, 25).join('\n')}${fishLines.length > 25 ? `\n…and ${fishLines.length - 25} more.` : ''}`;
 }
@@ -367,6 +368,9 @@ function buildBucket(profile = {}, inventory = [], state = null) {
 function buildSkill(profile = {}, skillState = null) {
     const state = skillState || { view: 'main', branch: null, skillIndex: 0 };
     const availablePoints = fishSkills.getAvailablePoints(profile);
+    const xp = Number(profile.xp) || 0;
+    const nextSpXp = (Math.floor(xp / 100) + 1) * 100;
+    const expText = `EXP: **${xp} / ${nextSpXp}** to next Skill Point`;
 
     // ── Branch select menu (shared between main and branch views) ────────
     const branchOptions = [
@@ -389,7 +393,7 @@ function buildSkill(profile = {}, skillState = null) {
         // ── MAIN MENU ──────────────────────────────────────────────────────
         
         // 1. Header Text Component
-        const headerText = `# 🧠 Upgrading skills\nSkill Point: **${availablePoints}**`;
+        const headerText = `# 🧠 Upgrading skills\nSkill Point: **${availablePoints}**\n${expText}`;
 
         // 2. Body List Component
         let listText = '';
@@ -455,7 +459,7 @@ function buildSkill(profile = {}, skillState = null) {
     // Extract only the general description (without specific numbers)
     const generalDesc = skill.desc.split('.').slice(0, 1).join('.') + '.';
     const skillHeader = `## ${skill.name}\n> ${generalDesc}${rodNote}${prereqWarning}`;
-    const skillBody = `**Skill Point:** ${availablePoints}\n\n${levelList}`;
+    const skillBody = `**Skill Point:** ${availablePoints} | ${expText}\n\n${levelList}`;
 
     // Prev/next buttons
     const levelsToMax = skill.maxLevel - currentLevel;
@@ -649,25 +653,44 @@ function buildWaitingEmbed(profile, inventory = null) {
         .setColor('#3498db');
 }
 
-function buildTugOfWarEmbed(profile, position, mapImage, inventory = null, fishStrength = 0) {
+function buildTugOfWarEmbed(profile, position, mapImage, inventory = null, fishStrength = 0, fishRarity = 'COMMON', behavior = 'steady') {
     const bucketSummary = resolveBucketSummary(profile, inventory);
     const bucketSize = bucketSummary.capacity || 5;
     const bucketCount = bucketSummary.filled;
     const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), '', 10);
 
+    const rarityKey = String(fishRarity).toUpperCase();
+    const fishEmoji = FISH_RARITY_EMOJI[rarityKey] || '🐟';
+    const rarityLabel = (FISH_RARITY_CONFIG[rarityKey] && FISH_RARITY_CONFIG[rarityKey].label) || 'Unknown';
+
     const barLength = 12;
     const bar = new Array(barLength).fill('█');
     const fishIndex = Math.max(0, Math.min(barLength - 1, Math.floor(position ?? 0)));
-    bar[fishIndex] = '🐟';
+    bar[fishIndex] = fishEmoji;
     const barString = `🎣[${bar.join('')}]🌊`;
 
-    // Show fish strength indicator
-    const strengthLevel = fishStrength < 0.2 ? 'Weak' : fishStrength < 0.4 ? 'Normal' : fishStrength < 0.6 ? 'Strong' : 'Very Strong';
-    const strengthBar = '░'.repeat(Math.min(10, Math.floor(fishStrength * 10))) + '█'.repeat(10 - Math.min(10, Math.floor(fishStrength * 10)));
+    // Strength: fill left-to-right, more █ = stronger fish
+    const filled = Math.min(10, Math.round(fishStrength * 10));
+    const strengthBar = '█'.repeat(filled) + '░'.repeat(10 - filled);
+    const strengthLevel =
+        fishStrength < 0.2 ? 'Weak' :
+        fishStrength < 0.4 ? 'Normal' :
+        fishStrength < 0.6 ? 'Strong' :
+        fishStrength < 0.8 ? 'Very Strong' : '💥 FEROCIOUS';
+
+    // Behavior indicator
+    const behaviorLabel =
+        behavior === 'burst'   ? '⚡ Burst Swimmer' :
+        behavior === 'erratic' ? '🌀 Erratic'       : '〰️ Steady';
 
     return new EmbedBuilder()
         .setTitle('🎣 Tug of War!')
-        .setDescription(`Reel in the fish before it escapes!\n\n${barString}\n\n**Fish Strength:** ${strengthLevel}\n\`${strengthBar}\``)
+        .setDescription(
+            `Reel in the fish before it escapes!\n\n${barString}\n\n` +
+            `**On the line:** ${fishEmoji} **${rarityLabel}** fish\n` +
+            `**Strength:** ${strengthLevel} \`${strengthBar}\`\n` +
+            `**Behavior:** ${behaviorLabel}`
+        )
         .setImage(`attachment://${mapImage}`)
         .addFields({ name: 'Bucket Space', value: bucketLine })
         .setColor('#e67e22');

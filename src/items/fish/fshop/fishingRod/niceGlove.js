@@ -3,7 +3,7 @@ module.exports = {
     name: 'The Glove',
     sell: 30,
     desc: 'If you a anti-fishing Rod user and a hand lover, this is for you',
-    type: [],
+    type: ['fish'],
     // Specific type for fishing rod
     durability: Infinity,
     stats: "• get 2 fish or items in one time\n• Never worry about durability\n• Cannot use any bait",

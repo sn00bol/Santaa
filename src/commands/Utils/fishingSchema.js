@@ -74,6 +74,8 @@ function parseFishingProfile(raw) {
     const merged = {
         ...DEFAULT_FISHING_PROFILE,
         ...parsed,
+        xp: Number(parsed.xp || 0),
+        level: Number(parsed.level || 1),
         historicalCatches: {
             ...DEFAULT_FISHING_PROFILE.historicalCatches,
             ...(parsed.historicalCatches || {}),

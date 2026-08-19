@@ -3,7 +3,7 @@ module.exports = {
     name: 'Great White Shark',
     sell: 300,
     desc: 'I mean they are blue but why named it "White" like WTF???',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
-const { getRandomFish, calculateExp } = require('./fishCore');
+const { getRandomFish, calculateExp, getFishStrengthParams } = require('./fishCore');
 const fs = require('fs');
 const path = require('path');
 const fishUI = require('./fishUI');
@@ -210,6 +210,7 @@ module.exports = {
                     
                     let fishDisplay = '';
                     let bucketNotice = '';
+                    let expGained = 0;
                     for (const fish of caughtFishList) {
                         await rpgmanager.addItem(userId, fish.id, fish.name);
                         const bucketPlace = fishBucket.placeCaughtFish(profile, inventoryNow, fish);
@@ -217,8 +218,15 @@ module.exports = {
                             bucketNotice = `\n> ⚠️ **${bucketPlace.bucketName}** is full! The overflow fish went to your general inventory (\`Zinventory\`) instead.`;
                         }
                         fishDisplay += `**${fish.name}** (${fish.rarityLabel})\n`;
+                        expGained += calculateExp(fish);
                     }
+                    const { earnedPoints } = fishSkills.awardSkillPoints(profile, expGained);
                     await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+                    
+                    let expDisplay = `\n✨ **+${expGained} EXP** (Current: ${profile.xp} EXP)`;
+                    if (earnedPoints > 0) {
+                        expDisplay += `\n🌟 **+${earnedPoints} Skill Point(s) earned!**`;
+                    }
                     
                     await mainMsg.edit({
                         content: null,
@@ -227,7 +235,7 @@ module.exports = {
                             new ContainerBuilder()
                                 .addTextDisplayComponents(
                                     new TextDisplayBuilder()
-                                        .setContent(`# 🎉 You caught ${caughtFishList.length} fish!\n${fishDisplay}${bucketNotice}\n\n${fishUI.buildResultEmbed(true, caughtFishList[0], profile, null, inventoryNow).data.fields[0].value}`)
+                                        .setContent(`# 🎉 You caught ${caughtFishList.length} fish!\n${fishDisplay}${bucketNotice}${expDisplay}\n\n${fishUI.buildResultEmbed(true, caughtFishList[0], profile, null, inventoryNow).data.fields[0].value}`)
                                 )
                                 .addActionRowComponents([fishUI.buildResultButtons(true)])
                         ],
@@ -336,8 +344,16 @@ module.exports = {
             renderLock: false,
             tickLock: false,
             lastReelTime: 0,
+            lastReelClickTime: 0,
             fishStrength: 0,
-            tickCount: 0
+            fishRarity: 'COMMON',
+            baseStrength: 0.1,
+            driftPerTick: 0.06,
+            behavior: 'steady',
+            burstCounter: 0,
+            reelCooldown: 0,
+            tickCount: 0,
+            inventory: null,
         };
 
         const endTugOfWar = (result) => {
@@ -347,7 +363,14 @@ module.exports = {
             tugOfWar.interval = null;
             tugOfWar.timeout = null;
             tugOfWar.lastReelTime = 0;
+            tugOfWar.lastReelClickTime = 0;
             tugOfWar.fishStrength = 0;
+            tugOfWar.fishRarity = 'COMMON';
+            tugOfWar.baseStrength = 0.1;
+            tugOfWar.driftPerTick = 0.06;
+            tugOfWar.behavior = 'steady';
+            tugOfWar.burstCounter = 0;
+            tugOfWar.reelCooldown = 0;
             tugOfWar.tickCount = 0;
             return result;
         };
@@ -363,7 +386,7 @@ module.exports = {
                         new ContainerBuilder()
                             .addTextDisplayComponents(
                                 new TextDisplayBuilder()
-                                    .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, currentPosition, tugOfWar.mapImage, tugOfWar.inventory, tugOfWar.fishStrength).data.description}\n\n${fishUI.buildWaitingEmbed(profile, tugOfWar.inventory).data.fields[0].value}`)
+                                    .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, currentPosition, tugOfWar.mapImage, tugOfWar.inventory, tugOfWar.fishStrength, tugOfWar.fishRarity, tugOfWar.behavior).data.description}\n\n${fishUI.buildWaitingEmbed(profile, tugOfWar.inventory).data.fields[0].value}`)
                             )
                             .addActionRowComponents([
                                 new ActionRowBuilder().addComponents(
@@ -490,17 +513,28 @@ module.exports = {
                     return;
                 }
 
+                // Enforce per-rarity reel cooldown (prevents trivial spam on strong fish)
+                const nowClick = Date.now();
+                if (tugOfWar.reelCooldown > 0 && nowClick - tugOfWar.lastReelClickTime < tugOfWar.reelCooldown) {
+                    await i.deferUpdate();
+                    return;
+                }
+                tugOfWar.lastReelClickTime = nowClick;
+
                 const rodId = profile.equipment?.currentRod || 'hand';
                 const baitId = profile.equipment?.currentBait || 'finger';
                 const rodPower = require('./fishCore').ROD_STATS[rodId]?.reelPower || 3;
                 const baitPower = require('./fishCore').BAIT_STATS[baitId]?.reelPower || 3;
                 const imSmarterLevel = fishSkills.getSkillLevel(profile, 'im_smarter');
 
-                // Reduced reel power for better balance - requires more clicks
                 const totalReelPower = Number(Math.max(1.5, (rodPower + baitPower + imSmarterLevel * 0.15) * 0.4).toFixed(1));
 
-                tugOfWar.position -= totalReelPower;
-                tugOfWar.lastReelTime = Date.now(); // Update last reel time
+                // Stronger fish resist the reel — reduce effective pull by fish strength
+                const resistance = tugOfWar.baseStrength * 0.3;
+                const effectiveReelPower = Math.max(0.5, totalReelPower - resistance);
+
+                tugOfWar.position -= effectiveReelPower;
+                tugOfWar.lastReelTime = Date.now();
                 
                 if (tugOfWar.position <= 0) {
                     await i.deferUpdate();
@@ -624,10 +658,10 @@ module.exports = {
                     return;
                 }
 
-                const soldLines = result.sold.slice(0, 10).map(s => `**${s.name}** \`x${s.count}\` — ${CURRENCY_EMOJI}${s.earned.toLocaleString()}`).join('\n');
+                const soldLines = result.sold.slice(0, 10).map(s => `**${s.name}** \`x${s.count}\` — ${s.earned.toLocaleString()} ${CURRENCY_EMOJI}`).join('\n');
                 const moreLine = result.sold.length > 10 ? `\n…and ${result.sold.length - 10} more type(s)` : '';
                 const summary = result.soldCount > 0
-                    ? `> **Sold ${result.soldCount} fish** for **${result.totalEarned.toLocaleString()}${CURRENCY_EMOJI}**!\n${soldLines}${moreLine}`
+                    ? `> **Sold ${result.soldCount} fish** for **${result.totalEarned.toLocaleString()} ${CURRENCY_EMOJI}**!\n${soldLines}${moreLine}`
                     : '> Nothing was sold — the bucket(s) are empty or only hold unsellable fish.';
 
                 await i.update({
@@ -920,52 +954,68 @@ module.exports = {
                         const map = mapManager.getMap(profile.currentMap) || mapManager.getAllMaps()[0];
                         const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'fish', map.image);
                         
+                        // Pre-determine which fish is on the line to drive fight parameters
+                        const rodIdForFight = profile.equipment?.currentRod || 'hand';
+                        const baitIdForFight = profile.equipment?.currentBait || 'finger';
+                        const phantomFish = getRandomFish(rodIdForFight, baitIdForFight);
+                        const phantomRarity = phantomFish ? phantomFish.rarity : 'COMMON';
+                        const strengthParams = getFishStrengthParams(phantomRarity, map.tier);
+
                         tugOfWar.active = true;
-                        tugOfWar.position = 6;
+                        tugOfWar.position = strengthParams.startPosition;
+                        tugOfWar.fishRarity = phantomRarity;
+                        tugOfWar.baseStrength = strengthParams.baseStrength;
+                        tugOfWar.fishStrength = strengthParams.baseStrength;
+                        tugOfWar.driftPerTick = strengthParams.driftPerTick;
+                        tugOfWar.behavior = strengthParams.behavior;
+                        tugOfWar.reelCooldown = strengthParams.reelCooldown;
+                        tugOfWar.burstCounter = 0;
                         tugOfWar.mapImage = map.image;
                         tugOfWar.inventory = inventory;
-                        tugOfWar.lastReelTime = 0; // Track when user last clicked reel in
-                        tugOfWar.fishStrength = 0; // Fish strength that increases over time
-                        tugOfWar.tickCount = 0; // Track number of ticks for progressive difficulty
+                        tugOfWar.lastReelTime = 0;
+                        tugOfWar.lastReelClickTime = 0;
+                        tugOfWar.tickCount = 0;
 
                         const tickTugOfWar = async () => {
                             if (!tugOfWar.active || tugOfWar.tickLock) return;
                             tugOfWar.tickLock = true;
                             try {
-                                const rodId = profile.equipment?.currentRod || 'hand';
-                                const baitId = profile.equipment?.currentBait || 'finger';
-                                const rodPower = require('./fishCore').ROD_STATS[rodId]?.reelPower || 3;
-                                const baitPower = require('./fishCore').BAIT_STATS[baitId]?.reelPower || 3;
-
-                                // Progressive difficulty: fish gets stronger over time
                                 tugOfWar.tickCount++;
-                                const strengthIncrease = Math.min(0.8, tugOfWar.tickCount * 0.02); // Cap at 0.8 additional strength
-                                tugOfWar.fishStrength = strengthIncrease;
 
-                                // Calculate base drift with better scaling
-                                const baseDrift = 0.08 + ((baitPower || 3) / 10) * 0.08;
-                                const drift = Number(Math.min(0.25, baseDrift + tugOfWar.fishStrength).toFixed(2));
-                                
-                                // Smooth drift reduction based on recent user activity
+                                // Base drift from fish rarity
+                                let drift = tugOfWar.driftPerTick;
+
+                                // Apply behavior pattern
+                                if (tugOfWar.behavior === 'burst') {
+                                    tugOfWar.burstCounter++;
+                                    if (tugOfWar.burstCounter % 4 === 0) {
+                                        drift *= 2.5; // Sudden surge every 4 ticks
+                                    }
+                                } else if (tugOfWar.behavior === 'erratic') {
+                                    drift *= (0.5 + Math.random()); // Vary drift by ±50%
+                                }
+                                // 'steady' uses drift as-is
+
+                                // Progressive difficulty: fish gets slightly stronger over time
+                                const progressiveBonus = Math.min(0.08, tugOfWar.tickCount * 0.003);
+                                drift += progressiveBonus;
+                                tugOfWar.fishStrength = Math.min(1.0, tugOfWar.baseStrength + progressiveBonus);
+
+                                // Drift reduction based on recent reel activity
                                 const now = Date.now();
                                 const timeSinceLastReel = now - tugOfWar.lastReelTime;
-                                
-                                // Calculate drift reduction factor (0.1 to 1.0)
                                 let driftFactor = 1.0;
                                 if (timeSinceLastReel < 500) {
-                                    driftFactor = 0.1; // Very effective if clicking very fast
+                                    driftFactor = 0.1;
                                 } else if (timeSinceLastReel < 1000) {
-                                    driftFactor = 0.3; // Effective if clicking within 1 second
+                                    driftFactor = 0.3;
                                 } else if (timeSinceLastReel < 2000) {
-                                    driftFactor = 0.6; // Partially effective if clicking within 2 seconds
+                                    driftFactor = 0.6;
                                 }
-                                
-                                const adjustedDrift = drift * driftFactor;
-                                
-                                // Apply drift with minimum threshold to ensure some movement
-                                const finalDrift = Math.max(0.02, adjustedDrift);
+
+                                const finalDrift = Math.max(0.02, drift * driftFactor);
                                 tugOfWar.position += finalDrift;
-                                
+
                                 if (tugOfWar.position >= 12) {
                                     await handleFishingResult(false);
                                     return;
@@ -977,20 +1027,21 @@ module.exports = {
                             } finally {
                                 tugOfWar.tickLock = false;
                                 if (tugOfWar.active) {
-                                    tugOfWar.interval = setTimeout(tickTugOfWar, 500); // Faster tick for smoother gameplay
+                                    tugOfWar.interval = setTimeout(tickTugOfWar, 500);
                                 }
                             }
                         };
 
-                        // Add initial delay for smooth start
+                        // Initial delay for smooth start
                         tugOfWar.interval = setTimeout(tickTugOfWar, 1500);
 
-                        // Time limit
+                        // Time limit: harder fish get slightly more time (15s–20s)
+                        const timeLimit = 15000 + Math.round(strengthParams.baseStrength * 5000);
                         tugOfWar.timeout = setTimeout(async () => {
                             if (tugOfWar.active) {
                                 await handleFishingResult(false);
                             }
-                        }, 15000);
+                        }, timeLimit);
 
                         await mainMsg.edit({
                             content: null,
@@ -999,7 +1050,7 @@ module.exports = {
                                 new ContainerBuilder()
                                     .addTextDisplayComponents(
                                         new TextDisplayBuilder()
-                                        .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, tugOfWar.position, tugOfWar.mapImage, tugOfWar.inventory, tugOfWar.fishStrength).data.description}`)
+                                        .setContent(`# 🎣 Tug of War!\n> Reel in the fish before it escapes!\n\n${fishUI.buildTugOfWarEmbed(profile, tugOfWar.position, tugOfWar.mapImage, tugOfWar.inventory, tugOfWar.fishStrength, tugOfWar.fishRarity, tugOfWar.behavior).data.description}`)
                                     )
                                     .addActionRowComponents([
                                         new ActionRowBuilder().addComponents(
@@ -1131,7 +1182,7 @@ module.exports = {
                         components: [fishUI.buildBucket(profile, freshInventory, bucketState)],
                         flags: [MessageFlags.IsComponentsV2]
                     });
-                    await i.followUp({ content: `> Sold **${result.name}** for **${result.earned.toLocaleString()}${CURRENCY_EMOJI}**!`, ephemeral: true });
+                    await i.followUp({ content: `> Sold **${result.name}** for **${result.earned.toLocaleString()} ${CURRENCY_EMOJI}**!`, ephemeral: true });
                     return;
                 }
             }

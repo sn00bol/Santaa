@@ -27,6 +27,48 @@ const BAIT_STATS = {
     worm: { reelPower: 3, rarityLimit: null, rateBoost: 1.1 },
 };
 
+// Tug-of-war strength parameters per rarity
+const FISH_STRENGTH_PARAMS = {
+    COMMON:    { baseStrength: 0.10, driftPerTick: 0.06, startPosition: 6, reelCooldown: 0 },
+    UNCOMMON:  { baseStrength: 0.20, driftPerTick: 0.09, startPosition: 6, reelCooldown: 0 },
+    EPIC:      { baseStrength: 0.35, driftPerTick: 0.13, startPosition: 7, reelCooldown: 0 },
+    RARE:      { baseStrength: 0.50, driftPerTick: 0.17, startPosition: 7, reelCooldown: 0 },
+    LEGENDARY: { baseStrength: 0.70, driftPerTick: 0.22, startPosition: 8, reelCooldown: 300 },
+    MYTHIC:    { baseStrength: 0.90, driftPerTick: 0.28, startPosition: 9, reelCooldown: 400 },
+};
+
+// Fish emoji per rarity shown inside the tug-of-war bar
+const FISH_RARITY_EMOJI = {
+    COMMON:    '🐟',
+    UNCOMMON:  '🐠',
+    EPIC:      '🐡',
+    RARE:      '🦈',
+    LEGENDARY: '🐉',
+    MYTHIC:    '🐙',
+};
+
+const TOW_BEHAVIORS = ['steady', 'burst', 'erratic'];
+
+/**
+ * Returns tug-of-war fight parameters derived from rarity and map tier.
+ * @param {string} rarity - RARITY_CONFIG key (COMMON, UNCOMMON, EPIC, RARE, LEGENDARY, MYTHIC)
+ * @param {number} mapTier - The current map tier (1–4)
+ * @returns {{ baseStrength, driftPerTick, startPosition, reelCooldown, behavior }}
+ */
+function getFishStrengthParams(rarity, mapTier = 1) {
+    const key = String(rarity).toUpperCase();
+    const base = FISH_STRENGTH_PARAMS[key] || FISH_STRENGTH_PARAMS.COMMON;
+    const tierBonus = (Math.max(1, mapTier) - 1) * 0.05;
+    const behavior = TOW_BEHAVIORS[Math.floor(Math.random() * TOW_BEHAVIORS.length)];
+    return {
+        baseStrength:  Math.min(1.0,  base.baseStrength  + tierBonus),
+        driftPerTick:  Math.min(0.35, base.driftPerTick  + tierBonus * 0.5),
+        startPosition: base.startPosition,
+        reelCooldown:  base.reelCooldown,
+        behavior,
+    };
+}
+
 // Cached fish data to avoid repeated filesystem operations
 let fishDataCache = null;
 let fishDataCacheTime = 0;
@@ -149,9 +191,12 @@ function calculateExp(fish) {
 module.exports = {
     getRandomFish,
     calculateExp,
+    getFishStrengthParams,
     RARITY_CONFIG,
     ROD_STATS,
     BAIT_STATS,
+    FISH_STRENGTH_PARAMS,
+    FISH_RARITY_EMOJI,
     fishData,
-    getFishData
+    getFishData,
 };

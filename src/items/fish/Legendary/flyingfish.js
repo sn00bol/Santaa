@@ -3,7 +3,7 @@ module.exports = {
     name: 'Flying Fish',
     sell: 470,
     desc: 'They not only swim in water but also fly in sky, pretty cool right? like Superman :3',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

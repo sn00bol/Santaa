@@ -3,7 +3,7 @@ module.exports = {
     name: 'Sturgeon',
     sell: 155,
     desc: 'prehistoric bottom-dweller whose roe is worth a fortune',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

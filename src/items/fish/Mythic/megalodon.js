@@ -3,7 +3,7 @@ module.exports = {
     name: 'Megalodon',
     sell: 1000,
     desc: 'I mean they are copy paste of normal shark with big size',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

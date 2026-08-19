@@ -217,11 +217,19 @@ function resetSkills(profile) {
  * `rarity` should be a RARITY_CONFIG key e.g. 'COMMON', 'MYTHIC'.
  * Mutates profile.skill in-place.
  */
-function awardSkillPoints(profile, rarity) {
-    const points = RARITY_POINTS[String(rarity).toUpperCase()] || 1;
+function awardSkillPoints(profile, expGained) {
     profile.skill = profile.skill || {};
-    profile.skill.totalPoints = (Number(profile.skill.totalPoints) || 0) + points;
-    return points;
+    const oldXp = Number(profile.xp) || 0;
+    const newXp = oldXp + expGained;
+    const oldPoints = Math.floor(oldXp / 100);
+    const newPoints = Math.floor(newXp / 100);
+    const earnedPoints = newPoints - oldPoints;
+
+    profile.xp = newXp;
+    if (earnedPoints > 0) {
+        profile.skill.totalPoints = (Number(profile.skill.totalPoints) || 0) + earnedPoints;
+    }
+    return { expGained, earnedPoints };
 }
 
 /**

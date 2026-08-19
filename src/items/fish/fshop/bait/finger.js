@@ -5,7 +5,7 @@ module.exports = {
     name: 'Your finger',
     sell: 0,
     desc: `Man you could buy a worm bait with 5${CURRENCY_SYMBOL} not that hard`,
-    type: [],
+    type: ['fish'],
     is_sellable: false,
     is_tradeable: false,
     show: false

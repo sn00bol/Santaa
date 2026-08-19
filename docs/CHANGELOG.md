@@ -1,24 +1,23 @@
-v1.2.0-beta.1
-- Add give money/items
-- Add achievements (literally wikipedia with no description)
-- Add release fish if you so kind (sorry who mistouch lol)
-- Fix remain bugs
-- Upgrade instruction cuz it goin to oudate again
-- Official v1.2.0 release date
+v1.2.0-beta.2
+- Add fish type (to hide in inventory even if it have show or no)
+- Fish strength now based on fish rarity
+- Change some stuff on buckets
+- To get skill point you have need 100 EXP to get one point by catching fish and sell (finally added back calculateExp btw)
 
 # CHANGELOG
 # v1.2.0 - 8.21.2026
-- Big upgrade UI/UX and brand new minigames for fishing (it really big upgrade I swear)
-- Add a lot of new fish
-- Add fish shop: fishing rod, bait, bucket
-- Add beach/sea map for fish and diverse rarity rate
+- Big upgrade UI/UX for fishing (it really big upgrade I swear)
+- New tug of war gameplay for fishing with: fish strength based on fish rarity, 50/50 to get random fish or junk,... 
+- Add 53 new fish to all rarity (10 fish for every rarity, 3 fish for mythic)
+- Add fish shop: fishing rod, bait, buckets
+- Add sea/lake map for fish and diverse rarity rate (have their assets too)
 - Other: achievement (currently for fish and other stuff), give money/items, show/hide items and commands
 - Supporting aliases command
 - Allow to add diverse categories
 - Modify some items and balancing stuff
 - Bot now when running npm run kinda slower (somtimes little bit fast)
-- Remove custom currency emoji
-- HOTFIX beg command
+- Remove custom currency emoji due to bug
+- Fix beg command without that user permission to earn money
 
 Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03), [8439a95](https://github.com/sn00bol/Santaa/commit/8439a958a0e2498e5eec93097a5397eb9421ce46), [9cc4f14](https://github.com/sn00bol/Santaa/commit/9cc4f141e0f52f387d4c458e033eacff16445d94), [a7d6aa4](https://github.com/sn00bol/Santaa/commit/a7d6aa486291dde1e154f66bc37de90b5bb5dca7), [2ecf639](https://github.com/sn00bol/Santaa/commit/2ecf6393129044fcc2f3885639d13d08ad0381ac)
 

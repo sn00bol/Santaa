@@ -3,7 +3,7 @@ module.exports = {
     name: 'Sun Fish',
     sell: 98,
     desc: 'Yall know what? in Vietnamese this mean "Moonfish" lol',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

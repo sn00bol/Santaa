@@ -3,7 +3,7 @@ module.exports = {
     name: 'Bream',
     sell: 44,
     desc: 'Rewarding to catch, these fish are a common sight in rivers and lakes',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

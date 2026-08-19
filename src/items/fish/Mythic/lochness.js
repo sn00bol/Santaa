@@ -3,7 +3,7 @@ module.exports = {
     name: 'Loch Ness Monster',
     sell: 980,
     desc: 'Loch Ness aint Loch Ness when you catch it not at Loch Ness lake, weird',
-    type: [],
+    type: ['fish'],
     is_sellable: true,
     is_tradeable: true
 };

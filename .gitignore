@@ -11,3 +11,4 @@ database/bosses_memory/
 
 # others
 test/
+.scrap_dbtest/

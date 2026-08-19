@@ -26,10 +26,10 @@ module.exports = {
             inventoryItems = (await rpgmanager.getInventory(message.author.id)).filter(invItem => {
                 const itemDef = allItems.get(invItem.item_id);
                 if (!itemDef) return true;
-                
-                // Hide specific items
-                const fishingItems = ['hand', 'defaultRod', 'sharkRod', 'bucketRod', 'kaboom', 'niceGlove', 'worm', 'jig', 'crank', 'finger', 'defaultBucket'];
-                if (fishingItems.includes(invItem.item_id)) return false;
+
+                // Hide all fishing-related items (fish, rods, baits, buckets)
+                const itemType = Array.isArray(itemDef.type) ? itemDef.type : [itemDef.type];
+                if (itemType.includes('fish')) return false;
 
                 return isVisibleItem(itemDef);
             });

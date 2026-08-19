@@ -3,7 +3,7 @@ module.exports = {
     name: 'Old fishing rod',
     sell: 0,
     desc: 'The default fishing rod for you when you start fishing, it is not sellable',
-    type: [], // not using
+    type: ['fish'], // not using
     // Specific type for fishing rod
     durability: 50,
     stats: '• Free fishing rod\n• Reel in faster than hand',
