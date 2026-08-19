@@ -1,8 +1,7 @@
-v1.2.0-beta.2
-- Add fish type (to hide in inventory even if it have show or no)
-- Fish strength now based on fish rarity
-- Change some stuff on buckets
-- To get skill point you have need 100 EXP to get one point by catching fish and sell (finally added back calculateExp btw)
+v1.2.0-beta.3
+- modify some items and balancing stuff
+- Add all assets for remain tier map
+- Ready some stuff to pull into main branch
 
 # CHANGELOG
 # v1.2.0 - 8.21.2026
@@ -11,7 +10,7 @@ v1.2.0-beta.2
 - Add 53 new fish to all rarity (10 fish for every rarity, 3 fish for mythic)
 - Add fish shop: fishing rod, bait, buckets
 - Add sea/lake map for fish and diverse rarity rate (have their assets too)
-- Other: achievement (currently for fish and other stuff), give money/items, show/hide items and commands
+- Other: achievement (WIP, will release at v1.2.1), give money/items, show/hide items and commands
 - Supporting aliases command
 - Allow to add diverse categories
 - Modify some items and balancing stuff

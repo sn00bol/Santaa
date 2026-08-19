@@ -3,7 +3,7 @@ module.exports = {
     name: 'Luxembourg Sea',
     tier: 2,
     description: 'A landlock country, somehow they have this sea',
-    image: 'RandomSea.png',
+    image: 'luxembourg.png',
     rates: {
         "COMMON": 45,
         "UNCOMMON": 25,

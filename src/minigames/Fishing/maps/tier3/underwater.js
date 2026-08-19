@@ -2,8 +2,8 @@ module.exports = {
     id: 'underwater',
     name: 'Underwater Sea',
     tier: 3,
-    description: 'Yeah, its underwater',
-    image: 'Lake1.png',
+    description: 'As I could say im too lazy to draw this because this is a underwater bro :sob:',
+    image: 'underwater.png',
     rates: {
         "COMMON": 30,
         "UNCOMMON": 30,

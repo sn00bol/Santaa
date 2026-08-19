@@ -3,7 +3,7 @@ module.exports = {
     name: 'The mainland',
     tier: 4,
     description: 'Man could you fishing on sea or lake please',
-    image: 'Lake1.png',
+    image: 'mainland.png',
     rates: {
         "COMMON": 25,
         "UNCOMMON": 15,

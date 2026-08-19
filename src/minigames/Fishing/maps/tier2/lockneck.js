@@ -3,7 +3,7 @@ module.exports = {
     name: 'Lock Neck Lake',
     tier: 2,
     description: 'Well this is different lake not Loch Ness, the monster in here have been "lock neck"',
-    image: 'Lake1.png',
+    image: 'lockneck.png',
     rates: {
         "COMMON": 35,
         "UNCOMMON": 35,

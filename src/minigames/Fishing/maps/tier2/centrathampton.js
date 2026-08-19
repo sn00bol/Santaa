@@ -1,9 +1,9 @@
 module.exports = {
     id: 'centrathampton',
-    name: 'Centrathampton Sea',
+    name: 'Centrathampton Port',
     tier: 2,
     description: 'We have Southampton and Northampton, where is Centrathampton?',
-    image: 'RandomSea.png',
+    image: 'centrathampton.png',
     rates: {
         "COMMON": 40,
         "UNCOMMON": 30,

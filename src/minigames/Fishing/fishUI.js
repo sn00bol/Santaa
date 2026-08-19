@@ -523,7 +523,7 @@ function buildLocation(profile = {}, selectedMapId = null) {
         );
 
     // Xây dựng chuỗi thông tin Map & Rates
-    let descriptionText = `**${map.name}** (Tier ${map.tier})\n> ${map.description}\n\n`;
+    let descriptionText = `> ${map.description}\n\n`;
 
     if (isUnlocked) {
         descriptionText += `**Rarity Rates:**\n`;

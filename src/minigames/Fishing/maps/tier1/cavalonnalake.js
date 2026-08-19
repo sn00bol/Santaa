@@ -2,7 +2,7 @@ module.exports = {
     id: 'cavalonnalake',
     name: 'Cavalona Lake',
     tier: 1,
-    description: 'A peaceful lake with gentle ripples.',
+    description: 'I saw this somewhere at Nevada',
     image: 'RandomSea.png',
     rates: {
     "COMMON": 60,
