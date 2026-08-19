@@ -104,7 +104,11 @@ Beta release: [1db5502](https://github.com/sn00bol/Santaa/commit/1db550288de11e6
 - Improve inventory command
 - Fix bug
 
-# v0.1.3-v0.1.2 BETA - 6.21.2026
+# v0.1.3 BETA - 6.22.2026
+- Fix trade embed and respond time
+- Fix some stuff ahh
+
+# v0.1.2 BETA - 6.21.2026
 - Add trade command
 - Fix some stuff at shop command
 - Bug fix
