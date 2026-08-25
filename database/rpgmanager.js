@@ -59,6 +59,12 @@ module.exports = {
         try { await db.exec(`ALTER TABLE stats ADD COLUMN wanted_level INTEGER DEFAULT 0;`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN wanted_updated_at INTEGER DEFAULT 0;`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN fishing_profile TEXT DEFAULT '{}';`); } catch (e) {}
+        try { await db.exec(`ALTER TABLE stats ADD COLUMN crimes INTEGER DEFAULT 0;`); } catch (e) {}
+        try { await db.exec(`ALTER TABLE stats ADD COLUMN begs INTEGER DEFAULT 0;`); } catch (e) {}
+        try { await db.exec(`ALTER TABLE stats ADD COLUMN items_sold INTEGER DEFAULT 0;`); } catch (e) {}
+        try { await db.exec(`ALTER TABLE stats ADD COLUMN items_bought INTEGER DEFAULT 0;`); } catch (e) {}
+        try { await db.exec(`ALTER TABLE stats ADD COLUMN unknown_category_visits INTEGER DEFAULT 0;`); } catch (e) {}
+        try { await db.exec(`ALTER TABLE stats ADD COLUMN pvp_wins INTEGER DEFAULT 0;`); } catch (e) {}
     },
 
     // Add item to inventory
@@ -120,7 +126,7 @@ module.exports = {
     },
 
     // Specifically update attack/defense/level/exp
-    async updateProgress(userId, { attack, defense, level, exp, steals, fishing_profile }) {
+    async updateProgress(userId, { attack, defense, level, exp, steals, crimes, begs, items_sold, items_bought, unknown_category_visits, pvp_wins, fishing_profile }) {
         const updates = [];
         const params = [];
         if (attack !== undefined) { updates.push('attack = ?'); params.push(attack); }
@@ -128,6 +134,12 @@ module.exports = {
         if (level !== undefined) { updates.push('level = ?'); params.push(level); }
         if (exp !== undefined) { updates.push('exp = ?'); params.push(exp); }
         if (steals !== undefined) { updates.push('steals = ?'); params.push(steals); }
+        if (crimes !== undefined) { updates.push('crimes = ?'); params.push(crimes); }
+        if (begs !== undefined) { updates.push('begs = ?'); params.push(begs); }
+        if (items_sold !== undefined) { updates.push('items_sold = ?'); params.push(items_sold); }
+        if (items_bought !== undefined) { updates.push('items_bought = ?'); params.push(items_bought); }
+        if (unknown_category_visits !== undefined) { updates.push('unknown_category_visits = ?'); params.push(unknown_category_visits); }
+        if (pvp_wins !== undefined) { updates.push('pvp_wins = ?'); params.push(pvp_wins); }
         if (fishing_profile !== undefined) {
             updates.push('fishing_profile = ?');
             params.push(JSON.stringify(parseFishingProfile(fishing_profile)));

@@ -9,7 +9,7 @@
     "test": "node --test",
     "alpha": "npm version prerelease --preid=alpha --no-git-tag-version",
     "beta": "npm version prerelease --preid=beta --no-git-tag-version",
-    "stable": "npm version patch"
+    "stable": "npm version patch --no-git-tag-version"
   },
   "keywords": [
     "discord",

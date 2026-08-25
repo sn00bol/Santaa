@@ -43,6 +43,14 @@ async function sellItemsCore(userId, itemsToSell) {
 
     if (totalEarned > 0) {
         await dbmanager.addMoney(userId, totalEarned, { trackEarning: true });
+
+        const totalItemsSold = soldItems.reduce((acc, item) => acc + item.quantity, 0);
+        const stats = await rpgmanager.getStats(userId);
+        const newItemsSold = (stats.items_sold || 0) + totalItemsSold;
+        await rpgmanager.updateProgress(userId, { items_sold: newItemsSold });
+        stats.items_sold = newItemsSold;
+        const achievementChecker = require('../../minigames/achievement/achievementChecker');
+        achievementChecker.checkEconomy(userId, stats, 'sell').catch(console.error);
     }
 
     return { totalEarned, soldItems, equippedChanged };

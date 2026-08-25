@@ -8,8 +8,6 @@ module.exports = {
     category: 'owner',
     usage: 'Zstat',
     async execute(message) {
-        if (message.author.id !== process.env.OWNER_ID) return;
-
         const uptime = process.uptime();
         const hrs = Math.floor(uptime / 3600);
         const mins = Math.floor((uptime % 3600) / 60);

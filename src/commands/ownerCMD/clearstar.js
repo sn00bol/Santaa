@@ -6,8 +6,6 @@ module.exports = {
     category: 'owner',
     usage: 'Zclearstar `@user`',
     async execute(message, args) {
-        if (message.author.id !== process.env.OWNER_ID) return;
-
         const targetUser = message.mentions.users.first() || message.author;
         const rpgmanager = message.client.rpg || require('../../../database/rpgmanager');
 

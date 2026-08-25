@@ -1,4 +1,12 @@
 # CHANGELOG
+# 1.2.1 - 8.25.2026
+- Now achievement fully work
+- Supporting than 1 owner or whole team to using cheat legally together (lol)
+- Make all checking owner permission into 1 file
+- Optimized scanning code and remove some useless logs (which is faster and giving back the loading speed in v1.1.1)
+- Remove tips (rest in peace)
+- Fix remain bug at v1.2.0
+
 # v1.2.0 - 8.19.2026
 - Big upgrade UI/UX for fishing (it really big upgrade I swear)
 - New tug of war gameplay for fishing with: fish strength based on fish rarity, 50/50 to get random fish or junk,... 
@@ -134,7 +142,7 @@ Beta release: [1db5502](https://github.com/sn00bol/Santaa/commit/1db550288de11e6
 - Add daily reward, working jobs and balance
 - Add Admin command for dumb owner
 - Add help command with category selection
--Make database more robust
+- Make database more robust
 
-# v0.0.0 ALPHA
+# v0.0.0 ALPHA - 5.6.2026
 - Adding bot wtf u expect

@@ -56,6 +56,14 @@ module.exports = {
                     }
 
                     await rpgmanager.addItem(i.user.id, item.id, item.name);
+                    
+                    const stats = await rpgmanager.getStats(i.user.id);
+                    const newBought = (stats.items_bought || 0) + 1;
+                    await rpgmanager.updateProgress(i.user.id, { items_bought: newBought });
+                    stats.items_bought = newBought;
+                    const achievementChecker = require('../../minigames/achievement/achievementChecker');
+                    achievementChecker.checkEconomy(i.user.id, stats, 'buy').catch(console.error);
+
                     return i.reply({ content: `Successfully bought **${item.name}** for ${cost}  ${response.currencyEmoji}!`, ephemeral: true });
                 }
 

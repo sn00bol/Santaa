@@ -42,6 +42,7 @@ const DEFAULT_FISHING_PROFILE = {
         levels: {},        // { skillId: levelNumber, ... }
     },
     durability: 100,
+    achievements: [],
 };
 
 function generateProgressBar(current, max, length = 10) {

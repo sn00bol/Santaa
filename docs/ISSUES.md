@@ -89,10 +89,14 @@
   1. **Smoothness issue**: Added 1.5 second initial delay before first tick to prevent jerky start when entering minigame
   2. **Balance issue**: Reduced reel power from 5.4 to ~2.1 (requiring ~3 clicks instead of 2) and implemented smart drift reduction - drift is reduced by 70% when user actively clicks reel in within 1 second, making button clicks effective while maintaining challenge
 
+### [ISSUE-022]: npm run more slowly at v1.2.0
+- **Status**: Fixed
+- **Detail**: Recursive command loading used `fs.statSync` on every file entry, causing blocking synchronous I/O operations during startup, as the codebase grew in v1.2.0 (53+ fish items, new maps, V2 components stuff), the accumulated I/O overhead significantly delayed process initialization, solution is using `WithFileTypes` instead of old `StatSync`
+
 ---
 ## STILL NOT FIX OR OTHER ISSUE
 
-### [ISSUE-022]: Still not found
+### [ISSUE-023]: Still not found
 
 ---
 

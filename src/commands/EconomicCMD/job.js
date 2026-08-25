@@ -213,5 +213,13 @@ module.exports = {
     });
 
     message.channel.send({ embeds: [embed] });
+
+    // Hook achievements for job work
+    if (shouldReward) {
+      const rpgManager = message.client.rpg;
+      const achievementChecker = require('../../minigames/achievement/achievementChecker');
+      const stats = await rpgManager.getStats(author.id);
+      achievementChecker.checkJob(author.id, stats, { jobId: job.id, workCount: nextWorkCount }).catch(console.error);
+    }
   }
 };

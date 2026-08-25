@@ -80,8 +80,12 @@ module.exports = {
 
                 await dbManager.removeMoney(targetUser.id, stolen);
                 await dbManager.addMoney(author.id, stolen, { trackEarning: false });
-                const currentSteals = Number((await rpgManager.getStats(author.id)).steals || 0);
-                await rpgManager.updateProgress(author.id, { steals: currentSteals + 1 });
+                const stats = await rpgManager.getStats(author.id);
+                const currentSteals = Number(stats.steals || 0) + 1;
+                await rpgManager.updateProgress(author.id, { steals: currentSteals });
+                stats.steals = currentSteals;
+                const achievementChecker = require('../../minigames/achievement/achievementChecker');
+                achievementChecker.checkEconomy(author.id, stats, 'steal').catch(console.error);
 
                 embed
                     .setTitle('Steal Successful!')

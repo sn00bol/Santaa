@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, 
 const packageInfo = require('../../../package.json');
 require('dotenv').config();
 const { getMenuRow, getPaginationRow, getOptions, applySelectMenuDefaults } = require('../Utils/NavigateManager');
+const { isOwner: isOwnerUser } = require('../Utils/permission');
 const { DM, noDM, SLASH, noSLASH } = require('../Utils/config');
 
 // In-memory fallback cache for category selection (used if DB is unavailable)
@@ -55,7 +56,7 @@ module.exports = {
 
         let currentPage = 0;
         const itemsPerPage = 5;
-        const isOwner = message.author.id === process.env.OWNER_ID;
+        const isOwner = isOwnerUser(message.author.id);
 
         // Load last-accessed categories from DB, fallback to in-memory or 'all'
         let currentCategories;

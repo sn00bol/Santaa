@@ -31,6 +31,13 @@ module.exports = {
 
         try {
             const stats = await rpgManager.getStats(author.id);
+            
+            const newCrimes = (stats.crimes || 0) + 1;
+            await rpgManager.updateProgress(author.id, { crimes: newCrimes });
+            stats.crimes = newCrimes;
+            const achievementChecker = require('../../minigames/achievement/achievementChecker');
+            achievementChecker.checkEconomy(author.id, stats, 'crime').catch(console.error);
+
             const currentHealth = stats.health;
             const currentStamina = stats.stamina;
             const wl = Math.floor((stats.wanted_level || 0) / 5);

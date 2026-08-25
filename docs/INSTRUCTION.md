@@ -57,10 +57,10 @@ In `src/index.js`, the bot uses the `commandFolders` array:
 ```js
 const commandFolders = ['commands', 'minigames', 'memes'];
 ```
-The bot recursively scans all `.js` files in these folders
+The bot recursively scans all .js files using fs.readdirSync(dir, { withFileTypes: true }). This reads directory entries directly without triggering additional I/O calls (fs.statSync), ensuring fast boot times even with hundreds of files.
 
 **Rules:**
-- Add a `.js` file to a subfolder of `commands`, `minigames`, `memes` $\rightarrow$ Bot loads it automatically.
+- Add a .js file to any subfolder inside commands, minigames, or memes $\rightarrow$ The bot loads it automatically
 - Add a new folder at the same level as `commands` $\rightarrow$ You must add that folder name to `commandFolders`.
 
 ## 3. How to add a new Command
@@ -74,8 +74,9 @@ The bot recursively scans all `.js` files in these folders
 module.exports = {
   name: 'hello',
   aliases: ['hi', 'hallo'], // Not required to add
-  description: 'Bot greeting command', // Needed for help command
-  category: 'gnr', // eco: Economic, gnr: General, owner: Owner (Important, if you make a command literally cheat lol), utl: Utils, mie: Minigames
+  description: 'Bot greeting command', // Needed for help command, or its will fallback "No description"
+  category: 'gnr', // Not required because help command will list it at "All" category but cannot appear in other category
+  //All category supported: eco: Economic, gnr: General, owner: Owner (Important, if you make a command literally cheat lol), utl: Utils, mie: Minigames
   // If you want to add more or than 1 category, use array format: category: "['category1', 'category2']",
 
   usage: '!hello', // really need, if you lazy to add then you could create a file to automatic add to all command

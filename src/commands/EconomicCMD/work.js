@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { jobs, jobs_txt } = require('../Utils/tips'); // Import job from tips.js
+const { jobs, jobs_txt } = require('../Utils/misc'); // Import job from tips.js
 const { checkCooldown } = require('../Utils/Cooldown'); // Import cooldown function from Cooldown.js
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
@@ -49,6 +49,11 @@ module.exports = {
                 )
                 .setTimestamp();
             message.channel.send({ embeds: [workEmbed] });
+
+            const rpgManager = message.client.rpg;
+            const achievementChecker = require('../../minigames/achievement/achievementChecker');
+            const stats = await rpgManager.getStats(author.id);
+            achievementChecker.checkEconomy(author.id, stats, 'parttime').catch(console.error);
         } catch (error) {
             console.error('Error occurred while updating user balance:', error);
         }

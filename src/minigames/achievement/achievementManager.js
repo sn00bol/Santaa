@@ -48,18 +48,20 @@ class AchievementManager {
         return Array.from(this.categories);
     }
 
-    async checkAndGrant(userId, achievementId, profile, rpgmanager) {
+    async checkAndGrant(userId, achievementId) {
         const ach = this.achievements.find(a => a.id === achievementId);
         if (!ach) return false;
 
+        const rpgmanager = require('../../../database/rpgmanager');
+        const stats = await rpgmanager.getStats(userId);
+        const profile = stats.fishing_profile || {};
+
         if (profile.achievements?.includes(achievementId)) return false;
 
-        // Note: The logic for 'how' to achieve is usually called from the game logic
-        // but this manager can handle the granting part.
         if (!profile.achievements) profile.achievements = [];
         profile.achievements.push(achievementId);
         
-        await rpgmanager.updateProgress(userId, { fishing_profile: profile }); // This needs to be more generic, maybe a general profile update
+        await rpgmanager.updateProgress(userId, { fishing_profile: profile });
         return true;
     }
 }

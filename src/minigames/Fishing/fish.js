@@ -150,6 +150,7 @@ module.exports = {
         const mainMsg = await message.reply({ components: [container], flags: [MessageFlags.IsComponentsV2] });
 
         async function handleFishingResult(success) {
+            const lostRarity = tugOfWar.fishRarity;
             endTugOfWar();
             const inventoryNow = await getCachedInventory();
             
@@ -211,6 +212,7 @@ module.exports = {
                     let fishDisplay = '';
                     let bucketNotice = '';
                     let expGained = 0;
+                    const achievementChecker = require('../achievement/achievementChecker');
                     for (const fish of caughtFishList) {
                         await rpgmanager.addItem(userId, fish.id, fish.name);
                         const bucketPlace = fishBucket.placeCaughtFish(profile, inventoryNow, fish);
@@ -219,6 +221,19 @@ module.exports = {
                         }
                         fishDisplay += `**${fish.name}** (${fish.rarityLabel})\n`;
                         expGained += calculateExp(fish);
+                        
+                        // Track historical catches for map unlocking and achievements
+                        if (!profile.historicalCatches) profile.historicalCatches = {};
+                        profile.historicalCatches[fish.rarity] = (profile.historicalCatches[fish.rarity] || 0) + 1;
+                        
+                        // Check achievements per fish
+                        achievementChecker.checkFishing(userId, profile, {
+                            type: 'catch',
+                            fish: fish,
+                            rod: rodId,
+                            bait: baitId,
+                            junk: false
+                        }).catch(console.error);
                     }
                     const { earnedPoints } = fishSkills.awardSkillPoints(profile, expGained);
                     await rpgmanager.updateProgress(userId, { fishing_profile: profile });
@@ -256,10 +271,23 @@ module.exports = {
                     }
 
                     let itemDisplay = '';
+                    const achievementChecker = require('../achievement/achievementChecker');
                     for (const item of caughtItemList) {
                         await rpgmanager.addItem(userId, item.id, `${item.name} (Damage Item)`);
                         itemDisplay += `**${item.name}**\n`;
+                        
+                        if (!profile.historicalCatches) profile.historicalCatches = {};
+                        profile.historicalCatches.Junk = (profile.historicalCatches.Junk || 0) + 1;
+                        
+                        achievementChecker.checkFishing(userId, profile, {
+                            type: 'catch',
+                            fish: item,
+                            rod: rodId,
+                            bait: baitId,
+                            junk: true
+                        }).catch(console.error);
                     }
+                    await rpgmanager.updateProgress(userId, { fishing_profile: profile });
                     
                     await mainMsg.edit({
                         content: null,
@@ -276,6 +304,9 @@ module.exports = {
                     });
                 }
             } else {
+                const achievementChecker = require('../achievement/achievementChecker');
+                achievementChecker.checkFishing(userId, profile, { type: 'giveup', fish: { rarity: lostRarity } }).catch(console.error);
+                
                 await mainMsg.edit({
                     content: null,
                     embeds: [],
@@ -458,8 +489,10 @@ module.exports = {
                     });
                     return;
                 } else {
+                    const achievementChecker = require('../achievement/achievementChecker');
                     for (const fish of lastCaughtFish) {
                         await rpgmanager.removeItem(fish.id);
+                        achievementChecker.checkFishing(userId, profile, { type: 'release', fish }).catch(console.error);
                     }
                     lastCaughtFish = [];
                     await i.update({
@@ -480,15 +513,18 @@ module.exports = {
 
             if (i.customId === 'fish_release_select') {
                 const selectedValue = i.values[0];
+                const achievementChecker = require('../achievement/achievementChecker');
                 if (selectedValue === 'all') {
                     for (const fish of lastCaughtFish) {
                         await rpgmanager.removeItem(fish.id);
+                        achievementChecker.checkFishing(userId, profile, { type: 'release', fish }).catch(console.error);
                     }
                 } else {
                     const index = Number(selectedValue.replace('fish_', ''));
                     const fish = lastCaughtFish[index];
                     if (fish) {
                         await rpgmanager.removeItem(fish.id);
+                        achievementChecker.checkFishing(userId, profile, { type: 'release', fish }).catch(console.error);
                     }
                 }
                 lastCaughtFish = [];

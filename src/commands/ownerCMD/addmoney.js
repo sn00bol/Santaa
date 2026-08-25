@@ -9,10 +9,6 @@ module.exports = {
     category: 'owner',
     usage: 'Zaddmoney `@user` `amount`',
     async execute(message, args) {
-        // Check if the user is the bot owner        
-        if (message.author.id !== process.env.OWNER_ID) {
-            return message.reply("ONLY OWNER'S BOT CAN USE THIS COMMAND.");
-        }
         const { client } = message;
         const dbManager = message.client.db;
 

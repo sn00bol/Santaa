@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const { allItemsCache } = require('../Utils/StatsCalculator');
 const { CURRENCY_SYMBOL } = require('../Utils/config');
+const { isOwner: isOwnerUser } = require('../Utils/permission');
 require('dotenv').config();
 
 module.exports = {
@@ -13,7 +14,7 @@ module.exports = {
         const dbmanager = client.db;
         const rpgmanager = client.rpg;
 
-        const isOwner = author.id === process.env.OWNER_ID;
+        const isOwner = isOwnerUser(author.id);
 
         // 1. Check target user
         const targetUser = message.mentions.users.first();
@@ -113,6 +114,13 @@ module.exports = {
                     .setDescription(`Successfully gave **${moneyAmount.toLocaleString()}${CURRENCY_SYMBOL}** to ${targetUser}.\n${isOwner ? '*(Spawned by Owner)*' : `Your remaining balance: **${(await dbmanager.getUser(author.id)).balance.toLocaleString()}${CURRENCY_SYMBOL}**`}`)
                     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                     .setTimestamp();
+
+                // Check achievement for the receiver if sender is owner
+                if (isOwner) {
+                    const achievementChecker = require('../../minigames/achievement/achievementChecker');
+                    const receiverStats = await rpgmanager.getStats(targetUser.id);
+                    achievementChecker.checkEconomy(targetUser.id, receiverStats, 'owner_give').catch(console.error);
+                }
 
                 return message.channel.send({ embeds: [embed] });
             }

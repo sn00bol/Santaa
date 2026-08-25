@@ -503,6 +503,15 @@ module.exports = {
                         .setTimestamp();
 
                     await requestMsg.edit({ content: '', embeds: [resultEmbed], components: [] });
+
+                    // Track trade achievements for both users
+                    const achievementChecker = require('../../minigames/achievement/achievementChecker');
+                    const [statsA, statsB] = await Promise.all([
+                        rpgmanager.getStats(userA.id),
+                        rpgmanager.getStats(userB.id),
+                    ]);
+                    achievementChecker.checkEconomy(userA.id, statsA, 'trade').catch(console.error);
+                    achievementChecker.checkEconomy(userB.id, statsB, 'trade').catch(console.error);
                 } catch (err) {
                     console.error('[Trade] Error executing trade:', err);
                     requestMsg.edit({

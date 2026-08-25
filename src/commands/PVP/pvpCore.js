@@ -152,6 +152,13 @@ async function awardExperience(winnerId) {
     defense: newDefense
   });
 
+  // Track PVP wins for achievements
+  const newPvpWins = (stats.pvp_wins || 0) + 1;
+  await rpgmanager.updateProgress(winnerId, { pvp_wins: newPvpWins });
+  stats.pvp_wins = newPvpWins;
+  const achievementChecker = require('../../minigames/achievement/achievementChecker');
+  achievementChecker.checkPvp(winnerId, stats).catch(console.error);
+
   return { levelUp: newLevel > stats.level, newLevel };
 }
 

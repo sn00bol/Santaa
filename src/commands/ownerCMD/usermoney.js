@@ -8,11 +8,6 @@ module.exports = {
     usage: 'Zusermoney `set`/`remove`/`reset` `@user` `amount`',
 
     async execute(message, args) {
-        // Check if the user is the bot owner
-        if (message.author.id !== process.env.OWNER_ID) {
-            return message.reply("ONLY OWNER'S BOT CAN USE THIS COMMAND.");
-        }
-
         const dbManager = message.client.db;
 
         const subcmd = args[0]?.toLowerCase(); // 'set', 'remove', 'reset'

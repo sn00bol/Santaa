@@ -43,6 +43,14 @@ module.exports = {
             return;
         }
 
+        const rpgmanager = require('../../../database/rpgmanager');
+        const achievementChecker = require('../../minigames/achievement/achievementChecker');
+        const stats = await rpgmanager.getStats(author.id);
+        const newBegs = (stats.begs || 0) + 1;
+        await rpgmanager.updateProgress(author.id, { begs: newBegs });
+        stats.begs = newBegs;
+        achievementChecker.checkEconomy(author.id, stats, 'beg').catch(console.error);
+
         const targetUser = message.mentions.users.first() || (args[0] && /^\d{17,19}$/.test(args[0]) ? await message.client.users.fetch(args[0]).catch(() => null) : null);
         const isSelfBeg = Boolean(targetUser && targetUser.id === author.id);
 
