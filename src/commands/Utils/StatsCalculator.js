@@ -1,6 +1,7 @@
 const rpgmanager = require('../../../database/rpgmanager');
 const path = require('path');
 const fs = require('fs');
+const inflationManager = require('./InflationManager');
 
 /**
  * Loads all item definitions from the unified items folders.
@@ -22,6 +23,9 @@ const loadItems = () => {
             const files = fs.readdirSync(dirPath).filter(f => f.endsWith('.js'));
             for (const file of files) {
                 const item = require(path.join(dirPath, file));
+                item.shop = d;
+                if (item.cost !== undefined) item.baseCost = item.cost;
+                if (item.sell !== undefined) item.baseSell = item.sell;
                 allItems.set(item.id, item);
             }
         }
@@ -34,23 +38,36 @@ const loadItems = () => {
     ];
 
     // Recursively loads all .js item files from a directory tree
-    const loadFromDir = (dirPath) => {
+    const loadFromDir = (dirPath, shopName) => {
         if (!fs.existsSync(dirPath)) return;
         for (const entry of fs.readdirSync(dirPath)) {
             const fullPath = path.join(dirPath, entry);
             if (fs.lstatSync(fullPath).isDirectory()) {
-                loadFromDir(fullPath);
+                loadFromDir(fullPath, shopName);
             } else if (entry.endsWith('.js')) {
                 try {
                     const item = require(fullPath);
-                    if (item && item.id) allItems.set(item.id, item);
+                    if (item && item.id) {
+                        item.shop = shopName;
+                        if (item.cost !== undefined) item.baseCost = item.cost;
+                        if (item.sell !== undefined) item.baseSell = item.sell;
+                        allItems.set(item.id, item);
+                    }
                 } catch (e) { /* skip invalid items */ }
             }
         }
     };
 
-    for (const targetPath of targets) {
-        loadFromDir(targetPath);
+    // targetPath: array of [path, shopName]
+    const targetsWithShop = [
+        [path.join(__dirname, '..', '..', 'items', 'mine'), 'mining'],
+        [path.join(__dirname, '..', '..', 'minigames', 'Mining', 'minerals'), 'mining'],
+        [path.join(__dirname, '..', '..', 'items', 'fish'), 'fishing'],
+        [path.join(__dirname, '..', '..', 'minigames', 'Fishing', 'fish'), 'fishing']
+    ];
+
+    for (const [targetPath, shopName] of targetsWithShop) {
+        loadFromDir(targetPath, shopName);
     }
 
     return allItems;
@@ -58,6 +75,7 @@ const loadItems = () => {
 
 // Cache items to avoid repeated disk reads
 const allItemsCache = loadItems();
+inflationManager.applyAll(allItemsCache);
 
 /**
  * Calculates the final stats for a user by combining base stats from DB 

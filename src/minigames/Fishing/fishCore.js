@@ -131,7 +131,7 @@ const getFishData = () => {
 
 loadFish();
 
-function getRandomFish(rodId = 'hand', baitId = 'finger') {
+function getRandomFish(rodId = 'hand', baitId = 'finger', weatherType = 'clear', dayNight = 'day') {
     const rod = ROD_STATS[rodId] || ROD_STATS.hand;
     const bait = BAIT_STATS[baitId] || BAIT_STATS.finger;
 
@@ -150,6 +150,21 @@ function getRandomFish(rodId = 'hand', baitId = 'finger') {
         if (rarity === 'MYTHIC') weight = mythicWeight;
         if (penalty > 0 && (rarity === 'MYTHIC' || rarity === 'LEGENDARY')) {
             weight = Math.max(0.1, weight - penalty);
+        }
+        
+        // Weather effects on weights
+        if (weatherType === 'rainy' || weatherType === 'cloudy') {
+            if (rarity === 'UNCOMMON') weight += weatherType === 'rainy' ? 10 : 5;
+            if (rarity === 'RARE') weight += weatherType === 'rainy' ? 5 : 2;
+        }
+
+        // Apply Day/Night effect: Night affects Common to Epic
+        if (dayNight === 'night') {
+            if (rarity === 'COMMON') weight = Math.max(1, weight - 10); // Decrease common
+            if (rarity === 'UNCOMMON') weight = Math.max(1, weight - 5);
+            if (rarity === 'RARE') weight += 5; // Increase rare
+            if (rarity === 'EPIC') weight += 10; // Increase epic
+            // Legendary and Mythic unaffected
         }
         
         accumulatedWeight += weight;
@@ -188,10 +203,21 @@ function calculateExp(fish) {
     return Math.max(1, Math.floor(cfg.exp * sellFactor));
 }
 
+function applyWeatherModifiers(weatherType, baseThreshold) {
+    let threshold = baseThreshold;
+    if (weatherType === 'sunny') threshold += 0.15;
+    else if (weatherType === 'cloudy') threshold -= 0.10;
+    else if (weatherType === 'rainy') threshold -= 0.15;
+    else if (weatherType === 'cold') threshold += 0.25;
+
+    return Math.max(0.1, Math.min(0.95, threshold));
+}
+
 module.exports = {
     getRandomFish,
     calculateExp,
     getFishStrengthParams,
+    applyWeatherModifiers,
     RARITY_CONFIG,
     ROD_STATS,
     BAIT_STATS,

@@ -1,5 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
-const { getRandomFish, calculateExp, getFishStrengthParams } = require('./fishCore');
+const { getRandomFish, calculateExp, getFishStrengthParams, applyWeatherModifiers } = require('./fishCore');
 const fs = require('fs');
 const path = require('path');
 const fishUI = require('./fishUI');
@@ -12,6 +12,7 @@ const rpgmanager = require('../../../database/rpgmanager');
 const { checkCooldown, getCooldownDuration } = require('../../commands/Utils/Cooldown');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
 const mapManager = require('./MapManager');
+const weatherManager = require('./WeatherManager');
 
 const fishCounts = new Map(); // userId -> { count, cooldownUntil }
 
@@ -185,7 +186,12 @@ module.exports = {
                 // Base thresholds: tier <= 2 uses 0.6, tier > 2 uses 0.5
                 // Skill effects reduce the junk chance (increase fish chance)
                 const baseThreshold = tier <= 2 ? 0.6 : 0.5;
-                const adjustedThreshold = baseThreshold - handLoversEffect - bazookanistEffect - bucketsEnhancedEffect;
+                let adjustedThreshold = baseThreshold - handLoversEffect - bazookanistEffect - bucketsEnhancedEffect;
+                
+                const weatherState = weatherManager.getWeather(map.id);
+                if (weatherState) {
+                    adjustedThreshold = applyWeatherModifiers(weatherState.type, adjustedThreshold);
+                }
                 
                 const roll = Math.random();
                 const effectiveThreshold = Math.max(0, Math.min(1, adjustedThreshold));
@@ -201,7 +207,7 @@ module.exports = {
                     
                     const caughtFishList = [];
                     for (let i = 0; i < catchCount; i++) {
-                        const fish = getRandomFish(rodId, baitId);
+                        const fish = getRandomFish(rodId, baitId, weatherState?.type || 'clear', weatherState?.dayNight || 'day');
                         if (fish) caughtFishList.push(fish);
                     }
                     lastCaughtFish = caughtFishList; // Store for release functionality
@@ -993,7 +999,9 @@ module.exports = {
                         // Pre-determine which fish is on the line to drive fight parameters
                         const rodIdForFight = profile.equipment?.currentRod || 'hand';
                         const baitIdForFight = profile.equipment?.currentBait || 'finger';
-                        const phantomFish = getRandomFish(rodIdForFight, baitIdForFight);
+                        
+                        const weatherForFight = weatherManager.getWeather(map.id);
+                        const phantomFish = getRandomFish(rodIdForFight, baitIdForFight, weatherForFight?.type || 'clear', weatherForFight?.dayNight || 'day');
                         const phantomRarity = phantomFish ? phantomFish.rarity : 'COMMON';
                         const strengthParams = getFishStrengthParams(phantomRarity, map.tier);
 

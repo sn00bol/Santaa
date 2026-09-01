@@ -6,6 +6,7 @@ const { FISH_RARITY_EMOJI, RARITY_CONFIG: FISH_RARITY_CONFIG } = require('./fish
 const fishShop = require('./fishShop');
 const fishBucket = require('./fishBucket');
 const mapManager = require('./MapManager');
+const weatherManager = require('./WeatherManager');
 const fishSkills = require('./fishSkills');
 
 function resolveItemName(itemId, fallback) {
@@ -88,8 +89,16 @@ function buildMain(profile = {}, inventory = null, noticeMessage = null) {
         ? `📍 ${mapManager.getMap(profile.currentMap)?.name || profile.currentMap}`
         : `⚠️ No Location selected — **Pick one first!**`;
 
+    let weatherLine = '';
+    if (profile.currentMap) {
+        const weatherInfo = weatherManager.getWeatherInfo(profile.currentMap);
+        if (weatherInfo) {
+            weatherLine = `\n**Weather:** ${weatherInfo.emoji} ${weatherInfo.label} (resets in ${weatherInfo.timeRemainingStr})`;
+        }
+    }
+
     const text2 = new TextDisplayBuilder()
-        .setContent(`**Current Equipment**\n${durabilityLine}\n\n**Bucket capacity:**\n${bucketLine}\n\n**Current Location:**\n${locationLine}`);
+        .setContent(`**Current Equipment**\n${durabilityLine}\n\n**Bucket capacity:**\n${bucketLine}\n\n**Current Location:**\n${locationLine}${weatherLine}`);
 
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -542,6 +551,11 @@ function buildLocation(profile = {}, selectedMapId = null) {
             if (mythicRate > 0) descriptionText += `| \`Mythic: ${mythicRate}%\``;
             descriptionText += '\n';
         }
+        
+        const weatherInfo = weatherManager.getWeatherInfo(targetMapId);
+        if (weatherInfo) {
+            descriptionText += `\n**Current Weather:** ${weatherInfo.emoji} ${weatherInfo.label} (resets in ${weatherInfo.timeRemainingStr})\n`;
+        }
     } else {
         descriptionText += `🔒 **LOCKED**\n**Requirements to unlock:** ${mapManager.getMapUnlockRequirements(map)}\n`;
     }
@@ -613,8 +627,16 @@ function buildFishingNow(profile = {}, inventory = null) {
     const text = new TextDisplayBuilder()
         .setContent('# 🎣 Fishing now\n> Get ready! The fish are biting. Keep your eyes on the line and reel them in as soon as you feel a tug!');
 
+    let weatherLine = '';
+    if (profile.currentMap) {
+        const weatherInfo = weatherManager.getWeatherInfo(profile.currentMap);
+        if (weatherInfo) {
+            weatherLine = `\n**Weather:** ${weatherInfo.emoji} ${weatherInfo.label}`;
+        }
+    }
+
     const statsText = new TextDisplayBuilder()
-        .setContent(`**Current Status**\n${durabilityLine}\n${bucketLine}`);
+        .setContent(`**Current Status**\n${durabilityLine}\n${bucketLine}${weatherLine}`);
 
     const buttons = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
