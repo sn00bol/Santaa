@@ -1,4 +1,9 @@
 # CHANGELOG
+# 1.2.2 - 9.1.2026
+- Add inflation system (increase or decrease item value, also allow to change on specific shop - items)
+- Add weather, day-night times for every location (affect fish rarity)
+- Fix some bug
+
 # 1.2.1 - 8.25.2026
 - Now achievement fully work
 - Supporting than 1 owner or whole team to using cheat legally together (lol)
