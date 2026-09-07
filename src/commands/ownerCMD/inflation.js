@@ -42,11 +42,7 @@ module.exports = {
         }
 
         if (subCommand === 'reset') {
-            inflationManager.config = {
-                global: 1.0,
-                shops: {},
-                items: {}
-            };
+            inflationManager.config = inflationManager.getDefaultConfig();
             inflationManager.save();
             inflationManager.applyAll(allItemsCache);
             return message.reply('Inflation configuration has been completely reset to default (1.0).');

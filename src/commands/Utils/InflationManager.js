@@ -3,30 +3,66 @@ const path = require('path');
 
 const configPath = path.join(__dirname, '..', '..', '..', 'database', 'inflation.json');
 
+const DEFAULT_CONFIG = {
+    global: 1.0,
+    shops: {},
+    items: {}
+};
+
 class InflationManager {
     constructor() {
-        this.config = {
+        this.config = this.getDefaultConfig();
+        this.load();
+    }
+    
+    getDefaultConfig() {
+        return {
             global: 1.0,
             shops: {},
             items: {}
         };
-        this.load();
     }
     
     load() {
-        if (fs.existsSync(configPath)) {
-            try {
-                this.config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-            } catch (e) {
-                console.error('Failed to load inflation config', e);
+        try {
+            if (!fs.existsSync(configPath)) {
+                console.log('[InflationManager] inflation.json not found. Automatically creating default inflation.json...');
+                this.config = this.getDefaultConfig();
+                this.save();
+                return;
             }
-        } else {
+
+            const content = fs.readFileSync(configPath, 'utf8').trim();
+            if (!content) {
+                console.warn('[InflationManager] inflation.json is empty. Automatically creating default inflation.json...');
+                this.config = this.getDefaultConfig();
+                this.save();
+                return;
+            }
+
+            const parsed = JSON.parse(content);
+            this.config = {
+                global: typeof parsed?.global === 'number' ? parsed.global : 1.0,
+                shops: (parsed?.shops && typeof parsed.shops === 'object') ? parsed.shops : {},
+                items: (parsed?.items && typeof parsed.items === 'object') ? parsed.items : {}
+            };
+        } catch (e) {
+            console.warn('[InflationManager] Failed to load or parse inflation config. Automatically recreating default inflation.json... Error:', e.message);
+            this.config = this.getDefaultConfig();
             this.save();
         }
     }
     
     save() {
-        fs.writeFileSync(configPath, JSON.stringify(this.config, null, 4));
+        try {
+            const dir = path.dirname(configPath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+            fs.writeFileSync(configPath, JSON.stringify(this.config, null, 4), 'utf8');
+        } catch (e) {
+            console.error('[InflationManager] Failed to save inflation config:', e);
+        }
     }
     
     getMultiplier(itemDef) {
