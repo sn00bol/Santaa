@@ -10,6 +10,6 @@ database/rpg.db
 database/bosses_memory/
 
 # others
-inflation.json
+database/inflation.json
 test/
 .scrap_dbtest/

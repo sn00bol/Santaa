@@ -1,5 +1,9 @@
 # CHANGELOG
 
+# v1.2.4 - 9.15.2026
+- Upgrading checking owner permission now checking if category have owner instead ONLY owner category
+- Ugrading catch error logs and blocking commands temporarily to prevent bot crash (except some bugs will crash whole bot normally)
+
 # v1.2.3 - 9.8.2026
 - Add more fish
 - Auto create inflation json data

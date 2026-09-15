@@ -51,7 +51,7 @@ Santaa/
 (Other minor file or not necessary will not list here)
 ```
 
-## 2. How Bot Loads Commands
+## 2. How Bot Loads Commands and managing bot crash
 
 In `src/index.js`, the bot uses the `commandFolders` array:
 ```js
@@ -62,6 +62,22 @@ The bot recursively scans all .js files using fs.readdirSync(dir, { withFileType
 **Rules:**
 - Add a .js file to any subfolder inside commands, minigames, or memes $\rightarrow$ The bot loads it automatically
 - Add a new folder at the same level as `commands` $\rightarrow$ You must add that folder name to `commandFolders`.
+
+Finally, to prevent bot crashing (which is normally happen when a command or whole modular command have bug/error before v1.2.4), bot catch error logs and blocking commands temporarily to prevent bot crash (except some bugs will crash whole bot normally like database)
+```js
+    if (client.blockedCommands.has(command.name)) {
+        return message.reply('This command currently blocked due to a bugs or crashing, will fix it fast as possible');
+    }
+
+    try {
+        await command.execute(message, args);
+    } catch (error) {
+        console.error(`[ERROR] Command '${command.name}' failed and is now blocked:`, error);
+        client.blockedCommands.add(command.name);
+        message.reply('This command currently blocked due to a bugs or crashing, will fix it fast as possible');
+    }
+```
+
 
 ## 3. How to add a new Command
 

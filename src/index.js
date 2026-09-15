@@ -4,7 +4,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { Client, IntentsBitField, Collection, ActivityType } = require('discord.js');
-const dbmanager = require('../database/dbmanager'); // Import the database manager module
+const dbmanager = require('../database/dbmanager');
 const rpgmanager = require('../database/rpgmanager');
 const { isOwner } = require('./commands/Utils/permission');
 
@@ -22,8 +22,8 @@ const client = new Client({
 const pfx = process.env.PFX;
 client.commands = new Collection();
 client.aliases = new Collection();
+client.blockedCommands = new Set();
 
-// Function to recursively get all .js files in the commands directory and its subdirectories
 function getFilesRecursive(dir) {
     let results = [];
     if (!fs.existsSync(dir)) return results;
@@ -69,8 +69,7 @@ commandFolders.forEach(folder => {
     }
 });
 
-// Listen for messages
-client.on('messageCreate', (message) => {
+client.on('messageCreate', async (message) => {
     if (!message.content.startsWith(pfx) || message.author.bot) return;
 
     const args = message.content.slice(pfx.length).trim().split(/ +/);
@@ -79,20 +78,24 @@ client.on('messageCreate', (message) => {
     const command = client.commands.get(commandName) || client.aliases.get(commandName);
     if (!command) return;
 
-    // Function checking owner only
     const isOwnerOnly = Array.isArray(command.category)
-        ? (command.category.includes('owner') && command.category.every(cat => cat === 'owner'))
+        ? command.category.includes('owner')
         : command.category === 'owner';
 
     if (isOwnerOnly && !isOwner(message.author.id)) {
         return message.reply("ONLY OWNER'S BOT CAN USE THIS COMMAND.");
     }
 
+    if (client.blockedCommands.has(command.name)) {
+        return message.reply('This command currently blocked due to a bugs or crashing, will fix it fast as possible');
+    }
+
     try {
-        command.execute(message, args);
+        await command.execute(message, args);
     } catch (error) {
-        console.error(error);
-        message.reply('There was an error trying to execute that command!');
+        console.error(`[ERROR] Command '${command.name}' failed and is now blocked:`, error);
+        client.blockedCommands.add(command.name);
+        message.reply('This command currently blocked due to a bugs or crashing, will fix it fast as possible');
     }
 });
 
