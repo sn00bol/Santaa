@@ -1,3 +1,6 @@
+v1.3.0-alpha.0
+Add update system (maybe not working now)
+
 # CHANGELOG
 
 # v1.2.4 - 9.15.2026

@@ -1,7 +1,7 @@
 {
   "name": "santaa",
-  "version": "1.2.4",
-  "description": "Ho ho ho! Santa like to fishing and he have a gold bucket!",
+  "version": "1.3.0-alpha.0",
+  "description": "With great cave comes great miners",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
@@ -9,7 +9,9 @@
     "test": "node --test",
     "alpha": "npm version prerelease --preid=alpha --no-git-tag-version",
     "beta": "npm version prerelease --preid=beta --no-git-tag-version",
-    "stable": "npm version patch --no-git-tag-version"
+    "stable": "npm version patch --no-git-tag-version",
+    "fallback": "node src/fallback.js",
+    "update": "node src/updater.js"
   },
   "keywords": [
     "discord",
@@ -22,6 +24,7 @@
   "type": "commonjs",
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
+    "adm-zip": "^0.6.1",
     "discord.js": "^14.19.0",
     "dotenv": "^17.4.2",
     "sqlite": "^5.1.1",

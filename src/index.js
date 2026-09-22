@@ -7,6 +7,10 @@ const { Client, IntentsBitField, Collection, ActivityType } = require('discord.j
 const dbmanager = require('../database/dbmanager');
 const rpgmanager = require('../database/rpgmanager');
 const { isOwner } = require('./commands/Utils/permission');
+const { initUpdater } = require('./updater');
+
+// Initialize the auto-updater
+initUpdater();
 
 // some flag u shouldnt care fr
 const client = new Client({
