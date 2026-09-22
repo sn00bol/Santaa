@@ -1,5 +1,6 @@
 v1.3.0-alpha.0
-Add update system (maybe not working now)
+Add update system
+Update fully worked, you can viewing result here: [update test #1](https://github.com/sn00bol/Santaa/commit/4a3112a94ebe105e92f4caf3f6c24cecc3faf76d), [update test #2](https://github.com/sn00bol/Santaa/commit/9a9b18bfd2e76b26335c3574e627b87fdd31a90b)
 
 # CHANGELOG
 
