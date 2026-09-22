@@ -9,10 +9,6 @@ const rpgmanager = require('../database/rpgmanager');
 const { isOwner } = require('./commands/Utils/permission');
 const { initUpdater } = require('./updater');
 
-// Initialize the auto-updater
-initUpdater();
-
-// some flag u shouldnt care fr
 const client = new Client({
     intents: [
         IntentsBitField.Flags.Guilds,
@@ -138,3 +134,6 @@ async function connectData() {
 }
 
 connectData();
+
+// Initiating Auto-Updater
+initUpdater();

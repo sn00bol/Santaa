@@ -6,7 +6,7 @@ let isUpdating = false;
 
 function execCmd(command) {
     try {
-        return execSync(command, { encoding: 'utf8' }).trim();
+        return execSync(command, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     } catch (error) {
         return null;
     }
@@ -53,7 +53,7 @@ async function promptUpdate(versionData, showChangelog) {
             console.log('\n[UPDATE] Changelog for this version is not available.');
         }
 
-        rl.question('Do you want to update? (y/n): ', (answer) => {
+        rl.question('\nDo you want to update? (y/n): ', (answer) => {
             rl.close();
             const lowerAnswer = answer.trim().toLowerCase();
             resolve(lowerAnswer === 'y' || lowerAnswer === 'yes');
@@ -61,32 +61,6 @@ async function promptUpdate(versionData, showChangelog) {
     });
 }
 
-// Visual helper for download bar
-async function simulateDownloadBar(actionText, totalMB = 15) {
-    return new Promise(resolve => {
-        let downloaded = 0;
-        const width = 25;
-        process.stdout.write(`[UPDATE] ${actionText}...\n`);
-
-        const interval = setInterval(() => {
-            downloaded += (Math.random() * 3 + 1);
-            if (downloaded >= totalMB) downloaded = totalMB;
-
-            const progress = downloaded / totalMB;
-            const filled = Math.round(width * progress);
-            const empty = width - filled;
-            const bar = '█'.repeat(filled) + '-'.repeat(empty);
-
-            process.stdout.write(`\r   ${downloaded.toFixed(1)}MB / ${totalMB.toFixed(1)}MB [${bar}] ${Math.round(progress * 100)}%`);
-
-            if (downloaded >= totalMB) {
-                clearInterval(interval);
-                console.log();
-                resolve();
-            }
-        }, 150);
-    });
-}
 
 async function checkForUpdates() {
     if (isUpdating) return;
@@ -109,7 +83,9 @@ async function checkForUpdates() {
             return;
         }
 
-        if (localCommit !== remoteCommit) {
+        if (localCommit === remoteCommit) {
+            return; // Silent, up to date
+        } else {
             isUpdating = true; // Prevent multiple update prompts
 
             // Check version to prevent pulling older branch accidentally
@@ -144,38 +120,75 @@ async function checkForUpdates() {
 
             if (wantsUpdate) {
                 console.log('[UPDATE] Starting update process...');
+                let updateStage = 'init';
                 try {
                     const changedFiles = execCmd(`git diff --name-only HEAD origin/${branch}`).split('\n').filter(Boolean);
                     const isOnlyPackage = changedFiles.length > 0 && changedFiles.every(file => file === 'package.json' || file === 'package-lock.json');
                     const isSmallUpdate = changedFiles.length > 0 && changedFiles.length <= 5 && !changedFiles.includes('package.json');
+                    const needsNpmInstall = changedFiles.includes('package.json') || changedFiles.includes('package-lock.json');
 
                     if (isSmallUpdate) {
-                        await simulateDownloadBar(`Downloading ${changedFiles.length} file(s)`, 2);
-                        execCmd(`git merge origin/${branch}`);
+                        updateStage = 'merge';
+                        console.log(`[UPDATE] Fast update mode: Only ${changedFiles.length} file(s) changed. Merging directly...`);
+                        execSync(`git merge origin/${branch}`, { stdio: 'inherit' });
                         console.log('[UPDATE] Fast update completed successfully! Restarting bot...');
                     } else if (isOnlyPackage) {
+                        updateStage = 'merge';
                         console.log(`[UPDATE] Fast update mode: Only package files changed. Skipping backup...`);
-                        execCmd(`git merge origin/${branch}`);
-                        await simulateDownloadBar('Installing dependencies', 25);
-                        execCmd('npm install');
+                        execSync(`git merge origin/${branch}`, { stdio: 'inherit' });
+                        
+                        updateStage = 'install_onlypackage';
+                        console.log('[UPDATE] Installing dependencies...');
+                        execSync('npm install', { stdio: 'inherit' });
                         console.log('[UPDATE] Fast update completed successfully! Restarting bot...');
                     } else {
+                        updateStage = 'backup';
                         console.log('[UPDATE] Major update detected. Running full backup and reset...');
                         await createBackup();
 
-                        await simulateDownloadBar(`Downloading new code from origin/${branch}`, 10);
-                        execCmd(`git reset --hard origin/${branch}`);
+                        updateStage = 'reset';
+                        console.log(`[UPDATE] Updating local codebase from origin/${branch}...`);
+                        execSync(`git reset --hard origin/${branch}`, { stdio: 'inherit' });
                         execCmd('git clean -fd');
 
-                        await simulateDownloadBar('Installing dependencies', 25);
-                        execCmd('npm install');
+                        if (needsNpmInstall) {
+                            updateStage = 'install_major';
+                            console.log('[UPDATE] Installing dependencies...');
+                            execSync('npm install', { stdio: 'inherit' });
+                        } else {
+                            console.log('[UPDATE] No dependencies changed. Skipping npm install.');
+                        }
 
                         console.log('[UPDATE] Full update completed successfully! Restarting bot...');
                     }
 
                     process.exit(0);
                 } catch (updateError) {
-                    console.error('[UPDATE] Error during update:', updateError);
+                    console.error('\n[UPDATE] Error during update:', updateError.message || updateError);
+                    console.log('[UPDATE] Initiating Safe-Fail rollback procedure...');
+                    
+                    try {
+                        if (updateStage === 'merge' || updateStage === 'install_onlypackage') {
+                            console.log('[ROLLBACK] Aborting git merge...');
+                            execCmd('git merge --abort');
+                            if (updateStage === 'install_onlypackage') {
+                                console.log('[ROLLBACK] Reverting npm install...');
+                                execCmd('npm install');
+                            }
+                        } else if (updateStage === 'reset' || updateStage === 'install_major') {
+                            console.log(`[ROLLBACK] Reverting code back to commit ${localCommit}...`);
+                            execCmd(`git reset --hard ${localCommit}`);
+                            if (updateStage === 'install_major') {
+                                console.log('[ROLLBACK] Reverting dependencies...');
+                                execCmd('npm install');
+                            }
+                        }
+                        console.log('[UPDATE] Safe-Fail rollback completed successfully. Bot is safe.');
+                    } catch (rollbackError) {
+                        console.error('[FATAL] Rollback also failed! You may need to manually restore from backup or run "npm run fallback".');
+                        console.error(rollbackError.message || rollbackError);
+                    }
+                    
                     console.log('[UPDATE] Update aborted.');
                     isUpdating = false;
                 }
@@ -202,13 +215,10 @@ function initUpdater() {
     }
 
     if (autoUpdate) {
-        console.log(`[UPDATE] Auto-updater initialized. Checking every ${intervalMs / 1000} seconds.`);
         setTimeout(() => {
             checkForUpdates();
             setInterval(checkForUpdates, intervalMs);
         }, 5000);
-    } else {
-        console.log('[UPDATE] Auto-updater is disabled.');
     }
 }
 
