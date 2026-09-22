@@ -113,30 +113,32 @@ async function checkForUpdates() {
                 try {
                     // Check if it's a small update
                     const changedFiles = execCmd(`git diff --name-only HEAD origin/${branch}`).split('\n').filter(Boolean);
+                    const isOnlyPackage = changedFiles.length > 0 && changedFiles.every(file => file === 'package.json' || file === 'package-lock.json');
                     const isSmallUpdate = changedFiles.length > 0 && changedFiles.length <= 5 && !changedFiles.includes('package.json');
 
                     if (isSmallUpdate) {
                         console.log(`[UPDATE] Fast update mode: Only ${changedFiles.length} file(s) changed. Merging directly...`);
                         execCmd(`git merge origin/${branch}`);
                         console.log('[UPDATE] Fast update completed successfully! Restarting bot...');
+                    } else if (isOnlyPackage) {
+                        console.log(`[UPDATE] Fast update mode: Only package files changed. Merging and installing, skipping backup...`);
+                        execCmd(`git merge origin/${branch}`);
+                        console.log('[UPDATE] Installing dependencies...');
+                        execCmd('npm install');
+                        console.log('[UPDATE] Fast update completed successfully! Restarting bot...');
                     } else {
-                        // Backup first for major update
                         console.log('[UPDATE] Major update detected. Running full backup and reset...');
                         await createBackup();
 
-                        // Update codebase
                         console.log(`[UPDATE] Downloading new code from origin/${branch}...`);
                         execCmd(`git reset --hard origin/${branch}`);
                         execCmd('git clean -fd');
-
-                        // Reinstall dependencies
                         console.log('[UPDATE] Installing dependencies...');
                         execCmd('npm install');
 
                         console.log('[UPDATE] Full update completed successfully! Restarting bot...');
                     }
 
-                    // Gracefully exit so nodemon/PM2 can restart it
                     process.exit(0);
                 } catch (updateError) {
                     console.error('[UPDATE] Error during update:', updateError);
@@ -156,7 +158,7 @@ async function checkForUpdates() {
 function initUpdater() {
     const autoUpdate = process.env.AUTO_UPDATE === 'true';
     const intervalStr = process.env.CHECK_INTERVAL;
-    let intervalMs = 3600 * 1000; // default 1 hour
+    let intervalMs = 3600 * 1000;
 
     if (intervalStr) {
         const parsed = parseInt(intervalStr, 10);
@@ -167,11 +169,10 @@ function initUpdater() {
 
     if (autoUpdate) {
         console.log(`[UPDATE] Auto-updater initialized. Checking every ${intervalMs / 1000} seconds.`);
-        // Run immediately on start, then loop
         setTimeout(() => {
             checkForUpdates();
             setInterval(checkForUpdates, intervalMs);
-        }, 5000); // 5 sec delay on boot
+        }, 5000);
     } else {
         console.log('[UPDATE] Auto-updater is disabled.');
     }
@@ -179,16 +180,13 @@ function initUpdater() {
 
 module.exports = { initUpdater, checkForUpdates };
 
-// If run directly via node src/updater.js
 if (require.main === module) {
     require('dotenv').config();
     console.log('[UPDATE] Running manual update check...');
 
-    // Override AUTO_UPDATE for manual run
     process.env.AUTO_UPDATE = 'true';
 
     checkForUpdates().then(() => {
-        // If not updating, exit
         setTimeout(() => {
             if (!isUpdating) {
                 console.log('[UPDATE] No updates found or update cancelled.');
