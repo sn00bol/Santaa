@@ -19,7 +19,7 @@
 - Good looking UI/UX (currently only on fish minigames lol)
 - Economy System: Balance, Jobs, Part Time, beg, crime, steal,...
 - Fun and advance minigames: PVP, fishing, mining, guess, olympac,...
-- Trading and shopping (ofc)
+- Trading and shopping
 - Using cheat legally with owner commands so you could flex anyone
 - Scanning commands using get files recursive and customize bot status
 - Lightweight and easily to manage database
@@ -35,7 +35,7 @@ Before do anything:
 3. **Your Discord User ID** (for owner commands)
 
 > **Note on Databases:**  
-> Currently bot using SQlite due to minimal usage, the bot may not operate stably when running "very" many servers, so switching to MongoDB is recommended (required to change a lot database)
+> Currently bot using SQlite due to minimal usage, the bot may not operate stably when running many servers, so switching to MongoDB is recommended (required to change a lot database)
 
 ## SETUP
 
