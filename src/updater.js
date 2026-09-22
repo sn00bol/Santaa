@@ -37,23 +37,54 @@ function parseChangelog(changelogContent) {
     return { versionHeader, changes };
 }
 
-async function promptUpdate(versionData, branch) {
+async function promptUpdate(versionData, showChangelog) {
     return new Promise((resolve) => {
         const rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout
         });
 
-        console.log('\n------------------------------------------');
-        console.log(versionData.versionHeader);
-        versionData.changes.forEach(change => console.log(change));
-        console.log('------------------------------------------');
+        if (showChangelog) {
+            console.log('\n------------------------------------------');
+            console.log(versionData.versionHeader);
+            versionData.changes.forEach(change => console.log(change));
+            console.log('------------------------------------------');
+        } else {
+            console.log('\n[UPDATE] Changelog for this version is not available.');
+        }
 
         rl.question('Do you want to update? (y/n): ', (answer) => {
             rl.close();
             const lowerAnswer = answer.trim().toLowerCase();
             resolve(lowerAnswer === 'y' || lowerAnswer === 'yes');
         });
+    });
+}
+
+// Visual helper for download bar
+async function simulateDownloadBar(actionText, totalMB = 15) {
+    return new Promise(resolve => {
+        let downloaded = 0;
+        const width = 25;
+        process.stdout.write(`[UPDATE] ${actionText}...\n`);
+
+        const interval = setInterval(() => {
+            downloaded += (Math.random() * 3 + 1);
+            if (downloaded >= totalMB) downloaded = totalMB;
+
+            const progress = downloaded / totalMB;
+            const filled = Math.round(width * progress);
+            const empty = width - filled;
+            const bar = '█'.repeat(filled) + '-'.repeat(empty);
+
+            process.stdout.write(`\r   ${downloaded.toFixed(1)}MB / ${totalMB.toFixed(1)}MB [${bar}] ${Math.round(progress * 100)}%`);
+
+            if (downloaded >= totalMB) {
+                clearInterval(interval);
+                console.log();
+                resolve();
+            }
+        }, 150);
     });
 }
 
@@ -102,38 +133,41 @@ async function checkForUpdates() {
             const remoteChangelog = execCmd(`git show origin/${branch}:docs/CHANGELOG.md`);
             const versionData = parseChangelog(remoteChangelog);
 
-            if (!versionData || !versionData.versionHeader) {
-                console.log('[UPDATE] Could not parse remote changelog, proceeding anyway.');
+            let showChangelog = false;
+            if (versionData && versionData.versionHeader && remoteVersion !== 'unknown') {
+                if (versionData.versionHeader.includes(remoteVersion) || remoteVersion.includes(versionData.versionHeader)) {
+                    showChangelog = true;
+                }
             }
 
-            const wantsUpdate = await promptUpdate(versionData || { versionHeader: 'New Version', changes: ['Check github for details'] }, branch);
+            const wantsUpdate = await promptUpdate(versionData || { versionHeader: 'New Version', changes: ['Check github for details'] }, showChangelog);
 
             if (wantsUpdate) {
                 console.log('[UPDATE] Starting update process...');
                 try {
-                    // Check if it's a small update
                     const changedFiles = execCmd(`git diff --name-only HEAD origin/${branch}`).split('\n').filter(Boolean);
                     const isOnlyPackage = changedFiles.length > 0 && changedFiles.every(file => file === 'package.json' || file === 'package-lock.json');
                     const isSmallUpdate = changedFiles.length > 0 && changedFiles.length <= 5 && !changedFiles.includes('package.json');
 
                     if (isSmallUpdate) {
-                        console.log(`[UPDATE] Fast update mode: Only ${changedFiles.length} file(s) changed. Merging directly...`);
+                        await simulateDownloadBar(`Downloading ${changedFiles.length} file(s)`, 2);
                         execCmd(`git merge origin/${branch}`);
                         console.log('[UPDATE] Fast update completed successfully! Restarting bot...');
                     } else if (isOnlyPackage) {
-                        console.log(`[UPDATE] Fast update mode: Only package files changed. Merging and installing, skipping backup...`);
+                        console.log(`[UPDATE] Fast update mode: Only package files changed. Skipping backup...`);
                         execCmd(`git merge origin/${branch}`);
-                        console.log('[UPDATE] Installing dependencies...');
+                        await simulateDownloadBar('Installing dependencies', 25);
                         execCmd('npm install');
                         console.log('[UPDATE] Fast update completed successfully! Restarting bot...');
                     } else {
                         console.log('[UPDATE] Major update detected. Running full backup and reset...');
                         await createBackup();
 
-                        console.log(`[UPDATE] Downloading new code from origin/${branch}...`);
+                        await simulateDownloadBar(`Downloading new code from origin/${branch}`, 10);
                         execCmd(`git reset --hard origin/${branch}`);
                         execCmd('git clean -fd');
-                        console.log('[UPDATE] Installing dependencies...');
+
+                        await simulateDownloadBar('Installing dependencies', 25);
                         execCmd('npm install');
 
                         console.log('[UPDATE] Full update completed successfully! Restarting bot...');
