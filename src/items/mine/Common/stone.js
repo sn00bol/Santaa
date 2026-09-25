@@ -2,7 +2,7 @@ module.exports = {
     id: 'stone',
     name: 'Stone',
     sell: 10,
-    desc: 'You could find this somewhere at your garden',
+    desc: 'Have you ever think why you have to pick ts on cave instead your garden?',
     type: [],
     is_sellable: true,
     is_tradeable: true

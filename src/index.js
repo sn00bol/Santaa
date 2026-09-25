@@ -7,7 +7,7 @@ const { Client, IntentsBitField, Collection, ActivityType } = require('discord.j
 const dbmanager = require('../database/dbmanager');
 const rpgmanager = require('../database/rpgmanager');
 const { isOwner } = require('./commands/Utils/permission');
-const { initUpdater } = require('./updater');
+const { initUpdater } = require('./scripts/updater');
 
 const client = new Client({
     intents: [

@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const AdmZip = require('adm-zip');
 
-const backupDir = path.join(__dirname, '..', '.backups');
+const backupDir = path.join(__dirname, '..', '..', '.backups');
 
 function getFormattedDate() {
     const d = new Date();
@@ -45,7 +45,7 @@ function createBackup() {
             const backupFilePath = path.join(backupDir, backupFileName);
 
             const zip = new AdmZip();
-            const rootDir = path.join(__dirname, '..');
+            const rootDir = path.join(__dirname, '..', '..');
 
             const excludeList = ['node_modules', '.git', '.scrap_dbtest', '.backups'];
 
@@ -94,7 +94,7 @@ function restoreBackup(backupFileName) {
 
             console.log(`[Backup] Restoring from ${backupFileName}...`);
             const zip = new AdmZip(backupFilePath);
-            const rootDir = path.join(__dirname, '..');
+            const rootDir = path.join(__dirname, '..', '..');
 
             zip.extractAllTo(rootDir, true);
             console.log(`[Backup] Successfully restored from ${backupFileName}`);

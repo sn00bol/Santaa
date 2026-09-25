@@ -71,10 +71,7 @@ async function checkForUpdates() {
     if (!autoUpdate) return;
 
     try {
-        // Fetch remote
         execCmd(`git fetch origin ${branch}`);
-
-        // Compare commits
         const localCommit = execCmd('git rev-parse HEAD');
         const remoteCommit = execCmd(`git rev-parse origin/${branch}`);
 
@@ -84,12 +81,11 @@ async function checkForUpdates() {
         }
 
         if (localCommit === remoteCommit) {
-            return; // Silent, up to date
+            return;
         } else {
-            isUpdating = true; // Prevent multiple update prompts
+            isUpdating = true;
 
-            // Check version to prevent pulling older branch accidentally
-            const localPkg = require('../package.json');
+            const localPkg = require('../../package.json');
             const localVersion = localPkg.version;
             let remoteVersion = 'unknown';
             try {
@@ -99,13 +95,11 @@ async function checkForUpdates() {
 
             console.log(`\n[UPDATE] New update found! (Local: v${localVersion} -> Remote: v${remoteVersion})`);
 
-            // Simple version compare using localeCompare numeric
             if (localVersion.localeCompare(remoteVersion, undefined, { numeric: true, sensitivity: 'base' }) > 0) {
                 console.log(`\n[WARNING] Your local version (v${localVersion}) is HIGHER than the remote branch (v${remoteVersion}).`);
                 console.log(`You might be on a dev branch pulling from an older stable branch. Proceed with caution!\n`);
             }
 
-            // Extract changelog from remote
             const remoteChangelog = execCmd(`git show origin/${branch}:docs/CHANGELOG.md`);
             const versionData = parseChangelog(remoteChangelog);
 
@@ -136,7 +130,7 @@ async function checkForUpdates() {
                         updateStage = 'merge';
                         console.log(`[UPDATE] Fast update mode: Only package files changed. Skipping backup...`);
                         execSync(`git merge origin/${branch}`, { stdio: 'inherit' });
-                        
+
                         updateStage = 'install_onlypackage';
                         console.log('[UPDATE] Installing dependencies...');
                         execSync('npm install', { stdio: 'inherit' });
@@ -166,7 +160,7 @@ async function checkForUpdates() {
                 } catch (updateError) {
                     console.error('\n[UPDATE] Error during update:', updateError.message || updateError);
                     console.log('[UPDATE] Initiating Safe-Fail rollback procedure...');
-                    
+
                     try {
                         if (updateStage === 'merge' || updateStage === 'install_onlypackage') {
                             console.log('[ROLLBACK] Aborting git merge...');
@@ -188,7 +182,7 @@ async function checkForUpdates() {
                         console.error('[FATAL] Rollback also failed! You may need to manually restore from backup or run "npm run fallback".');
                         console.error(rollbackError.message || rollbackError);
                     }
-                    
+
                     console.log('[UPDATE] Update aborted.');
                     isUpdating = false;
                 }

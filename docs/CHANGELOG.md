@@ -1,9 +1,24 @@
-v1.3.0-alpha.0fix
-- Updating updater scripts
-- Fix update script on startup
-- Remove useless download bar lol
+v1.3.0-alpha.1
+- Rework entirely old material items
+- Add settings (useless for now)
+- Add fast navigate to easily go to the page instead spam clicking
+- refactor update files into a folder
 
 # CHANGELOG
+
+# v1.3.0 - 10.xx.2026
+- Brand new UI/UX for Mining, guess meme, olympac
+- Rework and added new a lot of material
+- Add mining shops with pickaxe, bags and helmet
+- Add crafting system to upgrade pickaxe and helmet (to nothing to +8) or fixing it
+- Add Santaa Museum (history player catch fish, material, items,...)
+- Added a lot of new small minigames and memes
+- Other: add new mining achievements, jobs reminder
+- Allow to DMs bot and add slash commands
+- Revert from image to legacy embed for leaderboard, level and balance
+- Add auto update and update Santaa bot source (disable via .env)
+
+Alpha release: [e664ab5](https://github.com/sn00bol/Santaa/commit/e664ab5bdca5448d1d445c323e0e043145013ab8), [73b18d2](https://github.com/sn00bol/Santaa/commit/73b18d2d37a78aaba86d104c2dd6bc4c2d0ee44c)
 
 # v1.2.4 - 9.15.2026
 - Upgrading checking owner permission now checking if category have owner instead ONLY owner category

@@ -2,7 +2,7 @@ module.exports = {
     id: 'iron',
     name: 'Iron',
     sell: 40,
-    desc: 'Strong iron ore.',
+    desc: 'I... am... Iron Man',
     type: [],
     is_sellable: true,
     is_tradeable: true

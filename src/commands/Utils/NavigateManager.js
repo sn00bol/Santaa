@@ -26,8 +26,30 @@ const getMenuRow = (customId, customOptions = null, maxValues = 1, minValues = 1
     );
 };
 
-const getPaginationRow = (currentPage, totalPages) => {
-    return new ActionRowBuilder().addComponents(
+const { ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+
+const createFastNavigateModal = (totalPages, customId = 'fast_navigate_modal') => {
+    return new ModalBuilder()
+        .setCustomId(customId)
+        .setTitle('Fast Navigate')
+        .addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('page_input')
+                    .setLabel(`Enter a page from 1 to ${totalPages}`)
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder(`1 - ${totalPages}`)
+                    .setRequired(true)
+                    .setMinLength(1)
+                    .setMaxLength(String(totalPages).length)
+            )
+        );
+};
+
+const getPaginationRow = (currentPage, totalPages, options = {}) => {
+    const includeFastNavigate = options.includeFastNavigate || false;
+
+    const components = [
         new ButtonBuilder()
             .setCustomId('first')
             .setEmoji('1502938730648961135') // change this to your custom emoji
@@ -38,6 +60,19 @@ const getPaginationRow = (currentPage, totalPages) => {
             .setEmoji('1502935282272436306')  // change this to your custom emoji
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage === 0),
+    ];
+
+    if (includeFastNavigate) {
+        components.push(
+            new ButtonBuilder()
+                .setCustomId('fast_navigate')
+                .setEmoji('1553004466184396860')  // change this to your custom emoji
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(totalPages <= 1)
+        );
+    }
+
+    components.push(
         new ButtonBuilder()
             .setCustomId('next')
             .setEmoji('1502935300677046412')  // change this to your custom emoji
@@ -49,6 +84,8 @@ const getPaginationRow = (currentPage, totalPages) => {
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(currentPage >= totalPages - 1 || totalPages === 0)
     );
+
+    return new ActionRowBuilder().addComponents(components);
 };
 
 const applySelectMenuDefaults = (options, selectedValues) => {
@@ -60,4 +97,4 @@ const applySelectMenuDefaults = (options, selectedValues) => {
     }));
 };
 
-module.exports = { getOptions, getMenuRow, getPaginationRow, applySelectMenuDefaults };
+module.exports = { getOptions, getMenuRow, getPaginationRow, applySelectMenuDefaults, createFastNavigateModal };

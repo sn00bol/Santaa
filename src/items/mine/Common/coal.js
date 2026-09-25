@@ -2,7 +2,7 @@ module.exports = {
     id: 'coal',
     name: 'Coal',
     sell: 15,
-    desc: 'Fuel literally work because of this',
+    desc: 'i Feel fuels, well you can use it',
     type: [],
     is_sellable: true,
     is_tradeable: true

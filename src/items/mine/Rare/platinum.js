@@ -2,7 +2,7 @@ module.exports = {
     id: 'platinum',
     name: 'Platinum',
     sell: 200,
-    desc: 'Rare platinum ore.',
+    desc: 'I have a stand! Star Platinum',
     type: [],
     is_sellable: true,
     is_tradeable: true
