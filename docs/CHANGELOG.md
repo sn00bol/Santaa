@@ -11,14 +11,14 @@ v1.3.0-alpha.1
 - Rework and added new a lot of material
 - Add mining shops with pickaxe, bags and helmet
 - Add crafting system to upgrade pickaxe and helmet (to nothing to +8) or fixing it
-- Add Santaa Museum (history player catch fish, material, items,...)
+- Add settings, fast navigate button in navigation
 - Added a lot of new small minigames and memes
 - Other: add new mining achievements, jobs reminder
 - Allow to DMs bot and add slash commands
 - Revert from image to legacy embed for leaderboard, level and balance
 - Add auto update and update Santaa bot source (disable via .env)
 
-Alpha release: [e664ab5](https://github.com/sn00bol/Santaa/commit/e664ab5bdca5448d1d445c323e0e043145013ab8), [73b18d2](https://github.com/sn00bol/Santaa/commit/73b18d2d37a78aaba86d104c2dd6bc4c2d0ee44c)
+Alpha release: [e664ab5](https://github.com/sn00bol/Santaa/commit/e664ab5bdca5448d1d445c323e0e043145013ab8), [73b18d2](https://github.com/sn00bol/Santaa/commit/73b18d2d37a78aaba86d104c2dd6bc4c2d0ee44c), [ecb7990](https://github.com/sn00bol/Santaa/commit/ecb79904dd387f1fea24ad853395f2fc2c7c11a4)
 
 # v1.2.4 - 9.15.2026
 - Upgrading checking owner permission now checking if category have owner instead ONLY owner category
