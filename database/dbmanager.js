@@ -164,9 +164,20 @@ module.exports = {
     },
 
     // Add money to user bank
+    async getBankLimit(userId) {
+        const stats = await rpgmanager.getStats(userId);
+        const level = Math.max(1, Number(stats.level) || 1);
+        return 500000 * (2 ** Math.floor(level / 15));
+    },
+
     async addBank(userId, amount) {
         await this.getUser(userId);
-        return await db.run('UPDATE balances SET bank = bank + ? WHERE user_id = ?', [amount, userId]);
+        const limit = await this.getBankLimit(userId);
+        const result = await db.run(
+            'UPDATE balances SET bank = bank + ? WHERE user_id = ? AND bank + ? <= ?',
+            [amount, userId, amount, limit]
+        );
+        return result.changes > 0;
     },
 
     async getInventoryValue(userId) {
@@ -210,5 +221,17 @@ module.exports = {
         }
 
         return enriched.sort((a, b) => b.totalAssets - a.totalAssets).slice(0, limit);
+    },
+
+    async getMoneyRank(userId) {
+        const rows = await db.all('SELECT user_id FROM balances');
+        const ranked = await Promise.all(rows.map(async row => {
+            const breakdown = await this.getNetWorthBreakdown(row.user_id);
+            return { user_id: row.user_id, totalAssets: breakdown.totalAssets };
+        }));
+
+        ranked.sort((a, b) => b.totalAssets - a.totalAssets);
+        const rank = ranked.findIndex(entry => entry.user_id === userId);
+        return rank === -1 ? null : rank + 1;
     }
 };

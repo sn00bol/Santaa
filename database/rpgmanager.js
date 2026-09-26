@@ -254,10 +254,22 @@ module.exports = {
     async getLevelLeaderboard(limit = 10) {
         return await db.all(
             `SELECT user_id, level, exp FROM stats
-             ORDER BY level DESC, exp DESC
+             ORDER BY level DESC, exp DESC, user_id ASC
              LIMIT ?`,
             [limit]
         );
+    },
+
+    async getLevelRank(userId) {
+        const stats = await this.getStats(userId);
+        const row = await db.get(
+            `SELECT COUNT(*) AS usersAhead FROM stats
+             WHERE level > ?
+                OR (level = ? AND exp > ?)
+                OR (level = ? AND exp = ? AND user_id < ?)`,
+            [stats.level, stats.level, stats.exp, stats.level, stats.exp, userId]
+        );
+        return Number(row?.usersAhead || 0) + 1;
     },
 
     async getWinsLeaderboard(limit = 10) {

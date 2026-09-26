@@ -3,6 +3,7 @@ const { attemptRun, executeAttack, applyLosses, awardExperience, recordMatch } =
 const { decideBotAction, applyTurn } = require('./botPvpLogic');
 const { getBossProfiles, getBossProfile, createBossTrainer } = require('./bosses');
 const rpgmanager = require('../../../database/rpgmanager');
+const formatNumber = require('../Utils/formatNumber');
 
 /**
  * `Zpvp @user` – Challenge another user to a PvP duel.
@@ -19,6 +20,9 @@ module.exports = {
   description: 'Challenge another user to a PvP duel',
   category: 'mie',
   usage: 'Zpvp `@user`/`boss`/`bot`',
+  args: [
+    { name: 'target', description: 'User mention, boss, or bot', type: 'string', required: true },
+  ],
   async execute(message) {
     const challenger = message.author;
     const args = message.content.slice(1).trim().split(/\s+/);
@@ -113,7 +117,7 @@ module.exports = {
 
         const getStatBar = (val, max = 100) => {
           const filled = Math.round((val / max) * 10);
-          return `[${'█'.repeat(filled)}${'░'.repeat(10 - filled)}] ${val}/${max}`;
+          return `[${'█'.repeat(filled)}${'░'.repeat(10 - filled)}] ${formatNumber(val)}/${formatNumber(max)}`;
         };
 
         const createCombatEmbed = async (turnId, p1Id, p2Id, lastAction = '') => {
@@ -163,7 +167,7 @@ module.exports = {
             const moneyLost = lossData?.lossAmount ?? 0;
             await recordMatch(winnerId, loserId, 20, moneyLost);
             const winMsg = expResult.levelUp
-              ? `🎉 <@${winnerId}> won by exhaustion and LEVELED UP to ${expResult.newLevel}!`
+              ? `🎉 <@${winnerId}> won by exhaustion and LEVELED UP to ${formatNumber(expResult.newLevel)}!`
               : `🏆 <@${winnerId}> won by exhaustion!`;
             await message.channel.send({ content: winMsg });
 
@@ -241,7 +245,7 @@ module.exports = {
               const expResult = await awardExperience(winnerId);
               await recordMatch(winnerId, targetId, 20, moneyLost2);
               const winMsg = expResult.levelUp
-                ? `🎉 <@${winnerId}> won and LEVELED UP to ${expResult.newLevel}!`
+                ? `🎉 <@${winnerId}> won and LEVELED UP to ${formatNumber(expResult.newLevel)}!`
                 : `🏆 <@${winnerId}> won the duel!`;
 
               await message.channel.send({ content: winMsg });
@@ -250,7 +254,7 @@ module.exports = {
             } else {
 
 
-              const msg = `💥 <@${currentTurnId}> dealt ${attackResult.damage} damage to <@${targetId}>!`;
+              const msg = `💥 <@${currentTurnId}> dealt ${formatNumber(attackResult.damage)} damage to <@${targetId}>!`;
               const nextTurnId = currentTurnId === attackerId ? defenderId : attackerId;
               await combatMsg.edit({
                 embeds: [await createCombatEmbed(nextTurnId, attackerId, defenderId, msg)],
@@ -423,7 +427,7 @@ module.exports = {
       } else if (boss.hp <= 0) {
         const reward = 120 + (bossProfile.behavior === 'aggressive' ? 30 : 0);
         trainer.update('win', botAction, 100, 'win');
-        await message.channel.send(`🎉 ${challenger} defeated **${bossName}** and earned **$${reward}**!`);
+        await message.channel.send(`🎉 ${challenger} defeated **${bossName}** and earned **$${formatNumber(reward)}**!`);
         const dbManager = message.client.db;
         await dbManager.addMoney(challenger.id, reward, { trackEarning: true });
         await rpgmanager.recordPvpResult(challenger.id, 'boss', 20, 0);

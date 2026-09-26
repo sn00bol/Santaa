@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
 const rpgmanager = require('../../../database/rpgmanager');
 const { LeaderboardConfig } = require('../Utils/misc');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'pvprank',
@@ -26,20 +27,25 @@ module.exports = {
                 // Try to fetch username from Discord cache
                 let username = `<@${entry.winner_id}>`;
                 try {
-                    const member = await message.guild.members.fetch(entry.winner_id).catch(() => null);
-                    if (member) username = member.displayName;
+                    if (message.guild) {
+                        const member = await message.guild.members.fetch(entry.winner_id).catch(() => null);
+                        if (member) username = member.displayName;
+                    } else {
+                        const user = await message.client.users.fetch(entry.winner_id).catch(() => null);
+                        if (user) username = user.username;
+                    }
                 } catch (_) { }
 
                 return (
                     `${emoji} **#${rank}** — ${username}\n` +
-                    `> ${entry.wins} W  |  ${entry.losses} L  |  ${rate}% WR`
+                    `> ${formatNumber(entry.wins)} W  |  ${formatNumber(entry.losses)} L  |  ${formatNumber(rate)}% WR`
                 );
             }));
 
             const embed = new EmbedBuilder()
                 .setTitle('PVP Leaderboard')
                 .setDescription(rows.join('\n\n'))
-                .setFooter({ text: `Top ${leaderboard.length} fighters by all-time wins` })
+                .setFooter({ text: `Top ${formatNumber(leaderboard.length)} fighters by all-time wins` })
                 .setTimestamp();
 
             message.channel.send({ embeds: [embed] });

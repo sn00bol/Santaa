@@ -16,7 +16,7 @@
 ---
 
 ## FEATURES
-- Good looking UI/UX (currently only on fish minigames lol)
+- Good looking UI/UX
 - Economy System: Balance, Jobs, Part Time, beg, crime, steal,...
 - Fun and advance minigames: PVP, fishing, mining, guess, olympac,...
 - Trading and shopping (ofc)

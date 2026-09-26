@@ -5,6 +5,7 @@ const mineCore = require('./mineCore');
 const mineBoard = require('./mineBoard');
 const mineUI = require('./mineUI');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
+const formatNumber = require('../../commands/Utils/formatNumber');
 
 const mineCounts = new Map();
 
@@ -85,7 +86,7 @@ module.exports = {
 
 				const doneEmbed = new EmbedBuilder()
 					.setTitle('Cash Out')
-					.setDescription(`You cashed out and kept ${session.sessionLoot.length} minerals.`)
+					.setDescription(`You cashed out and kept ${formatNumber(session.sessionLoot.length)} minerals.`)
 					.setColor('#16A34A');
 
 				await i.update({ embeds: [doneEmbed], components: mineUI.buildButtonRows(session, true) }).catch(() => { });
@@ -167,7 +168,7 @@ module.exports = {
 
 					const winEmbed = new EmbedBuilder()
 						.setTitle('Perfect Mine!')
-						.setDescription(`You cleared the mine and kept ${session.sessionLoot.length} minerals. +25% EXP`)
+						.setDescription(`You cleared the mine and kept ${formatNumber(session.sessionLoot.length)} minerals. +25% EXP`)
 						.setColor('#16A34A');
 
 					await i.update({ embeds: [winEmbed], components: mineUI.buildButtonRows(session, true) }).catch(() => { });

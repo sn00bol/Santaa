@@ -2,12 +2,17 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, 
 const { isOwner } = require('../Utils/permission');
 const achievementManager = require('../../minigames/achievement/achievementManager');
 const rpgmanager = require('../../../database/rpgmanager');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'giveach',
     description: 'Grant achievements to a user (Owner only)',
     category: 'owner',
     usage: 'Zgiveach `@user` [achievement file name]',
+    args: [
+        { name: 'target', description: 'The user receiving the achievement', type: 'user', required: true },
+        { name: 'achievement', description: 'Achievement file name', type: 'string', required: false },
+    ],
     async execute(message, args) {
         const { author } = message;
 
@@ -59,14 +64,14 @@ module.exports = {
             const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
             return new EmbedBuilder()
                 .setTitle(`🏆 Grant Achievement — ${targetUser.username}`)
-                .setDescription(`Category: **${selectedCategory}** | Page ${pg + 1}/${totalPages}\nSelect an achievement from the dropdown to grant it.`)
+                .setDescription(`Category: **${selectedCategory}** | Page ${formatNumber(pg + 1)}/${formatNumber(totalPages)}\nSelect an achievement from the dropdown to grant it.`)
                 .addFields(pageItems.map(a => ({
                     name: `${a.name}`,
                     value: `\`${a.id}\` — ${a.requirement || '*No description*'}`,
                     inline: false
                 })))
                 .setColor(0x5865F2)
-                .setFooter({ text: `Total: ${filtered.length} achievements in this category` })
+                .setFooter({ text: `Total: ${formatNumber(filtered.length)} achievements in this category` })
                 .setTimestamp();
         };
 
@@ -159,7 +164,7 @@ module.exports = {
                 }
                 const allEmbed = new EmbedBuilder()
                     .setTitle('🎁 Bulk Grant Complete')
-                    .setDescription(`Granted **${grantedCount}** new achievement(s) in **${selectedCategory}** to ${targetUser}.\n*(${f.length - grantedCount} were already unlocked)*`)
+                    .setDescription(`Granted **${formatNumber(grantedCount)}** new achievement(s) in **${selectedCategory}** to ${targetUser}.\n*(${formatNumber(f.length - grantedCount)} were already unlocked)*`)
                     .setColor(0x57F287)
                     .setTimestamp();
                 await response.edit({ embeds: [allEmbed], components: [] });

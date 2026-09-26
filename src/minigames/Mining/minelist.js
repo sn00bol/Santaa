@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('dis
 const { RARITY_CONFIG, mineralData } = require('./mineCore');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const formatNumber = require('../../commands/Utils/formatNumber');
 
 module.exports = {
     name: 'minelist',
@@ -54,7 +55,7 @@ module.exports = {
 
             const displayContent = paged.map((item, index) => {
                 const descText = item.desc ? `\n-# ${item.desc}` : '';
-                return `**${start + index + 1}. ${item.name.toUpperCase()}** — ${item.sell} ${CURRENCY_EMOJI} ${descText}`;
+                return `**${formatNumber(start + index + 1)}. ${item.name.toUpperCase()}** — ${formatNumber(item.sell)} ${CURRENCY_EMOJI} ${descText}`;
             }).join('\n\n') || 'No minerals found in this rarity.';
 
             const rarityLabel = RARITY_CONFIG[category]?.label || category;
@@ -65,7 +66,7 @@ module.exports = {
                     .setTitle(`${rarityEmoji} Mineral List (${rarityLabel})`)
                     .setDescription(displayContent)
                     .setColor(resolveColor(category))
-                    .setFooter({ text: `Page ${page + 1} of ${totalPages}` }),
+                    .setFooter({ text: `Page ${formatNumber(page + 1)} of ${formatNumber(totalPages)}` }),
                 totalPages
             };
         };

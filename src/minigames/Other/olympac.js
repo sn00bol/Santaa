@@ -5,6 +5,7 @@ const {
   ButtonStyle,
   ComponentType
 } = require('discord.js');
+const formatNumber = require('../../commands/Utils/formatNumber');
 
 const olympacPrompts = [
   {
@@ -62,8 +63,8 @@ module.exports = {
       const startEmbed = new EmbedBuilder()
         .setTitle('🏃‍♂️ Olympac Sprint')
         .setDescription(`**Challenge:** ${prompt.prompt}\n\n` +
-          `**Target:** ${prompt.targetTaps} taps in ${prompt.timeLimitMs / 1000} seconds\n` +
-          `**Reward:** ${prompt.reward} points`)
+          `**Target:** ${formatNumber(prompt.targetTaps)} taps in ${formatNumber(prompt.timeLimitMs / 1000)} seconds\n` +
+          `**Reward:** ${formatNumber(prompt.reward)} points`)
         .setColor('#F59E0B')
         .setFooter({ text: 'Click Start to begin!' });
 
@@ -101,8 +102,8 @@ module.exports = {
         const gameEmbed = new EmbedBuilder()
           .setTitle('🏃‍♂️ SPRINTING!')
           .setDescription(`**${prompt.prompt}**\n\n` +
-            `**Taps:** ${tapCount}/${prompt.targetTaps}\n` +
-            `**Time Left:** ${Math.ceil(prompt.timeLimitMs / 1000)}s`)
+            `**Taps:** ${formatNumber(tapCount)}/${formatNumber(prompt.targetTaps)}\n` +
+            `**Time Left:** ${formatNumber(Math.ceil(prompt.timeLimitMs / 1000))}s`)
           .setColor('#EA580C')
           .setFooter({ text: 'TAP THE BUTTON AS FAST AS POSSIBLE!' });
 
@@ -137,8 +138,8 @@ module.exports = {
           // Update embed every few taps to avoid rate limits
           if (tapCount % 3 === 0 || timeLeft <= 3) {
             gameEmbed.setDescription(`**${prompt.prompt}**\n\n` +
-              `**Taps:** ${tapCount}/${prompt.targetTaps}\n` +
-              `**Time Left:** ${timeLeft}s`);
+              `**Taps:** ${formatNumber(tapCount)}/${formatNumber(prompt.targetTaps)}\n` +
+              `**Time Left:** ${formatNumber(timeLeft)}s`);
             await sent.edit({ embeds: [gameEmbed] }).catch(() => { });
           }
 
@@ -153,15 +154,15 @@ module.exports = {
           const resultEmbed = new EmbedBuilder()
             .setTitle(success ? '🏅 SPRINT COMPLETE!' : '⏱️ Time\'s Up!')
             .setDescription(success
-              ? `**Excellent!** You tapped **${tapCount}** times in ${Math.floor(timeTaken / 1000)}s!\n\n` +
-              `**Reward:** +${prompt.reward} points`
-              : `You managed **${tapCount}** taps.\n` +
-              `You needed **${prompt.targetTaps}** taps.`)
+              ? `**Excellent!** You tapped **${formatNumber(tapCount)}** times in ${formatNumber(Math.floor(timeTaken / 1000))}s!\n\n` +
+              `**Reward:** +${formatNumber(prompt.reward)} points`
+              : `You managed **${formatNumber(tapCount)}** taps.\n` +
+              `You needed **${formatNumber(prompt.targetTaps)}** taps.`)
             .setColor(success ? '#22C55E' : '#EF4444')
             .addFields(
-              { name: 'Taps', value: `${tapCount}`, inline: true },
-              { name: 'Target', value: `${prompt.targetTaps}`, inline: true },
-              { name: 'Time', value: `${Math.floor(timeTaken / 1000)}s`, inline: true }
+              { name: 'Taps', value: formatNumber(tapCount), inline: true },
+              { name: 'Target', value: formatNumber(prompt.targetTaps), inline: true },
+              { name: 'Time', value: `${formatNumber(Math.floor(timeTaken / 1000))}s`, inline: true }
             );
 
           const disabledRow = new ActionRowBuilder().addComponents(

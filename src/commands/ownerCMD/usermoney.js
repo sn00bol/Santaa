@@ -1,11 +1,18 @@
 const { EmbedBuilder } = require('discord.js');
 const { category } = require('./stat');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'usermoney',
     description: 'Editing a user\'s money like a boss (Owner only)',
     category: 'owner',
+    DMs: false,
     usage: 'Zusermoney `set`/`remove`/`reset` `@user` `amount`',
+    args: [
+        { name: 'action', description: 'Money action: set, remove, or reset', type: 'string', required: true },
+        { name: 'target', description: 'The target user', type: 'user', required: true },
+        { name: 'amount', description: 'The amount to set or remove', type: 'integer', required: false },
+    ],
 
     async execute(message, args) {
         const dbManager = message.client.db;
@@ -27,13 +34,13 @@ module.exports = {
                 case 'set':
                     if (isNaN(amount) || amount < 0) return message.reply('Please provide a valid amount.');
                     await dbManager.setMoney(targetUser.id, amount);
-                    description = `Successfully set **${targetUser.username}**'s balance to **$${amount.toLocaleString()}**.`;
+                    description = `Successfully set **${targetUser.username}**'s balance to **$${formatNumber(amount)}**.`;
                     break;
 
                 case 'remove':
                     if (isNaN(amount) || amount <= 0) return message.reply('Please provide a valid amount.');
                     await dbManager.removeMoney(targetUser.id, amount);
-                    description = `Successfully removed **$${amount.toLocaleString()}** from **${targetUser.username}**'s account.`;
+                    description = `Successfully removed **$${formatNumber(amount)}** from **${targetUser.username}**'s account.`;
                     break;
 
                 case 'reset':

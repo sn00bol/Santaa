@@ -5,6 +5,9 @@ module.exports = {
     description: 'Clear star yourself or someone else (Owner only)',
     category: 'owner',
     usage: 'Zclearstar `@user`',
+    args: [
+        { name: 'target', description: 'The user whose wanted level to clear', type: 'user', required: false },
+    ],
     async execute(message, args) {
         const targetUser = message.mentions.users.first() || message.author;
         const rpgmanager = message.client.rpg || require('../../../database/rpgmanager');

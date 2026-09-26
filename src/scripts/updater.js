@@ -67,10 +67,19 @@ async function checkForUpdates() {
 
     const autoUpdate = process.env.AUTO_UPDATE === 'true';
     const branch = process.env.UPDATE_BRANCH || 'main';
+    const repositoryUrl = process.env.UPDATE_REPOSITORY?.trim();
 
     if (!autoUpdate) return;
 
     try {
+        if (repositoryUrl) {
+            const currentRemote = execCmd('git remote get-url origin');
+            if (currentRemote !== repositoryUrl) {
+                execCmd(`git remote set-url origin "${repositoryUrl.replace(/"/g, '\\"')}"`);
+                console.log(`[UPDATE] Using repository: ${repositoryUrl}`);
+            }
+        }
+
         execCmd(`git fetch origin ${branch}`);
         const localCommit = execCmd('git rev-parse HEAD');
         const remoteCommit = execCmd(`git rev-parse origin/${branch}`);

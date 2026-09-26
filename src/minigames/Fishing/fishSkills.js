@@ -2,6 +2,7 @@
 // Skills are organized into three branches: economic, rod, bucket.
 // Each skill is leveled up by spending skill points.
 // Skill points are earned by catching fish — rarer fish award more points.
+const formatNumber = require('../../commands/Utils/formatNumber');
 
 // Points awarded per rarity
 const RARITY_POINTS = {
@@ -196,7 +197,7 @@ function unlockSkillLevel(profile, skillId) {
 
     const available = getAvailablePoints(profile);
     if (available < skill.cost) {
-        return { ok: false, message: `Not enough skill points! You need **${skill.cost}** but have **${available}**.` };
+        return { ok: false, message: `Not enough skill points! You need **${formatNumber(skill.cost)}** but have **${formatNumber(available)}**.` };
     }
 
     profile.skill.levels[skillId] = currentLevel + 1;
@@ -247,28 +248,28 @@ function buildLevelList(profile, skill) {
         // Generate level-specific description based on skill type
         let levelDesc = '';
         if (skill.id === 'shopping_god') {
-            levelDesc = `Reduce items prices in fishing shop for ${effect}%`;
+            levelDesc = `Reduce items prices in fishing shop for ${formatNumber(effect)}%`;
         } else if (skill.id === 'sellers_man') {
-            levelDesc = `Gain +${effect}% bonus on sell price`;
+            levelDesc = `Gain +${formatNumber(effect)}% bonus on sell price`;
         } else if (skill.id === 'hand_lovers') {
-            levelDesc = `+${effect}% fish chance when bare-handed`;
+            levelDesc = `+${formatNumber(effect)}% fish chance when bare-handed`;
         } else if (skill.id === 'bazookanist') {
-            levelDesc = `Reduce rarity penalty by ${effect}% with Dynamite Kaboom`;
+            levelDesc = `Reduce rarity penalty by ${formatNumber(effect)}% with Dynamite Kaboom`;
         } else if (skill.id === 'im_stronger') {
-            levelDesc = `+${effect} max durability for all rods`;
+            levelDesc = `+${formatNumber(effect)} max durability for all rods`;
         } else if (skill.id === 'im_smarter') {
-            levelDesc = `+${effect} reel power for all rods`;
+            levelDesc = `+${formatNumber(effect)} reel power for all rods`;
         } else if (skill.id === 'buckets_enhanced') {
-            levelDesc = `Reduce rarity penalty by ${effect}% with A Bucket rod`;
+            levelDesc = `Reduce rarity penalty by ${formatNumber(effect)}% with A Bucket rod`;
         } else if (skill.id === 'one_hand') {
-            levelDesc = `+${effect} slot per bucket`;
+            levelDesc = `+${formatNumber(effect)} slot per bucket`;
         } else if (skill.id === 'slot_6' || skill.id === 'slot_7') {
             levelDesc = `Unlock this bucket slot`;
         } else {
-            levelDesc = `Level ${level} effect`;
+            levelDesc = `Level ${formatNumber(level)} effect`;
         }
         
-        return `${emoji} **${ROMAN[i] || level}** ${levelDesc}`;
+        return `${emoji} **${ROMAN[i] || formatNumber(level)}** ${levelDesc}`;
     }).join('\n');
 }
 
@@ -281,7 +282,7 @@ function buildBranchBar(profile, branch, barLength = 8) {
     const totalLevels = skills.reduce((sum, s) => sum + s.maxLevel, 0);
     const unlockedLevels = skills.reduce((sum, s) => sum + getSkillLevel(profile, s.id), 0);
     const filled = Math.min(barLength, Math.round((unlockedLevels / Math.max(1, totalLevels)) * barLength));
-    return `${'█'.repeat(filled)}${'░'.repeat(barLength - filled)} ${unlockedLevels}/${totalLevels}`;
+    return `${'█'.repeat(filled)}${'░'.repeat(barLength - filled)} ${formatNumber(unlockedLevels)}/${formatNumber(totalLevels)}`;
 }
 
 module.exports = {

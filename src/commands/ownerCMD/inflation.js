@@ -2,6 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const inflationManager = require('../Utils/InflationManager');
 const { allItemsCache } = require('../Utils/StatsCalculator');
 const { isOwner } = require('../Utils/permission');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'inflation',
@@ -9,6 +10,12 @@ module.exports = {
     description: 'Manage inflation rates globally, per shop, or per item (Owner only)',
     category: 'owner',
     usage: 'Zinflation <global|shop|item|reset|view> [name] [rate]',
+    DMS: false,
+    args: [
+        { name: 'action', description: 'Inflation action', type: 'string', required: true },
+        { name: 'name', description: 'Shop or item name', type: 'string', required: false },
+        { name: 'rate', description: 'Inflation multiplier', type: 'number', required: false },
+    ],
     async execute(message, args) {
         if (!isOwner(message.author.id)) {
             return message.reply({ content: 'Only bot owners can use this command.', ephemeral: true });
@@ -17,12 +24,12 @@ module.exports = {
         const subCommand = args[0] ? args[0].toLowerCase() : 'view';
 
         if (subCommand === 'view') {
-            let desc = `**Global Rate:** x${inflationManager.config.global}\n\n`;
+            let desc = `**Global Rate:** x${formatNumber(inflationManager.config.global)}\n\n`;
 
             if (Object.keys(inflationManager.config.shops).length > 0) {
                 desc += `**Shop Rates:**\n`;
                 for (const [shop, rate] of Object.entries(inflationManager.config.shops)) {
-                    desc += `- ${shop}: x${rate}\n`;
+                    desc += `- ${shop}: x${formatNumber(rate)}\n`;
                 }
                 desc += '\n';
             }
@@ -30,7 +37,7 @@ module.exports = {
             if (Object.keys(inflationManager.config.items).length > 0) {
                 desc += `**Item Rates:**\n`;
                 for (const [item, rate] of Object.entries(inflationManager.config.items)) {
-                    desc += `- ${item}: x${rate}\n`;
+                    desc += `- ${item}: x${formatNumber(rate)}\n`;
                 }
             }
 
@@ -54,7 +61,7 @@ module.exports = {
             inflationManager.config.global = rate;
             inflationManager.save();
             inflationManager.applyAll(allItemsCache);
-            return message.reply(`Global inflation rate set to **x${rate}**.`);
+            return message.reply(`Global inflation rate set to **x${formatNumber(rate)}**.`);
         }
 
         if (subCommand === 'shop') {
@@ -75,7 +82,7 @@ module.exports = {
             inflationManager.config.shops[shopName] = rate;
             inflationManager.save();
             inflationManager.applyAll(allItemsCache);
-            return message.reply(`Inflation rate for shop **${shopName}** set to **x${rate}**.`);
+            return message.reply(`Inflation rate for shop **${shopName}** set to **x${formatNumber(rate)}**.`);
         }
 
         if (subCommand === 'item') {
@@ -96,7 +103,7 @@ module.exports = {
             inflationManager.config.items[itemId] = rate;
             inflationManager.save();
             inflationManager.applyAll(allItemsCache);
-            return message.reply(`Inflation rate for item **${itemId}** set to **x${rate}**.`);
+            return message.reply(`Inflation rate for item **${itemId}** set to **x${formatNumber(rate)}**.`);
         }
 
         return message.reply(`Invalid sub-command. Usage: \`${this.usage}\``);

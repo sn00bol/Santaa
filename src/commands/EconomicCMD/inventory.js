@@ -5,6 +5,7 @@ const { getPaginationRow, applySelectMenuDefaults } = require('../Utils/Navigate
 const { getTotalStats, allItemsCache } = require('../Utils/StatsCalculator');
 const { executeSell } = require('./sell');
 const { isVisibleItem } = require('../Utils/itemVisibility');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'inventory',
@@ -51,9 +52,9 @@ module.exports = {
             totalPages = Math.max(1, Math.ceil(groupedItems.length / itemsPerPage));
 
             // Stat Display
-            let desc = `❤️ **Health:** \`${userStats.health} / ${userStats.maxHealth}\`\n`;
-            desc += `⚡ **Stamina:** \`${userStats.stamina} / ${userStats.maxStamina}\`\n`;
-            desc += `⚔️ **Attack:** \`${userStats.totalAttack}\`\n`;
+            let desc = `❤️ **Health:** \`${formatNumber(userStats.health)} / ${formatNumber(userStats.maxHealth)}\`\n`;
+            desc += `⚡ **Stamina:** \`${formatNumber(userStats.stamina)} / ${formatNumber(userStats.maxStamina)}\`\n`;
+            desc += `⚔️ **Attack:** \`${formatNumber(userStats.totalAttack)}\`\n`;
             desc += `🛡️ **Equipped:** \`${userStats.equippedItemName || 'None'}\`\n`;
 
             const stats = await rpgmanager.getStats(message.author.id);
@@ -70,7 +71,7 @@ module.exports = {
                 desc += "*Your inventory is empty!*";
             } else {
                 desc += "**Your Items:**\n\n" + currentItems.map((item, index) => {
-                    return `**${start + index + 1}.** ${item.item_name} \`(x${item.count})\``;
+                    return `**${formatNumber(start + index + 1)}.** ${item.item_name} \`(x${formatNumber(item.count)})\``;
                 }).join('\n');
             }
 
@@ -79,16 +80,16 @@ module.exports = {
                 .setTitle(`${message.author.username}'s Profile & Inventory`)
                 .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
                 .setDescription(desc)
-                .setFooter({ text: `Page ${page + 1} of ${totalPages} | Total items: ${inventoryItems.length}` });
+                .setFooter({ text: `Page ${formatNumber(page + 1)} of ${formatNumber(totalPages)} | Total items: ${formatNumber(inventoryItems.length)}` });
 
             const components = [];
 
             if (groupedItems.length > 0) {
                 // Add Item Select Menu
                 let selectOptions = currentItems.map((item, index) => ({
-                    label: `${start + index + 1}. ${item.item_name}`,
+                    label: `${formatNumber(start + index + 1)}. ${item.item_name}`,
                     value: `${item.item_id}_${item.item_name}`, // Use combined key to distinguish Damage Items
-                    description: `Quantity: x${item.count}`
+                    description: `Quantity: x${formatNumber(item.count)}`
                 }));
                 selectOptions = applySelectMenuDefaults(selectOptions, selectedInventoryIds);
 
@@ -153,7 +154,7 @@ module.exports = {
                         }
                         
                         if (allSellable) {
-                            btnRow.addComponents(new ButtonBuilder().setCustomId('inv_sell').setLabel(`Sell ${selectedInvItems.length} Items`).setStyle(ButtonStyle.Danger));
+                            btnRow.addComponents(new ButtonBuilder().setCustomId('inv_sell').setLabel(`Sell ${formatNumber(selectedInvItems.length)} Items`).setStyle(ButtonStyle.Danger));
                         }
                     }
 

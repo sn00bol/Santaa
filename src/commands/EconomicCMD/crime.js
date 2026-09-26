@@ -3,6 +3,7 @@ const { checkCooldown } = require('../Utils/Cooldown');
 const { CrimeSuccess, CrimeFail, CrimeWorse } = require('../Utils/misc');
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'crime',
@@ -80,7 +81,7 @@ module.exports = {
             if (chance === 1) {
                 await dbManager.addMoney(author.id, amount, { trackEarning: true });
                 embed.setTitle('Crime Successful!')
-                    .setDescription(`${getRandom(CrimeSuccess)}\n\nYou stole **${amount.toLocaleString()}${CURRENCY_EMOJI}**!`)
+                    .setDescription(`${getRandom(CrimeSuccess)}\n\nYou stole **${formatNumber(amount)}${CURRENCY_EMOJI}**!`)
                     .setColor('#16A34A');
             } else if (chance === 2) {
                 // Fail: lose money, health, 20 stamina
@@ -99,7 +100,7 @@ module.exports = {
                 await rpgManager.updateStats(author.id, newHealth, newStamina);
 
                 embed.setTitle('Crime Failed!')
-                    .setDescription(`${getRandom(CrimeFail)}\n\nYou lost **${penaltyMoney.toLocaleString()}${CURRENCY_EMOJI}**, **${healthLoss} HP**, and **${staminaLoss} Stamina**!`)
+                    .setDescription(`${getRandom(CrimeFail)}\n\nYou lost **${formatNumber(penaltyMoney)}${CURRENCY_EMOJI}**, **${formatNumber(healthLoss)} HP**, and **${formatNumber(staminaLoss)} Stamina**!`)
                     .setColor('#DC2626');
             } else {
                 // Worse: lose money, 50 health, 50 stamina
@@ -118,7 +119,7 @@ module.exports = {
                 await rpgManager.updateStats(author.id, newHealth, newStamina);
 
                 embed.setTitle('Crime Went Horribly!')
-                    .setDescription(`${getRandom(CrimeWorse)}\n\nYou lost **${penaltyMoney.toLocaleString()}${CURRENCY_EMOJI}**, **${healthLoss} HP**, and **${staminaLoss} Stamina**!`)
+                    .setDescription(`${getRandom(CrimeWorse)}\n\nYou lost **${formatNumber(penaltyMoney)}${CURRENCY_EMOJI}**, **${formatNumber(healthLoss)} HP**, and **${formatNumber(staminaLoss)} Stamina**!`)
                     .setColor('#DC2626');
             }
 

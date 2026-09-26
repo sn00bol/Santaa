@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="#1-overall-folder-structure">STRUCTURE</a> ·
-  <a href="#2-how-bot-loads-commands">HOW BOT LOAD COMMANDS</a> ·
+  <a href="#2-how-bot-works">HOW BOT WORKS</a> ·
   <a href="#3-how-to-add-a-new-command">HOW TO ADD A NEW COMMAND</a> ·
   <a href="#4-item-system-srct-items">ITEMS SYSTEM</a> ·
   <a href="#5-discordjs-embed-guide">EMBED GUIDE</a> ·
@@ -28,9 +28,7 @@ Santaa/
 │   └── rpgmanager.js       # Manages RPG (stats, items, pvp)
 ├── src/                    # Main bot source code
 │   ├── index.js            # Entry point
-│   ├── updater.js          # Updater scripts
-│   ├── fallback.js         # Fallback system (when main bot crashed while updating)
-│   ├── backup.js           # Backup data and code before update
+│   ├── scripts/            # Scripts
 │   ├── commands/           # Commands divided by category
 │   │   ├── EconomicCMD/
 │   │   ├── MainCMD/
@@ -54,7 +52,7 @@ Santaa/
 (Other minor file or not necessary will not list here)
 ```
 
-## 2. How Bot Loads Commands and managing bot crash
+## 2. How Bot Works
 
 In `src/index.js`, the bot uses the `commandFolders` array:
 ```js
@@ -65,6 +63,54 @@ The bot recursively scans all .js files using fs.readdirSync(dir, { withFileType
 **Rules:**
 - Add a .js file to any subfolder inside commands, minigames, or memes $\rightarrow$ The bot loads it automatically
 - Add a new folder at the same level as `commands` $\rightarrow$ You must add that folder name to `commandFolders`.
+
+### Command Loading and Execution
+
+Every command must export a `name` and an `execute(message, args)` function. The loader stores commands in `client.commands` and stores their aliases in `client.aliases`.
+
+Prefix commands are handled through `messageCreate`:
+- The message must start with the configured `PFX` value.
+- The first word after the prefix is used as the command name.
+- The remaining words are passed to the command as the `args` array.
+- Unknown commands are ignored.
+
+Both prefix commands and slash commands use the same `runCommand` flow. This keeps owner checks, blocked-command checks, and command execution consistent across both command types.
+
+### Slash Commands
+
+Slash commands are built from the commands loaded by `src/index.js` and registered when the client is ready. The registration process:
+- Fetches commands already registered in the selected scope.
+- Creates missing commands.
+- Updates commands whose description, options, or DM permission changed.
+- Does not overwrite or remove existing commands during normal startup.
+
+Set `SLASH_GUILD_ID` in `.env` to register commands in one server for near-instant updates. Leave it empty to use global commands, which may take longer to appear.
+
+To remove old commands and register the current set again, set `SLASH_RESET=true` for one startup. After the reset completes, set it back to `SLASH_RESET=false`. Resetting with `SLASH_GUILD_ID` only affects that server; resetting without it affects global commands.
+
+### Slash Command Arguments
+
+Commands can define an `args` array to create named slash options:
+- Supported types are `string`, `integer`, `number`, `boolean`, and `user`.
+- Each argument needs a lowercase `name`; descriptions should explain its purpose.
+- Required arguments must come before optional arguments.
+- If `args` is omitted, the slash command has no options.
+- The adapter converts slash options into the same positional `args` format used by prefix commands.
+
+For user arguments, the adapter creates a mention-compatible value so existing `message.mentions.users.first()` logic can continue to work.
+
+### DM Availability
+
+Commands support the optional `DMs` property. It defaults to `true`:
+- `DMs: true` or no `DMs` property allows the command in DMs.
+- `DMs: false` silently ignores prefix usage in DMs and disables the slash command in DMs.
+- Server usage is unaffected by the `DMs` setting.
+
+The optional `show` property controls slash registration. `show: false` hides a command from slash registration, while the prefix command can still be loaded unless its own execution logic prevents it.
+
+### Startup Services
+
+Before login, the bot initializes both database managers and attaches them as `client.db` and `client.rpg`. After login, it updates the bot presence with the current server count. The updater is initialized after the main startup code so update checks do not change how commands are loaded.
 
 Finally, to prevent bot crashing (which is normally happen when a command or whole modular command have bug/error before v1.2.4), bot catch error logs and blocking commands temporarily to prevent bot crash (except some bugs will crash whole bot normally like database)
 ```js
@@ -96,17 +142,38 @@ module.exports = {
   description: 'Bot greeting command', // Needed for help command, or its will fallback "No description"
   category: 'gnr', // Not required because help command will list it at "All" category but cannot appear in other category
   //All category supported: eco: Economic, gnr: General, owner: Owner (Important, if you make a command literally cheat lol), utl: Utils, mie: Minigames
-  // If you want to add more or than 1 category, use array format: category: "['category1', 'category2']",
+  // If you want to add more or than 1 category, use array format: category: ['category1', 'category2'],
 
-  usage: '!hello', // really need, if you lazy to add then you could create a file to automatic add to all command
+  usage: 'Zhello `target` `text`',
   notes: 'You can tag a user to greet them, or leave it blank to greet yourself.', // not necessary to add
-  show: true, // Visibility, normally default will set true
+  show: true, // Visibility, normally default will set true and not register slash commands
+  DMs: true, // Allow to use in DMs, default is true
+
+  // Only add args when the command needs slash command options
+  // If args is omitted, the slash command has no options
+  args: [
+    { name: 'target', description: 'Say hello to that dude', type: 'user', required: false },
+    { name: 'text', description: 'Give him some text', type: 'string', required: false },
+  ],
+  // Args will not register if it use `show: false,`
+
+  // For args
+  execute(message, args = []) {
+    const target = message.mentions.users.first() || message.author;
+    const text = args[1] || 'Hello!';
+    message.reply(`${text} ${target}`);
+  },
+
+  // Normal commands
   execute(message, args) {
     message.reply('Hello!');
   },
 };
+
 (To add a custom category, edit getOptions function in commands/utils/NavigateManager.js)
+
 ```
+
 3. **Restart the bot.** (if you run `npm run dev` so you only have to save file)
 
 ### Example: Part-time Command
@@ -559,6 +626,7 @@ async execute(message) {
 To editing update settings, update it via `.env`:
 ```
 AUTO_UPDATE=true # Enable or disable auto update (true = enable, false = disable)
+UPDATE_REPOSITORY=https://github.com/your-user/your-repository.git # Repository URL for the updater
 UPDATE_BRANCH=main # Branch to update from, including: `main`, `alpha`, `beta`
 CHECK_INTERVAL=3600 # Check interval in seconds (1 hour)
 ```
@@ -601,7 +669,7 @@ Do you want to update? (y/n): n
 D:\Santaa>
 ```
 
-To change where to update, change `UPDATE_BRANCH` to `main` (for stable), `alpha` (for latest dev/feature) or `beta` (for latest unstable feature)
+To change where to update, set `UPDATE_REPOSITORY` to the repository URL and change `UPDATE_BRANCH` to `main` (for stable), `alpha` (for latest dev/feature) or `beta` (for latest unstable feature). If `UPDATE_REPOSITORY` is empty, the updater keeps using the repository already configured as the local Git `origin` remote.
 
 (If you saw this link `https://github.com/meh2025/Example-Discord-Bot-using-Javascript` at the top of response, it basically old repo name of bots)
 

@@ -5,6 +5,7 @@ const { loadShopItems, sortShopItems, getShopItemCost } = require('../Utils/shop
 const dbmanager = require('../../../database/dbmanager');
 const rpgmanager = require('../../../database/rpgmanager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'shop',
@@ -64,7 +65,7 @@ module.exports = {
                     const achievementChecker = require('../../minigames/achievement/achievementChecker');
                     achievementChecker.checkEconomy(i.user.id, stats, 'buy').catch(console.error);
 
-                    return i.reply({ content: `Successfully bought **${item.name}** for ${cost}  ${response.currencyEmoji}!`, ephemeral: true });
+                    return i.reply({ content: `Successfully bought **${item.name}** for ${formatNumber(cost)}  ${response.currencyEmoji}!`, ephemeral: true });
                 }
 
                 let shopType = '';
@@ -98,7 +99,7 @@ module.exports = {
                     .map(item => ({
                         label: item.name,
                         value: item.id,
-                        description: `Cost: ${getShopItemCost(item)} ${currencyName}`
+                        description: `Cost: ${formatNumber(getShopItemCost(item))} ${currencyName}`
                     }));
 
                 shopOptions.push(...sortedShopItems);
@@ -149,7 +150,7 @@ module.exports = {
                     .setTitle(`🛒 ${item.name}`)
                     .setDescription(item.desc)
                     .addFields(
-                        { name: 'Cost', value: `${item.cost} ${response.currencyEmoji}`, inline: true },
+                        { name: 'Cost', value: `${formatNumber(item.cost)} ${response.currencyEmoji}`, inline: true },
                         { name: 'ID', value: `\`${item.id}\``, inline: true }
                     )
 

@@ -4,11 +4,14 @@ require('dotenv').config();
 const { getMenuRow, getPaginationRow, getOptions, applySelectMenuDefaults } = require('../Utils/NavigateManager');
 const { isOwner: isOwnerUser } = require('../Utils/permission');
 const { DM, noDM, SLASH, noSLASH } = require('../Utils/config');
+const { getSlashCommandValidationError } = require('../Utils/slashCommand');
 
 // In-memory fallback cache for category selection (used if DB is unavailable)
 const lastHelpCategoriesByUser = new Map();
 
 const isVisibleCommand = (cmd) => cmd?.show !== false;
+const supportsDM = (cmd) => cmd?.DMs !== false;
+const supportsSlash = (cmd) => !getSlashCommandValidationError(cmd);
 const formatAliases = (cmd) => {
     if (!cmd?.aliases) return '';
     const aliasList = Array.isArray(cmd.aliases) ? cmd.aliases : [cmd.aliases];
@@ -22,6 +25,9 @@ module.exports = {
     description: 'Display help commands and bot information',
     category: 'gnr',
     usage: 'Zhelp `command`',
+    args: [
+        { name: 'command', description: 'Show details for a specific command', type: 'string', required: false },
+    ],
     async execute(message, args) {
         const { commands, aliases } = message.client;
 
@@ -38,7 +44,6 @@ module.exports = {
             const aliasText = formatAliases(command);
             const cmdEmbed = new EmbedBuilder()
                 .setTitle(`**${command.name}**${aliasText}`)
-                .setColor('Blue')
                 .addFields(
                     { name: 'Description', value: command.description || 'No description', inline: false },
                     { name: 'Usage', value: command.usage ? `${command.usage}` : `\`Z${command.name}\`` || 'No usage provided.', inline: false }
@@ -116,7 +121,9 @@ module.exports = {
             const displayContent = pagedCmds.map(cmd => {
                 const prefix = cmd.folder === 'adminCMD' ? '🛡️ ' : '';
                 const aliasText = formatAliases(cmd);
-                return `**${prefix}${cmd.name.toUpperCase()}** ${noDM} ${noSLASH}\n-# ${cmd.description || 'No description provided.'}`;
+                const dmIcon = supportsDM(cmd) ? DM : noDM;
+                const slashIcon = supportsSlash(cmd) ? SLASH : noSLASH;
+                return `**${prefix}${cmd.name.toUpperCase()}** ${dmIcon} ${slashIcon}\n-# ${cmd.description || 'No description provided.'}`;
             }).join('\n\n') || 'No commands in this category.';
 
             const embed = new EmbedBuilder()

@@ -8,6 +8,7 @@ const { EmbedBuilder } = require('discord.js');
 const dbmanager = require('../../../database/dbmanager');
 const rpgmanager = require('../../../database/rpgmanager');
 const { getTotalStats } = require('../Utils/StatsCalculator');
+const formatNumber = require('../Utils/formatNumber');
 
 /**
  * Apply defeat consequences to the loser.
@@ -32,7 +33,7 @@ async function applyLosses(loserId, channel) {
     .setTitle('Defeat')
     .setDescription(
       `<@${loserId}> has been defeated! Health and stamina are now zero. ` +
-      (lossAmount > 0 ? `Lost $${lossAmount.toLocaleString()} from their balance.` : 'No money was deducted.')
+      (lossAmount > 0 ? `Lost $${formatNumber(lossAmount)} from their balance.` : 'No money was deducted.')
     )
     .setColor('#ff5555');
   await channel.send({ embeds: [lossEmbed] });
@@ -61,7 +62,7 @@ function scheduleRegen(userId, channel) {
     let newStamina = Math.min(stats.stamina + regenStep, 100);
     await rpgmanager.updateStats(userId, newHealth, newStamina);
     const regenEmbed = new EmbedBuilder()
-      .setDescription(`🔄 <@${userId}> regenerated +${regenStep} health and +${regenStep} stamina (now ${newHealth}/${newStamina}).`)
+      .setDescription(`🔄 <@${userId}> regenerated +${formatNumber(regenStep)} health and +${formatNumber(regenStep)} stamina (now ${formatNumber(newHealth)}/${formatNumber(newStamina)}).`)
     await channel.send({ embeds: [regenEmbed] });
     if (newHealth >= 100 && newStamina >= 100) {
       clearInterval(timer);

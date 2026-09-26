@@ -46,8 +46,17 @@ const createFastNavigateModal = (totalPages, customId = 'fast_navigate_modal') =
         );
 };
 
+    const getReloadButton = (customId = 'reload', disabled = false) => {
+        return new ButtonBuilder()
+            .setCustomId(customId)
+            .setEmoji('🔄')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled(disabled);
+    };
+
 const getPaginationRow = (currentPage, totalPages, options = {}) => {
     const includeFastNavigate = options.includeFastNavigate || false;
+        const includeReload = options.includeReload || false;
 
     const components = [
         new ButtonBuilder()
@@ -70,6 +79,10 @@ const getPaginationRow = (currentPage, totalPages, options = {}) => {
                 .setStyle(ButtonStyle.Secondary)
                 .setDisabled(totalPages <= 1)
         );
+    }
+
+    if (includeReload) {
+        components.push(getReloadButton(options.reloadCustomId || 'reload'));
     }
 
     components.push(
@@ -97,4 +110,4 @@ const applySelectMenuDefaults = (options, selectedValues) => {
     }));
 };
 
-module.exports = { getOptions, getMenuRow, getPaginationRow, applySelectMenuDefaults, createFastNavigateModal };
+module.exports = { getOptions, getMenuRow, getPaginationRow, getReloadButton, applySelectMenuDefaults, createFastNavigateModal };

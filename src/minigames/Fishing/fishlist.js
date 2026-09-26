@@ -2,6 +2,7 @@ const { ActionRowBuilder, StringSelectMenuBuilder, ContainerBuilder, TextDisplay
 const { RARITY_CONFIG, getFishData } = require('./fishCore');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const formatNumber = require('../../commands/Utils/formatNumber');
 
 module.exports = {
     name: 'fishlist',
@@ -45,7 +46,7 @@ module.exports = {
 
             const displayContent = pagedFish.map((fish, index) => {
                 const descText = fish.desc ? `\n-# ${fish.desc}` : '';
-                return `**${start + index + 1}. ${fish.name.toUpperCase()}** — ${fish.sell} ${CURRENCY_EMOJI} ${descText}`;
+                return `**${formatNumber(start + index + 1)}. ${fish.name.toUpperCase()}** — ${formatNumber(fish.sell)} ${CURRENCY_EMOJI} ${descText}`;
             }).join('\n\n') || 'No fish found in this category.';
 
             const rarityLabel = RARITY_CONFIG[category]?.label || category;
@@ -56,7 +57,7 @@ module.exports = {
             const currentMenuRow = buildMenuRow(category, disabled);
 
             const text2 = new TextDisplayBuilder()
-                .setContent(`${displayContent}\n\n*Page ${page + 1} of ${totalPages}*`);
+                .setContent(`${displayContent}\n\n*Page ${formatNumber(page + 1)} of ${formatNumber(totalPages)}*`);
 
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(text1)

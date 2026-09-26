@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { applySelectMenuDefaults } = require('../Utils/NavigateManager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const formatNumber = require('../Utils/formatNumber');
 
 const ITEMS_PER_PAGE = 25; // Discord Select Menu limit
 const TRADE_TIMEOUT = 120_000; // 2 minutes
@@ -37,8 +38,8 @@ const buildTradeEmbed = (userA, userB, offerA, offerB, moneyA, moneyB, bankA, ba
     const formatOffer = (items, money, bank) => {
         const parts = [];
         if (items.length === 0 && money === 0 && bank === 0) parts.push('*(nothing yet)*');
-        if (money > 0) parts.push(`${CURRENCY_EMOJI} **$${money.toLocaleString()}** (Balance)`);
-        if (bank > 0) parts.push(`🏦 **$${bank.toLocaleString()}** (Bank)`);
+        if (money > 0) parts.push(`${CURRENCY_EMOJI} **$${formatNumber(money)}** (Balance)`);
+        if (bank > 0) parts.push(`🏦 **$${formatNumber(bank)}** (Bank)`);
         items.forEach(it => parts.push(`• ${it.item_name} (\`${it.item_id}\`)`));
         return parts.join('\n');
     };
@@ -129,6 +130,9 @@ module.exports = {
     category: 'eco',
     usage: 'Ztrade `@user`',
     notes: 'Can only trade items that are tradeable.',
+    args: [
+        { name: 'target', description: 'The user to trade with', type: 'user', required: true },
+    ],
 
     async execute(message, args) {
         const allItems = loadItems();
@@ -371,7 +375,7 @@ module.exports = {
                         // Validate user has enough
                         const userDb = await dbmanager.getUser(i.user.id);
                         if (val > userDb.balance)
-                            return message.channel.send({ content: `${i.user} ❌ You only have **$${userDb.balance.toLocaleString()}** balance.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
+                            return message.channel.send({ content: `${i.user} ❌ You only have **$${formatNumber(userDb.balance)}** balance.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
 
                         if (side === 'A') { moneyA = val; readyA = false; }
                         else { moneyB = val; readyB = false; }
@@ -392,7 +396,7 @@ module.exports = {
 
                         const userDb = await dbmanager.getUser(i.user.id);
                         if (val > userDb.bank)
-                            return message.channel.send({ content: `${i.user} ❌ You only have **$${userDb.bank.toLocaleString()}** bank balance.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
+                            return message.channel.send({ content: `${i.user} ❌ You only have **$${formatNumber(userDb.bank)}** bank balance.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
 
                         if (side === 'A') { bankA = val; readyA = false; }
                         else { bankB = val; readyB = false; }
@@ -472,6 +476,16 @@ module.exports = {
                         }).catch(() => { });
                     }
 
+                    const bankLimitA = await dbmanager.getBankLimit(userA.id);
+                    const bankLimitB = await dbmanager.getBankLimit(userB.id);
+                    if (dbA.bank - bankA + bankB > bankLimitA || dbB.bank - bankB + bankA > bankLimitB) {
+                        return requestMsg.edit({
+                            content: '',
+                            embeds: [new EmbedBuilder().setTitle('❌ Trade Failed').setColor(0xED4245).setDescription('The trade would exceed a bank limit. Reduce the bank amount and try again.')],
+                            components: [],
+                        }).catch(() => { });
+                    }
+
                     // Transfer items
                     for (const item of offerA) await rpgmanager.transferItem(item.id, userB.id);
                     for (const item of offerB) await rpgmanager.transferItem(item.id, userA.id);
@@ -480,14 +494,16 @@ module.exports = {
                     if (moneyA > 0) { await dbmanager.removeMoney(userA.id, moneyA); await dbmanager.addMoney(userB.id, moneyA); }
                     if (moneyB > 0) { await dbmanager.removeMoney(userB.id, moneyB); await dbmanager.addMoney(userA.id, moneyB); }
 
-                    // Transfer bank
-                    if (bankA > 0) { await dbmanager.removeBank(userA.id, bankA); await dbmanager.addBank(userB.id, bankA); }
-                    if (bankB > 0) { await dbmanager.removeBank(userB.id, bankB); await dbmanager.addBank(userA.id, bankB); }
+                    // Remove both outgoing amounts before enforcing the receiving limits.
+                    if (bankA > 0) await dbmanager.removeBank(userA.id, bankA);
+                    if (bankB > 0) await dbmanager.removeBank(userB.id, bankB);
+                    if (bankA > 0) await dbmanager.addBank(userB.id, bankA);
+                    if (bankB > 0) await dbmanager.addBank(userA.id, bankB);
 
                     const formatResult = (items, money, bank) => {
                         const parts = [];
-                        if (money > 0) parts.push(`$${CURRENCY_EMOJI} $${money.toLocaleString()} Balance`);
-                        if (bank > 0) parts.push(`🏦 $${bank.toLocaleString()} Bank`);
+                        if (money > 0) parts.push(`$${CURRENCY_EMOJI} $${formatNumber(money)} Balance`);
+                        if (bank > 0) parts.push(`🏦 $${formatNumber(bank)} Bank`);
                         items.forEach(it => parts.push(`• ${it.item_name}`));
                         return parts.length > 0 ? parts.join('\n') : '*(nothing)*';
                     };

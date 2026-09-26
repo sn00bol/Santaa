@@ -2,6 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const { allItemsCache } = require('../Utils/StatsCalculator');
 const { CURRENCY_SYMBOL } = require('../Utils/config');
 const { isOwner: isOwnerUser } = require('../Utils/permission');
+const formatNumber = require('../Utils/formatNumber');
 require('dotenv').config();
 
 module.exports = {
@@ -9,6 +10,11 @@ module.exports = {
     description: 'Give money or items to another user',
     category: ['eco', 'owner'],
     usage: 'Zgive `@user` `item/amount` [quantity]',
+    args: [
+        { name: 'target', description: 'The user receiving the money or item', type: 'user', required: true },
+        { name: 'item_or_amount', description: 'An item name, item ID, or money amount', type: 'string', required: true },
+        { name: 'quantity', description: 'The item quantity', type: 'integer', required: false },
+    ],
     async execute(message, args) {
         const { author, client } = message;
         const dbmanager = client.db;
@@ -100,7 +106,7 @@ module.exports = {
                 if (!isOwner) {
                     const senderData = await dbmanager.getUser(author.id);
                     if (senderData.balance < moneyAmount) {
-                        return message.reply(`You do not have enough money to give. (Balance: **${senderData.balance.toLocaleString()}${CURRENCY_SYMBOL}**, Required: **${moneyAmount.toLocaleString()}${CURRENCY_SYMBOL}**)`);
+                        return message.reply(`You do not have enough money to give. (Balance: **${formatNumber(senderData.balance)}${CURRENCY_SYMBOL}**, Required: **${formatNumber(moneyAmount)}${CURRENCY_SYMBOL}**)`);
                     }
                     // Deduct from sender
                     await dbmanager.removeMoney(author.id, moneyAmount);
@@ -111,7 +117,7 @@ module.exports = {
 
                 const embed = new EmbedBuilder()
                     .setTitle('💸 Money Transferred!')
-                    .setDescription(`Successfully gave **${moneyAmount.toLocaleString()}${CURRENCY_SYMBOL}** to ${targetUser}.\n${isOwner ? '*(Spawned by Owner)*' : `Your remaining balance: **${(await dbmanager.getUser(author.id)).balance.toLocaleString()}${CURRENCY_SYMBOL}**`}`)
+                    .setDescription(`Successfully gave **${formatNumber(moneyAmount)}${CURRENCY_SYMBOL}** to ${targetUser}.\n${isOwner ? '*(Spawned by Owner)*' : `Your remaining balance: **${formatNumber((await dbmanager.getUser(author.id)).balance)}${CURRENCY_SYMBOL}**`}`)
                     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                     .setTimestamp();
 
@@ -130,7 +136,7 @@ module.exports = {
                     const senderInventory = await rpgmanager.getInventory(author.id);
                     const matchingItems = senderInventory.filter(inv => inv.item_id === itemData.id);
                     if (matchingItems.length < quantity) {
-                        return message.reply(`You do not have enough **${itemData.name}** to give. (You have: **x${matchingItems.length}**, Required: **x${quantity}**)`);
+                        return message.reply(`You do not have enough **${itemData.name}** to give. (You have: **x${formatNumber(matchingItems.length)}**, Required: **x${formatNumber(quantity)}**)`);
                     }
 
                     // Unequip item for sender if they are giving it away and it's currently equipped
@@ -157,7 +163,7 @@ module.exports = {
 
                 const embed = new EmbedBuilder()
                     .setTitle('🎁 Items Sent!')
-                    .setDescription(`Successfully gave **x${quantity} ${itemData.name}** to ${targetUser}.\n${isOwner ? '*(owner using this cheat code to give)*' : ''}`)
+                    .setDescription(`Successfully gave **x${formatNumber(quantity)} ${itemData.name}** to ${targetUser}.\n${isOwner ? '*(owner using this cheat code to give)*' : ''}`)
                     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                     .setTimestamp();
 

@@ -8,6 +8,7 @@ const fishBucket = require('./fishBucket');
 const fishSkills = require('./fishSkills');
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const formatNumber = require('../../commands/Utils/formatNumber');
 const rpgmanager = require('../../../database/rpgmanager');
 const { checkCooldown, getCooldownDuration } = require('../../commands/Utils/Cooldown');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
@@ -244,9 +245,9 @@ module.exports = {
                     const { earnedPoints } = fishSkills.awardSkillPoints(profile, expGained);
                     await rpgmanager.updateProgress(userId, { fishing_profile: profile });
                     
-                    let expDisplay = `\n✨ **+${expGained} EXP** (Current: ${profile.xp} EXP)`;
+                    let expDisplay = `\n✨ **+${formatNumber(expGained)} EXP** (Current: ${formatNumber(profile.xp)} EXP)`;
                     if (earnedPoints > 0) {
-                        expDisplay += `\n🌟 **+${earnedPoints} Skill Point(s) earned!**`;
+                        expDisplay += `\n🌟 **+${formatNumber(earnedPoints)} Skill Point(s) earned!**`;
                     }
                     
                     await mainMsg.edit({
@@ -256,7 +257,7 @@ module.exports = {
                             new ContainerBuilder()
                                 .addTextDisplayComponents(
                                     new TextDisplayBuilder()
-                                        .setContent(`# 🎉 You caught ${caughtFishList.length} fish!\n${fishDisplay}${bucketNotice}${expDisplay}\n\n${fishUI.buildResultEmbed(true, caughtFishList[0], profile, null, inventoryNow).data.fields[0].value}`)
+                                        .setContent(`# 🎉 You caught ${formatNumber(caughtFishList.length)} fish!\n${fishDisplay}${bucketNotice}${expDisplay}\n\n${fishUI.buildResultEmbed(true, caughtFishList[0], profile, null, inventoryNow).data.fields[0].value}`)
                                 )
                                 .addActionRowComponents([fishUI.buildResultButtons(true)])
                         ],
@@ -302,7 +303,7 @@ module.exports = {
                             new ContainerBuilder()
                                 .addTextDisplayComponents(
                                     new TextDisplayBuilder()
-                                        .setContent(`# 🎣 You caught some junk!\n> You caught ${caughtItemList.length} junk item(s) instead of a fish!\n${itemDisplay}\n${fishUI.buildResultEmbed(false, null, profile, null, inventoryNow).data.fields[0].value}`)
+                                        .setContent(`# 🎣 You caught some junk!\n> You caught ${formatNumber(caughtItemList.length)} junk item(s) instead of a fish!\n${itemDisplay}\n${fishUI.buildResultEmbed(false, null, profile, null, inventoryNow).data.fields[0].value}`)
                                 )
                                 .addActionRowComponents([fishUI.buildResultButtons(false)])
                         ],
@@ -700,10 +701,10 @@ module.exports = {
                     return;
                 }
 
-                const soldLines = result.sold.slice(0, 10).map(s => `**${s.name}** \`x${s.count}\` — ${s.earned.toLocaleString()} ${CURRENCY_EMOJI}`).join('\n');
-                const moreLine = result.sold.length > 10 ? `\n…and ${result.sold.length - 10} more type(s)` : '';
+                const soldLines = result.sold.slice(0, 10).map(s => `**${s.name}** \`x${formatNumber(s.count)}\` — ${formatNumber(s.earned)} ${CURRENCY_EMOJI}`).join('\n');
+                const moreLine = result.sold.length > 10 ? `\n…and ${formatNumber(result.sold.length - 10)} more type(s)` : '';
                 const summary = result.soldCount > 0
-                    ? `> **Sold ${result.soldCount} fish** for **${result.totalEarned.toLocaleString()} ${CURRENCY_EMOJI}**!\n${soldLines}${moreLine}`
+                    ? `> **Sold ${formatNumber(result.soldCount)} fish** for **${formatNumber(result.totalEarned)} ${CURRENCY_EMOJI}**!\n${soldLines}${moreLine}`
                     : '> Nothing was sold — the bucket(s) are empty or only hold unsellable fish.';
 
                 await i.update({
@@ -787,7 +788,7 @@ module.exports = {
                     const available = fishSkills.getAvailablePoints(profile);
 
                     if (available < totalCost) {
-                        await i.followUp({ content: `Not enough skill points to max this skill! You need **${totalCost}** but have **${available}**.`, ephemeral: true });
+                        await i.followUp({ content: `Not enough skill points to max this skill! You need **${formatNumber(totalCost)}** but have **${formatNumber(available)}**.`, ephemeral: true });
                         return;
                     }
 
@@ -1226,7 +1227,7 @@ module.exports = {
                         components: [fishUI.buildBucket(profile, freshInventory, bucketState)],
                         flags: [MessageFlags.IsComponentsV2]
                     });
-                    await i.followUp({ content: `> Sold **${result.name}** for **${result.earned.toLocaleString()} ${CURRENCY_EMOJI}**!`, ephemeral: true });
+                    await i.followUp({ content: `> Sold **${result.name}** for **${formatNumber(result.earned)} ${CURRENCY_EMOJI}**!`, ephemeral: true });
                     return;
                 }
             }

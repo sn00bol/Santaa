@@ -1,6 +1,7 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags, MediaGalleryBuilder, MediaGalleryItemBuilder, SectionBuilder } = require('discord.js');
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const formatNumber = require('../../commands/Utils/formatNumber');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
 const { FISH_RARITY_EMOJI, RARITY_CONFIG: FISH_RARITY_CONFIG } = require('./fishCore');
 const fishShop = require('./fishShop');
@@ -32,7 +33,7 @@ function getFishingRodOptions(currentRod, inventory = []) {
 
             const description = isHand
                 ? 'Always available (your hand)'
-                : `Your owned: ${owned} | Durability: ${maxDurability}`;
+                : `Your owned: ${formatNumber(owned)} | Durability: ${formatNumber(maxDurability)}`;
 
             return {
                 label: item.name,
@@ -51,7 +52,7 @@ function getBaitOptions(currentBait, inventory = []) {
         const owned = id === 'finger' ? '∞' : inventory.filter(i => i.item_id === id).length;
         const description = id === 'finger'
             ? 'Always available (your finger)'
-            : `Your owned: ${owned}`;
+            : `Your owned: ${formatNumber(owned)}`;
 
         return {
             label: item ? item.name : id,
@@ -72,7 +73,7 @@ function buildMain(profile = {}, inventory = null, noticeMessage = null) {
     const bucketSummary = resolveBucketSummary(profile, inventory);
     const bucketSize = bucketSummary.capacity || 1;
     const bucketCount = bucketSummary.filled;
-    const bucketLabel = bucketSummary.owned > 1 ? `(${bucketSummary.owned} buckets)` : '';
+    const bucketLabel = bucketSummary.owned > 1 ? `(${formatNumber(bucketSummary.owned)} buckets)` : '';
     const rodName = resolveItemName(profile.equipment?.currentRod, 'Bare Hand');
 
     const isBareHand = String(profile.equipment?.currentRod || '').toLowerCase() === 'hand' || rodName.toLowerCase().includes('hand');
@@ -166,9 +167,11 @@ function buildBar(current, max, length = 10) {
 function formatStatLine(current, max, label, length = 10) {
     const currentText = String(current);
     const maxText = String(max);
-    const width = Math.max(currentText.length, maxText.length);
-    const currentPadded = currentText.padStart(width, ' ');
-    const maxPadded = maxText.padStart(width, ' ');
+    const formattedCurrent = formatNumber(currentText);
+    const formattedMax = formatNumber(maxText);
+    const width = Math.max(formattedCurrent.length, formattedMax.length);
+    const currentPadded = formattedCurrent.padStart(width, ' ');
+    const maxPadded = formattedMax.padStart(width, ' ');
     const bar = buildBar(currentText, maxText, length);
     const labelSuffix = label ? ` ${label}` : '';
     return `\`${currentPadded} / ${maxPadded}\` ${bar}${labelSuffix}`;
@@ -200,7 +203,7 @@ function buildBucketCompactLine(bucket) {
     const badges = [];
     if (bucket.locked) badges.push('🔒');
     if (bucket.isActive) badges.push('**(Active)**');
-    return `**${bucket.name}**${badges.length ? ' ' + badges.join(' ') : ''}\n• ${bucket.items.length} / ${bucket.capacity} Fish (${value.toLocaleString()} ${CURRENCY_EMOJI})`;
+    return `**${bucket.name}**${badges.length ? ' ' + badges.join(' ') : ''}\n• ${formatNumber(bucket.items.length)} / ${formatNumber(bucket.capacity)} Fish (${formatNumber(value)} ${CURRENCY_EMOJI})`;
 }
 
 function safeSlice(text, maxLen) {
@@ -215,15 +218,15 @@ function safeSlice(text, maxLen) {
 function buildBucketDetailText(bucket) {
     if (!bucket) return '*No bucket selected.*';
     const value = bucketSellValue(bucket.items);
-    const head = `• ${bucket.items.length} / ${bucket.capacity} Fish (${value.toLocaleString()} ${CURRENCY_EMOJI})`;
+    const head = `• ${formatNumber(bucket.items.length)} / ${formatNumber(bucket.capacity)} Fish (${formatNumber(value)} ${CURRENCY_EMOJI})`;
     if (bucket.items.length === 0) return `${head}\n\n*No fish in this bucket yet.*`;
     const fishLines = bucket.items.map((entry, index) => {
         const def = allItemsCache.get(entry.id);
         const name = (def && def.name) || entry.name || entry.id;
         const sellValue = (def && def.sell) || 0;
-        return `**${index + 1}.** ${name} — ${Number(sellValue).toLocaleString()} ${CURRENCY_EMOJI}`;
+        return `**${formatNumber(index + 1)}.** ${name} — ${formatNumber(sellValue)} ${CURRENCY_EMOJI}`;
     });
-    return `${head}\n\n${fishLines.slice(0, 25).join('\n')}${fishLines.length > 25 ? `\n…and ${fishLines.length - 25} more.` : ''}`;
+    return `${head}\n\n${fishLines.slice(0, 25).join('\n')}${fishLines.length > 25 ? `\n…and ${formatNumber(fishLines.length - 25)} more.` : ''}`;
 }
 
 function buildBucket(profile = {}, inventory = [], state = null) {
@@ -234,7 +237,7 @@ function buildBucket(profile = {}, inventory = [], state = null) {
     if (view === 'overview') {
         const totals = fishBucket.getBucketTotals(owned);
         const capLine = formatStatLine(String(totals.filled), String(totals.capacity) || '1', '', 12);
-        headerContent = `# 🎒 Viewing current buckets\n\n**Own buckets:** ${owned.length}\n**Buckets capacity:**\n${capLine}`;
+        headerContent = `# 🎒 Viewing current buckets\n\n**Own buckets:** ${formatNumber(owned.length)}\n**Buckets capacity:**\n${capLine}`;
     } else {
         const bucket = owned.find(b => String(b.rowId) === String(state && state.bucketKey)) || owned[0] || null;
         if (bucket) {
@@ -242,7 +245,7 @@ function buildBucket(profile = {}, inventory = [], state = null) {
             if (bucket.locked) badges.push('🔒');
             if (bucket.isActive) badges.push('**(Active)**');
             const capLine = formatStatLine(String(bucket.items.length), String(bucket.capacity), '', 12);
-            headerContent = `## ${bucket.name}${badges.length ? ' ' + badges.join(' ') : ''}\n**Own buckets:** ${owned.length}\n**Buckets capacity:**\n${capLine}`;
+            headerContent = `## ${bucket.name}${badges.length ? ' ' + badges.join(' ') : ''}\n**Own buckets:** ${formatNumber(owned.length)}\n**Buckets capacity:**\n${capLine}`;
         } else {
             headerContent = `# 🎒 Buckets\n> Viewing current buckets\n\n**Own buckets:** 0\n**Buckets capacity:**\n${formatStatLine('0', '1', '', 12)}`;
         }
@@ -276,7 +279,7 @@ function buildBucket(profile = {}, inventory = [], state = null) {
             if (!slot6Unlocked) displayLocked1 = '🔒 ***Locked slot***';
             if (!slot7Unlocked) displayLocked2 = '🔒 ***Locked slot***';
         }
-        const pageNote = maxPages > 1 ? `\n\n_Arrows: page ${page + 1}/${maxPages} (${owned.length} buckets)_` : '';
+        const pageNote = maxPages > 1 ? `\n\n_Arrows: page ${formatNumber(page + 1)}/${formatNumber(maxPages)} (${formatNumber(owned.length)} buckets)_` : '';
         body = `${body}${pageNote}`;
         if (body.length > 1900) body = safeSlice(body, 1900);
         container.addSeparatorComponents(new SeparatorBuilder())
@@ -296,7 +299,7 @@ function buildBucket(profile = {}, inventory = [], state = null) {
             { label: 'All buckets', value: 'all', description: 'View every owned bucket', default: true },
             ...owned.map(bucket => {
                 const option = {
-                    label: `${bucket.name} (${bucket.items.length}/${bucket.capacity})`,
+                    label: `${bucket.name} (${formatNumber(bucket.items.length)}/${formatNumber(bucket.capacity)})`,
                     value: bucket.rowId,
                     default: false,
                 };
@@ -322,10 +325,10 @@ function buildBucket(profile = {}, inventory = [], state = null) {
             const fishOptions = bucket.items.map((entry, index) => {
                 const def = allItemsCache.get(entry.id);
                 const option = {
-                    label: `${index + 1}. ${(def && def.name) || entry.name || entry.id}`,
+                    label: `${formatNumber(index + 1)}. ${(def && def.name) || entry.name || entry.id}`,
                     value: `${bucket.rowId}:${index}`,
                 };
-                if (def && typeof def.sell === 'number') option.description = `${def.sell} ${CURRENCY_EMOJI}`;
+                if (def && typeof def.sell === 'number') option.description = `${formatNumber(def.sell)} ${CURRENCY_EMOJI}`;
                 return option;
             });
             container.addActionRowComponents(
@@ -379,7 +382,7 @@ function buildSkill(profile = {}, skillState = null) {
     const availablePoints = fishSkills.getAvailablePoints(profile);
     const xp = Number(profile.xp) || 0;
     const nextSpXp = (Math.floor(xp / 100) + 1) * 100;
-    const expText = `EXP: **${xp} / ${nextSpXp}** to next Skill Point`;
+    const expText = `EXP: **${formatNumber(xp)} / ${formatNumber(nextSpXp)}** to next Skill Point`;
 
     // ── Branch select menu (shared between main and branch views) ────────
     const branchOptions = [
@@ -402,7 +405,7 @@ function buildSkill(profile = {}, skillState = null) {
         // ── MAIN MENU ──────────────────────────────────────────────────────
         
         // 1. Header Text Component
-        const headerText = `# 🧠 Upgrading skills\nSkill Point: **${availablePoints}**\n${expText}`;
+        const headerText = `# 🧠 Upgrading skills\nSkill Point: **${formatNumber(availablePoints)}**\n${expText}`;
 
         // 2. Body List Component
         let listText = '';
@@ -468,7 +471,7 @@ function buildSkill(profile = {}, skillState = null) {
     // Extract only the general description (without specific numbers)
     const generalDesc = skill.desc.split('.').slice(0, 1).join('.') + '.';
     const skillHeader = `## ${skill.name}\n> ${generalDesc}${rodNote}${prereqWarning}`;
-    const skillBody = `**Skill Point:** ${availablePoints} | ${expText}\n\n${levelList}`;
+    const skillBody = `**Skill Point:** ${formatNumber(availablePoints)} | ${expText}\n\n${levelList}`;
 
     // Prev/next buttons
     const levelsToMax = skill.maxLevel - currentLevel;
@@ -615,7 +618,7 @@ function buildFishingNow(profile = {}, inventory = null) {
     const bucketSummary = resolveBucketSummary(profile, inventory);
     const bucketSize = bucketSummary.capacity || 1;
     const bucketCount = bucketSummary.filled;
-    const bucketLabel = bucketSummary.owned > 1 ? `(${bucketSummary.owned} buckets)` : '';
+    const bucketLabel = bucketSummary.owned > 1 ? `(${formatNumber(bucketSummary.owned)} buckets)` : '';
     const rodName = resolveItemName(profile.equipment?.currentRod, 'Bare Hand');
     const isBareHand = String(profile.equipment?.currentRod || '').toLowerCase() === 'hand' || rodName.toLowerCase().includes('hand');
     const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? 0);

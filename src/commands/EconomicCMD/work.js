@@ -3,6 +3,7 @@ const { jobs, jobs_txt } = require('../Utils/misc'); // Import job from tips.js
 const { checkCooldown } = require('../Utils/Cooldown'); // Import cooldown function from Cooldown.js
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'parttime',
@@ -44,7 +45,7 @@ module.exports = {
                 })
                 .setDescription(
                     `**${randJob.name}**` +
-                    ` and you earned **${amountEarned.toLocaleString()}${CURRENCY_EMOJI}**!\n\n` +
+                    ` and you earned **${formatNumber(amountEarned)}${CURRENCY_EMOJI}**!\n\n` +
                     `*"${jobQuote}"*`
                 )
                 .setTimestamp();

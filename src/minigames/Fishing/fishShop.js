@@ -3,6 +3,7 @@ const path = require('path');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
 const { resolveShopItemsPath, sortShopItems, getShopItemCost } = require('../../commands/Utils/shopUtils');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const formatNumber = require('../../commands/Utils/formatNumber');
 const { isVisibleItem } = require('../../commands/Utils/itemVisibility');
 const dbmanager = require('../../../database/dbmanager');
 const rpgmanager = require('../../../database/rpgmanager');
@@ -131,7 +132,7 @@ const buildFishShopCategoryListContainer = (state) => {
         ...sortShopItems(state.items).map((item) => ({
             label: item.name,
             value: item.id,
-            description: `Cost: ${getShopItemCost(item)} ${CURRENCY_EMOJI}`,
+            description: `Cost: ${formatNumber(getShopItemCost(item))} ${CURRENCY_EMOJI}`,
         })),
     ];
 
@@ -166,12 +167,12 @@ const buildFishShopItemContainer = async (state, itemId) => {
     const titleLine = `**${item.name}**`;
     const description = item.desc || 'No description available.';
     const itemText = new TextDisplayBuilder()
-        .setContent(`${titleLine}\n${description}\n\nCost: ${cost} ${CURRENCY_EMOJI}\nID: \`${item.id}\`\n`);
+        .setContent(`${titleLine}\n${description}\n\nCost: ${formatNumber(cost)} ${CURRENCY_EMOJI}\nID: \`${item.id}\`\n`);
 
     const actionRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`${SHOP_ACTIONS.BUY_PREFIX}${item.id}`)
-            .setLabel(`Buy for ${cost} ${CURRENCY_EMOJI}`)
+            .setLabel(`Buy for ${formatNumber(cost)} ${CURRENCY_EMOJI}`)
             .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
             .setCustomId('fish_equipment')
@@ -253,7 +254,7 @@ const handleFishShopInteraction = async (interaction, state, profile = null) => 
 
             await dbmanager.removeMoney(interaction.user.id, cost);
             await rpgmanager.addItem(interaction.user.id, item.id, item.name);
-            await interaction.reply({ content: `You bought **${item.name}** for ${cost} ${CURRENCY_EMOJI}.`, ephemeral: true });
+            await interaction.reply({ content: `You bought **${item.name}** for ${formatNumber(cost)} ${CURRENCY_EMOJI}.`, ephemeral: true });
             return { handled: true };
         }
     }

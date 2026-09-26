@@ -1,4 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const formatNumber = require('../../commands/Utils/formatNumber');
 
 const CELL_EMOJI = {
     hidden: '🔲',
@@ -16,7 +17,7 @@ function buildEmbed(user, stats, session) {
         .setTitle(title)
         .setDescription(description)
         .addFields(
-            { name: 'HP / Revealed', value: `${stats.health}/100 • ${session.revealedCount || 0}/${session.safeCells || 0}` },
+            { name: 'HP / Revealed', value: `${formatNumber(stats.health)}/100 • ${formatNumber(session.revealedCount || 0)}/${formatNumber(session.safeCells || 0)}` },
             { name: 'Session Loot', value: (session.sessionLoot && session.sessionLoot.length) ? session.sessionLoot.map(m => `${m.name}`).join(', ') : 'None' }
         );
     return embed;

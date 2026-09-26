@@ -2,6 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, 
 const rpgmanager = require('../../../database/rpgmanager');
 const dbmanager = require('../../../database/dbmanager');
 const { allItemsCache } = require('../Utils/StatsCalculator');
+const formatNumber = require('../Utils/formatNumber');
 
 async function sellItemsCore(userId, itemsToSell) {
     let totalEarned = 0;
@@ -62,7 +63,7 @@ async function executeSellMultiple(userId, itemsToSell, replyFn) {
         return replyFn({ content: "No items could be sold." });
     }
 
-    const soldLines = result.soldItems.map(item => `**${item.name}** \`x${item.quantity}\` ($${item.earned.toLocaleString()})`);
+    const soldLines = result.soldItems.map(item => `**${item.name}** \`x${formatNumber(item.quantity)}\` ($${formatNumber(item.earned)})`);
     const userDb = await dbmanager.getUser(userId);
 
     const embed = new EmbedBuilder()
@@ -70,8 +71,8 @@ async function executeSellMultiple(userId, itemsToSell, replyFn) {
         .setColor(0x57F287)
         .setDescription(soldLines.join('\n'))
         .addFields(
-            { name: 'Total Earned', value: `**$${result.totalEarned.toLocaleString()}**`, inline: true },
-            { name: 'Your Balance', value: `$${userDb.balance.toLocaleString()}`, inline: true }
+            { name: 'Total Earned', value: `**$${formatNumber(result.totalEarned)}**`, inline: true },
+            { name: 'Your Balance', value: `$${formatNumber(userDb.balance)}`, inline: true }
         )
         .setTimestamp();
 
@@ -110,7 +111,7 @@ async function executeSell(userId, itemData, quantity, replyFn) {
     }
 
     if (matchingItems.length < quantity) {
-        await replyFn(`You only have **${matchingItems.length}x ${itemData.name}**, not enough to sell **${quantity}**.`);
+        await replyFn(`You only have **${formatNumber(matchingItems.length)}x ${itemData.name}**, not enough to sell **${formatNumber(quantity)}**.`);
         return false;
     }
 
@@ -127,12 +128,12 @@ async function executeSell(userId, itemData, quantity, replyFn) {
         .setTitle('Successfully sold an item!')
         .setColor(0x57F287)
         .addFields(
-            { name: 'Item', value: `**${itemData.name}** x${quantity}`, inline: true },
-            { name: 'Unit Price', value: `$${unitPrice.toLocaleString()}`, inline: true },
-            { name: 'Total Earned', value: `**$${result.totalEarned.toLocaleString()}**`, inline: true },
-            { name: 'Your Balance', value: `$${userDb.balance.toLocaleString()}`, inline: false },
+            { name: 'Item', value: `**${itemData.name}** x${formatNumber(quantity)}`, inline: true },
+            { name: 'Unit Price', value: `$${formatNumber(unitPrice)}`, inline: true },
+            { name: 'Total Earned', value: `**$${formatNumber(result.totalEarned)}**`, inline: true },
+            { name: 'Your Balance', value: `$${formatNumber(userDb.balance)}`, inline: false },
         )
-        .setFooter({ text: result.equippedChanged ? 'Item was unequipped before selling.' : `Remaining in inventory: ${matchingItems.length - quantity}x ${itemData.name}` })
+        .setFooter({ text: result.equippedChanged ? 'Item was unequipped before selling.' : `Remaining in inventory: ${formatNumber(matchingItems.length - quantity)}x ${itemData.name}` })
         .setTimestamp();
 
     await replyFn({ embeds: [embed] });
@@ -144,6 +145,10 @@ module.exports = {
     description: 'Sell items from your inventory for money',
     category: 'eco',
     usage: 'Zsell `item name or id` `quantity` (or Zsell `all` to sell all sellable items)',
+    args: [
+        { name: 'item', description: 'The item name, ID, or all', type: 'string', required: true },
+        { name: 'quantity', description: 'The quantity to sell', type: 'integer', required: false },
+    ],
 
     executeSell, // re-exported for use by inventory.js sell button
     executeSellMultiple, // export bulk sell
@@ -178,7 +183,7 @@ module.exports = {
             const options = sellableItems.slice(0, 25).map((sellable) => ({
                 label: sellable.itemData.name,
                 value: sellable.itemData.id,
-                description: `Quantity: ${sellable.quantity} (Total Value: $${sellable.itemData.sell * sellable.quantity})`
+                description: `Quantity: ${formatNumber(sellable.quantity)} (Total Value: $${formatNumber(sellable.itemData.sell * sellable.quantity)})`
             }));
 
             const selectRow = new ActionRowBuilder().addComponents(

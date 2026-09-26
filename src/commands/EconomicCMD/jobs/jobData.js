@@ -1,4 +1,5 @@
 const { CURRENCY_EMOJI } = require('../../Utils/config');
+const formatNumber = require('../../Utils/formatNumber');
 
 const jobs = [
   {
@@ -180,7 +181,7 @@ function getJobUnlockStatus(job, totalCompletedWorkCount = 0) {
   return {
     unlocked,
     requiredUnlocks,
-    reason: unlocked ? 'Unlocked' : `Need ${Math.max(0, requiredUnlocks - Number(totalCompletedWorkCount))} more completed shifts.`
+    reason: unlocked ? 'Unlocked' : `Need ${formatNumber(Math.max(0, requiredUnlocks - Number(totalCompletedWorkCount)))} more completed shifts.`
   };
 }
 
@@ -192,10 +193,10 @@ function formatJobSummary(job, totalCompletedWorkCount = 0) {
 
   return [
     `${lockIcon} **${job.name}**`,
-    `• **Shifts Required:** \`${job.shiftsRequiredPerDay ?? 1} per day\``,
-    `• ${CURRENCY_EMOJI} **Salary:** \`${job.salary}\` / shift`,
+    `• **Shifts Required:** \`${formatNumber(job.shiftsRequiredPerDay ?? 1)} per day\``,
+    `• ${CURRENCY_EMOJI} **Salary:** \`${formatNumber(job.salary)}\` / shift`,
     `• **Cooldown:** \`${shiftCooldown}\``,
-    `• **Required To Unlock:** \`${job.totalShiftsRequiredToUnlock ?? job.requiredWorkCount ?? 0} total shifts\``,
+    `• **Required To Unlock:** \`${formatNumber(job.totalShiftsRequiredToUnlock ?? job.requiredWorkCount ?? 0)} total shifts\``,
     `-# Status: ${unlockStatus.reason}`
   ].join('\n');
 }

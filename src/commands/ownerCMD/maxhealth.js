@@ -1,11 +1,15 @@
 require('dotenv').config();
 const { getTotalStats } = require('../Utils/StatsCalculator');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'maxhealth',
     description: 'Revive him! (Owner only)',
     category: 'owner',
     usage: 'Zmaxhealth `@user`',
+    args: [
+        { name: 'target', description: 'The user whose health to restore', type: 'user', required: false },
+    ],
     async execute(message, args) {
         const targetUser = message.mentions.users.first() || message.author;
         const rpgmanager = message.client.rpg || require('../../../database/rpgmanager');
@@ -16,7 +20,7 @@ module.exports = {
             
             await rpgmanager.updateStats(targetUser.id, totalStats.maxHealth, currentStats.stamina);
             
-            message.reply(`Fully restored **${targetUser.username}**'s health to ${totalStats.maxHealth} HP!`);
+            message.reply(`Fully restored **${targetUser.username}**'s health to ${formatNumber(totalStats.maxHealth)} HP!`);
         } catch (error) {
             console.error(error);
             message.reply('An error occurred while restoring health.');

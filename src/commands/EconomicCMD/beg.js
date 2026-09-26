@@ -3,6 +3,7 @@ const { checkCooldown } = require('../Utils/Cooldown');
 const { NPC, BegSuccess, SelfBegSuccess, BegFail, BegStolen } = require('../Utils/misc');
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
+const formatNumber = require('../Utils/formatNumber');
 
 const getRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -25,6 +26,9 @@ module.exports = {
     description: 'Begging random NPC or people in server, could beg yourself maybe',
     category: 'eco',
     usage: 'Zbeg (Optional: `@user`)',
+    args: [
+        { name: 'target', description: 'The user to beg from', type: 'user', required: false },
+    ],
     pickBegSuccessMessage,
     pickSelfBegMessage,
     calculateSelfBegPenalty,
@@ -76,7 +80,7 @@ module.exports = {
             const selfText = pickSelfBegMessage() || "You tried to beg from yourself...";
             const selfEmbed = new EmbedBuilder()
                 .setTitle('Self-beg penalty')
-                .setDescription(`${selfText}\n\nThat cost you **${penalty.toLocaleString()}${CURRENCY_EMOJI}** from your assets, go find a job or at least beg from someone else next time`)
+                .setDescription(`${selfText}\n\nThat cost you **${formatNumber(penalty)}${CURRENCY_EMOJI}** from your assets, go find a job or at least beg from someone else next time`)
                 .setColor('#e67e22');
 
             await message.reply({ embeds: [selfEmbed] });
@@ -136,9 +140,9 @@ module.exports = {
 
                     const amountInput = new TextInputBuilder()
                         .setCustomId('beg_amount')
-                        .setLabel(`Amount (Max: ${targetBalance.toLocaleString()})`)
+                        .setLabel(`Amount (Max: ${formatNumber(targetBalance)})`)
                         .setStyle(TextInputStyle.Short)
-                        .setPlaceholder(`Enter amount (Your balance: ${targetBalance})`)
+                        .setPlaceholder(`Enter amount (Your balance: ${formatNumber(targetBalance)})`)
                         .setRequired(true);
 
                     const firstActionRow = new ActionRowBuilder().addComponents(amountInput);
@@ -164,7 +168,7 @@ module.exports = {
                         const currentBalance = Number(currentTargetData.balance || 0);
 
                         if (giveAmount > currentBalance) {
-                            await modalSubmission.reply({ content: `You don't have enough money! Your current balance is **${currentBalance.toLocaleString()}${CURRENCY_EMOJI}**.`, ephemeral: true });
+                            await modalSubmission.reply({ content: `You don't have enough money! Your current balance is **${formatNumber(currentBalance)}${CURRENCY_EMOJI}**.`, ephemeral: true });
                             return;
                         }
 
@@ -174,7 +178,7 @@ module.exports = {
                         await modalSubmission.deferUpdate();
                         await promptMessage.edit({
                             embeds: [new EmbedBuilder().setTitle('Beg Successful!')
-                                .setDescription(`${targetUser} was feeling generous and gave ${author} **${giveAmount.toLocaleString()}${CURRENCY_EMOJI}**!`)
+                                .setDescription(`${targetUser} was feeling generous and gave ${author} **${formatNumber(giveAmount)}${CURRENCY_EMOJI}**!`)
                                 .setColor('#2ecc71')],
                             components: []
                         });
@@ -242,7 +246,7 @@ module.exports = {
                     const randomSuccess = pickBegSuccessMessage();
 
                     resultEmbed.setTitle('Begged for money!')
-                        .setDescription(`${randomSuccess} ${randomNPC} came in and threw money at your face! You got **${amount.toLocaleString()}${CURRENCY_EMOJI}**!`)
+                        .setDescription(`${randomSuccess} ${randomNPC} came in and threw money at your face! You got **${formatNumber(amount)}${CURRENCY_EMOJI}**!`)
                         .setColor('#2ecc71');
                 } else if (chance === 2) {
                     const randomFail = getRandom(BegFail);
@@ -254,7 +258,7 @@ module.exports = {
                     const randomStolen = getRandom(BegStolen);
 
                     resultEmbed.setTitle('Oh no! You got robbed!')
-                        .setDescription(`${randomStolen}\n\nYou lost **${amount.toLocaleString()}${CURRENCY_EMOJI}**!`)
+                        .setDescription(`${randomStolen}\n\nYou lost **${formatNumber(amount)}${CURRENCY_EMOJI}**!`)
                         .setColor('#f39c12');
                 }
 

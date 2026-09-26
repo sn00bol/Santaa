@@ -1,11 +1,15 @@
 const { EmbedBuilder } = require('discord.js');
 const rpgmanager = require('../../../database/rpgmanager');
+const formatNumber = require('../Utils/formatNumber');
 
 module.exports = {
     name: 'pvphistory',
     description: 'View recent PVP match history',
     category: 'utl',
     usage: 'Zpvphistory `@user`',
+    args: [
+        { name: 'target', description: 'The user whose history to view', type: 'user', required: false },
+    ],
     async execute(message) {
         const target = message.mentions.users.first() || message.author;
         const isself = target.id === message.author.id;
@@ -33,8 +37,8 @@ module.exports = {
                     month: 'short', day: 'numeric', year: 'numeric'
                 });
                 const detail = isWinner
-                    ? `+${match.winner_exp_gained} EXP`
-                    : `-$${match.loser_money_lost}`;
+                    ? `+${formatNumber(match.winner_exp_gained)} EXP`
+                    : `-$${formatNumber(match.loser_money_lost)}`;
                 return `\`${String(i + 1).padStart(2, '0')}.\` ${outcome} vs <@${opponentId}> — ${date} *(${detail})*`;
             });
 
@@ -45,13 +49,13 @@ module.exports = {
                 .setThumbnail(target.displayAvatarURL())
                 .setDescription(rows.join('\n'))
                 .addFields(
-                    { name: '🏆 Wins', value: `${stats.wins}`, inline: true },
-                    { name: '💀 Losses', value: `${stats.losses}`, inline: true },
+                    { name: '🏆 Wins', value: formatNumber(stats.wins), inline: true },
+                    { name: '💀 Losses', value: formatNumber(stats.losses), inline: true },
                     { name: '📊 Win Rate', value: `${stats.winRate}%`, inline: true },
                     { name: '📈 Rate', value: winRateBar, inline: false },
                 )
                 .setColor(stats.wins >= stats.losses ? '#16A34A' : '#DC2626')
-                .setFooter({ text: `Showing last ${history.length} of ${stats.total} match(es)` })
+                .setFooter({ text: `Showing last ${formatNumber(history.length)} of ${formatNumber(stats.total)} match(es)` })
                 .setTimestamp();
 
             message.channel.send({ embeds: [embed] });

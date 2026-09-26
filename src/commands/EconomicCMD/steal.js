@@ -3,6 +3,7 @@ const { checkCooldown } = require('../Utils/Cooldown');
 const { StealSuccess, StealFail, StealBusted } = require('../Utils/misc');
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
+const formatNumber = require('../Utils/formatNumber');
 
 const MIN_TARGET_BALANCE = 50; // target must have at least this much to be steal-able
 
@@ -11,6 +12,10 @@ module.exports = {
     description: 'You so broke that begging aint work so you try attempt to steal money from another user\'s wallet (Zsteal @user)',
     category: 'eco',
     usage: 'Zsteal (optional: `@user`)',
+    DMs: false,
+    args: [
+        { name: 'target', description: 'The user to steal from', type: 'user', required: false },
+    ],
     async execute(message) {
         const { author } = message;
         const dbManager = message.client.db;
@@ -47,7 +52,7 @@ module.exports = {
             const targetData = await dbManager.getUser(targetUser.id);
             if (targetData.balance < MIN_TARGET_BALANCE) {
                 return message.reply(
-                    `${targetUser.username} is too broke to steal from. (Needs at least **${MIN_TARGET_BALANCE}${CURRENCY_EMOJI}** in wallet)`
+                    `${targetUser.username} is too broke to steal from. (Needs at least **${formatNumber(MIN_TARGET_BALANCE)}${CURRENCY_EMOJI}** in wallet)`
                 );
             }
 
@@ -91,7 +96,7 @@ module.exports = {
                     .setTitle('Steal Successful!')
                     .setDescription(
                         `${getRandom(StealSuccess)}\n\n` +
-                        `You swiped **${stolen.toLocaleString()}${CURRENCY_EMOJI}** from ${targetUser}!`
+                        `You swiped **${formatNumber(stolen)}${CURRENCY_EMOJI}** from ${targetUser}!`
                     )
                     .setColor('#16A34A');
 
@@ -129,7 +134,7 @@ module.exports = {
                     .setTitle('Caught Red-Handed!')
                     .setDescription(
                         `${getRandom(StealBusted)}\n\n` +
-                        `You were punished **${fine.toLocaleString()}** and ${penaltyText}.`
+                        `You were punished **${formatNumber(fine)}** and ${penaltyText}.`
                     )
                     .setColor('#DC2626');
             }

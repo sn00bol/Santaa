@@ -5,6 +5,7 @@ const runJobMinigame = require('./jobs/minigameRunner');
 const buildJobResultEmbed = require('./jobs/buildJobResultEmbed');
 const { JobStart, JobSuccess, JobFail } = require('../Utils/misc');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
+const formatNumber = require('../Utils/formatNumber');
 
 const cooldownConfig = require('../Utils/config');
 const TEST_MONTH_WORK_REQUIREMENT = 10;
@@ -27,6 +28,10 @@ module.exports = {
   description: 'The most feared word in the world... THE JOB!!!!',
   category: 'eco',
   usage: 'Zjob `help`/`work`/`list`/`choose`',
+  args: [
+    { name: 'action', description: 'Job action: help, work, list, or choose', type: 'string', required: false },
+    { name: 'job', description: 'Job name when choosing a job', type: 'string', required: false },
+  ],
   async execute(message, args = []) {
     const { author } = message;
     const dbManager = message.client.db;
@@ -64,7 +69,7 @@ module.exports = {
           embed: new EmbedBuilder()
             .setTitle('Available careers')
             .setDescription(jobOptions || 'No jobs available at the moment.')
-            .setFooter({ text: `Page ${page + 1} of ${totalPages}` }),
+            .setFooter({ text: `Page ${formatNumber(page + 1)} of ${formatNumber(totalPages)}` }),
           totalPages
         };
       };
