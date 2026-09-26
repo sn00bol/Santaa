@@ -1,11 +1,13 @@
 {
   "name": "santaa",
-  "version": "1.3.0-alpha.2",
+  "version": "1.3.0-alpha.3",
   "description": "With great cave comes great miners",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "set COOLDOWN_MODE=test&& nodemon src/index.js",
+    "slash-register": "node src/scripts/slashRegister.js",
+    "slash-reset": "node src/scripts/slashRegister.js --reset",
     "test": "node --test",
     "alpha": "npm version prerelease --preid=alpha --no-git-tag-version",
     "beta": "npm version prerelease --preid=beta --no-git-tag-version",
@@ -28,6 +30,7 @@
     "discord.js": "^14.19.0",
     "dotenv": "^17.4.2",
     "sqlite": "^5.1.1",
-    "sqlite3": "^6.0.1"
+    "sqlite3": "^6.0.1",
+    "undici": "^6.29.0"
   }
 }

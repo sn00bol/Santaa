@@ -2,6 +2,7 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ContainerBu
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const formatNumber = require('../Utils/formatNumber');
 const { getReloadButton } = require('../Utils/NavigateManager');
+const { getSetting } = require('../MainCMD/stgfiles');
 
 module.exports = {
     name: 'balance',
@@ -16,17 +17,49 @@ module.exports = {
         const { author, client } = message;
         const dbManager = client.db;
         const name = message.member?.displayName || author.username;
+        const targetUser = message.mentions.users.first();
+
+        if (targetUser && targetUser.id !== author.id) {
+            const targetSettings = await dbManager.getUserSettings(targetUser.id);
+            if (!getSetting('show_balance').canViewBalance(targetSettings)) {
+                return message.reply('This user block anyone to check their balance, go away pls');
+            }
+
+            const targetData = await dbManager.getUser(targetUser.id);
+            const targetName = message.mentions.members?.find(member => member.id === targetUser.id)?.displayName
+                || targetUser.globalName
+                || targetUser.username;
+            const publicBalance = new ContainerBuilder()
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ${targetName}'s Balance`))
+                .addSeparatorComponents(new SeparatorBuilder())
+                .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+                    `${CURRENCY_EMOJI} ${formatNumber(targetData.balance)}\n🏦 ${formatNumber(targetData.bank)}`
+                ));
+
+            return message.channel.send({
+                components: [publicBalance],
+                flags: [MessageFlags.IsComponentsV2],
+            });
+        }
 
         const buildBalanceData = async () => {
-            const userData = await dbManager.getUser(author.id);
+            const [netWorth, rank, userData] = await Promise.all([
+                dbManager.getNetWorthSummary(author.id),
+                dbManager.getMoneyRank(author.id),
+                dbManager.getUser(author.id),
+            ]);
             return {
                 ...userData,
                 bankLimit: await dbManager.getBankLimit(author.id),
-                rank: await dbManager.getMoneyRank(author.id)
+                rank,
+                totalCoins: netWorth.totalCoins,
+                inventoryValue: netWorth.inventoryValue,
+                peakNetWorth: netWorth.peakTotal,
             };
         };
 
-        const buildBalanceContainer = (data, disabled = false) => {
+        const buildBalanceContainer = (data, view = 'balances', disabled = false) => {
+            const showingNetWorth = view === 'networth';
             const controls = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId('with_modal').setLabel('Withdraw').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
                 new ButtonBuilder().setCustomId('dep_modal').setLabel('Deposit').setStyle(ButtonStyle.Secondary).setDisabled(disabled),
@@ -37,19 +70,23 @@ module.exports = {
                 .addSectionComponents(
                     new SectionBuilder()
                         .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                            `## ${name}'s Balance\n-# Global rank: **#${data.rank ?? '—'}**`
+                            showingNetWorth
+                                ? `## ${name}'s Net Worth\n-# Highest recorded total`
+                                : `## ${name}'s Balance\n-# Global rank: **#${data.rank ?? '—'}**`
                         ))
                         .setButtonAccessory(
                             new ButtonBuilder()
-                                .setCustomId('balance_networth')
-                                .setLabel('Networth')
+                                .setCustomId('balance_view_toggle')
+                                .setLabel(showingNetWorth ? 'Balances' : 'Net Worth')
                                 .setStyle(ButtonStyle.Secondary)
-                                .setDisabled(true)
+                                .setDisabled(disabled)
                         )
                 )
                 .addSeparatorComponents(new SeparatorBuilder())
                 .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-                    `${CURRENCY_EMOJI} ${formatNumber(data.balance)}\n🏦 ${formatNumber(data.bank)} / ${formatNumber(data.bankLimit)}`
+                    showingNetWorth
+                        ? `**Total coins**\n${CURRENCY_EMOJI} ${formatNumber(data.totalCoins)}\n\n**Inventory values**\n🎒 ${formatNumber(data.inventoryValue)}\n\n**Total**\n📦 ${formatNumber(data.peakNetWorth)}\n-# Highest total reached; this value never decreases.`
+                        : `${CURRENCY_EMOJI} ${formatNumber(data.balance)}\n🏦 ${formatNumber(data.bank)} / ${formatNumber(data.bankLimit)}`
                 ))
                 .addSeparatorComponents(new SeparatorBuilder())
                 .addActionRowComponents(controls);
@@ -57,17 +94,22 @@ module.exports = {
 
         const balanceData = await buildBalanceData();
         let currentData = balanceData;
+        let currentView = 'balances';
         const response = await message.channel.send({
-            components: [buildBalanceContainer(balanceData)],
+            components: [buildBalanceContainer(balanceData, currentView)],
             flags: [MessageFlags.IsComponentsV2]
         });
 
         const collector = response.createMessageComponentCollector({ filter: i => i.user.id === message.author.id, componentType: ComponentType.Button });
 
         collector.on('collect', async (i) => {
-            if (i.customId === 'balance_reload') {
+            if (i.customId === 'balance_reload' || i.customId === 'balance_view_toggle') {
+                await i.deferUpdate();
+                if (i.customId === 'balance_view_toggle') {
+                    currentView = currentView === 'balances' ? 'networth' : 'balances';
+                }
                 currentData = await buildBalanceData();
-                return i.update({ components: [buildBalanceContainer(currentData)] });
+                return response.edit({ components: [buildBalanceContainer(currentData, currentView)] });
             }
 
             const IsDep = i.customId === 'dep_modal';
@@ -120,12 +162,12 @@ module.exports = {
                 }
 
                 currentData = await buildBalanceData();
-                await submit.update({ components: [buildBalanceContainer(currentData)] });
+                await submit.update({ components: [buildBalanceContainer(currentData, currentView)] });
             }
         });
 
         collector.on('end', async () => {
-            response.edit({ components: [buildBalanceContainer(currentData, true)] }).catch(() => { });
+            response.edit({ components: [buildBalanceContainer(currentData, currentView, true)] }).catch(() => { });
         });
     }
 }

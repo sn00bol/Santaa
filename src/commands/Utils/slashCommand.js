@@ -62,10 +62,26 @@ function buildSlashCommand(command) {
 
 function getSlashCommandSignature(command) {
     const definition = typeof command.toJSON === 'function' ? command.toJSON() : command;
-    delete definition.id;
-    delete definition.application_id;
-    delete definition.version;
-    return JSON.stringify(definition);
+    const ignoredDefaults = new Set(['required', 'autocomplete', 'nsfw', 'dm_permission']);
+
+    const normalize = (value) => {
+        if (Array.isArray(value)) return value.map(normalize);
+        if (!value || typeof value !== 'object') return value;
+
+        const normalized = {};
+        for (const key of Object.keys(value).sort()) {
+            const entry = value[key];
+            if (entry === undefined || entry === null) continue;
+            if (ignoredDefaults.has(key) && entry === (key === 'dm_permission')) continue;
+            if (key === 'integration_types' && Array.isArray(entry) && entry.length === 2 && entry[0] === 0 && entry[1] === 1) continue;
+            if (key === 'options' && Array.isArray(entry) && entry.length === 0) continue;
+            if (key === 'id' || key === 'application_id' || key === 'version') continue;
+            normalized[key] = normalize(entry);
+        }
+        return normalized;
+    };
+
+    return JSON.stringify(normalize(definition));
 }
 
 function getInteractionArgs(interaction, command) {
@@ -85,9 +101,15 @@ function getInteractionArgs(interaction, command) {
     return args;
 }
 
-async function createInteractionMessage(interaction, args, prefix) {
+async function createInteractionMessage(interaction, args, prefix, command = {}) {
     const mentions = new Collection();
     const mentionIds = new Set();
+    const slashOptions = {};
+
+    for (const arg of Array.isArray(command.args) ? command.args : []) {
+        const option = interaction.options.get(arg.name);
+        if (option) slashOptions[arg.name] = option.value;
+    }
 
     for (const arg of args) {
         const match = arg.match(/^<@!?(\d{17,20})>$/) || arg.match(/^(\d{17,20})$/);
@@ -125,6 +147,7 @@ async function createInteractionMessage(interaction, args, prefix) {
         content: `${prefix}${interaction.commandName}${args.length ? ` ${args.join(' ')}` : ''}`,
         guild: interaction.guild,
         member: interaction.member,
+        slashOptions,
         mentions: { users: mentions },
         reply: send,
     };

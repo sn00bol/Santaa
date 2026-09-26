@@ -3,18 +3,21 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const { Agent } = require('undici');
 const { Client, IntentsBitField, Partials, Collection, ActivityType } = require('discord.js');
 const dbmanager = require('../database/dbmanager');
 const rpgmanager = require('../database/rpgmanager');
 const { isOwner } = require('./commands/Utils/permission');
-const {
-    buildSlashCommand,
-    createInteractionMessage,
-    getInteractionArgs,
-    getSlashCommandSignature,
-    getSlashCommandValidationError,
-} = require('./commands/Utils/slashCommand');
+const {createInteractionMessage,getInteractionArgs} = require('./commands/Utils/slashCommand');
 const { initUpdater } = require('./scripts/updater');
+const notifi = require('./commands/Utils/notifi');
+const { retryWithBackoff } = require('./commands/Utils/retry');
+
+const discordHttpAgent = new Agent({
+    connectTimeout: 30_000,
+    headersTimeout: 30_000,
+    bodyTimeout: 30_000,
+});
 
 const client = new Client({
     intents: [
@@ -25,6 +28,11 @@ const client = new Client({
         IntentsBitField.Flags.MessageContent,
     ],
     partials: [Partials.Channel],
+    rest: {
+        agent: discordHttpAgent,
+        timeout: 30_000,
+        retries: 5,
+    },
 });
 
 // Command management
@@ -34,12 +42,10 @@ client.aliases = new Collection();
 client.blockedCommands = new Set();
 
 function getFilesRecursive(dir) {
-    let results = [];
-    if (!fs.existsSync(dir)) return results;
+    if (!fs.existsSync(dir)) return [];
 
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-    for (const entry of entries) {
+    const results = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
             results.push(...getFilesRecursive(fullPath));
@@ -54,22 +60,20 @@ const commandFolders = ['commands', 'minigames', 'memes'];
 
 commandFolders.forEach(folder => {
     const folderPath = path.join(__dirname, folder);
-    const cmdFiles = getFilesRecursive(folderPath);
-
-    for (const filePath of cmdFiles) {
+    for (const filePath of getFilesRecursive(folderPath)) {
         try {
-            const cmd = require(filePath);
+            const command = require(filePath);
+            if (!command || typeof command !== 'object' || typeof command.name !== 'string' || typeof command.execute !== 'function') {
+                continue;
+            }
 
-            if (cmd && typeof cmd === 'object' && 'name' in cmd && typeof cmd.execute === 'function') {
-                client.commands.set(cmd.name, cmd);
+            client.commands.set(command.name, command);
+            if (!Array.isArray(command.aliases)) continue;
 
-                if (Array.isArray(cmd.aliases)) {
-                    for (const rawAlias of cmd.aliases) {
-                        const alias = String(rawAlias).toLowerCase();
-                        if (alias && !client.commands.has(alias) && !client.aliases.has(alias)) {
-                            client.aliases.set(alias, cmd);
-                        }
-                    }
+            for (const rawAlias of command.aliases) {
+                const alias = String(rawAlias).toLowerCase();
+                if (alias && !client.commands.has(alias) && !client.aliases.has(alias)) {
+                    client.aliases.set(alias, command);
                 }
             }
         } catch (error) {
@@ -79,6 +83,10 @@ commandFolders.forEach(folder => {
 });
 
 async function runCommand(command, context, args) {
+    client.db.recordUserActivity(context.author.id).catch(error => {
+        console.error('[ACTIVITY] Failed to record command usage:', error);
+    });
+
     const isOwnerOnly = Array.isArray(command.category)
         ? command.category.includes('owner')
         : command.category === 'owner';
@@ -122,57 +130,12 @@ client.on('interactionCreate', async interaction => {
     }
 
     const args = getInteractionArgs(interaction, command);
-    const message = await createInteractionMessage(interaction, args, pfx);
+    const message = await createInteractionMessage(interaction, args, pfx, command);
     await runCommand(command, message, args);
 });
 
-client.once('ready', async () => {
-    try {
-        const slashCommands = [];
-        for (const command of client.commands.values()) {
-            const validationError = getSlashCommandValidationError(command);
-            if (validationError) {
-                if (command.show !== false) {
-                    console.warn(`[SLASH] Skipping '${command.name || 'unknown'}': ${validationError}.`);
-                }
-                continue;
-            }
-            slashCommands.push({ command, data: buildSlashCommand(command) });
-        }
-
-        const guildId = process.env.SLASH_GUILD_ID;
-        const commandManager = client.application.commands;
-        const registeredCommands = await commandManager.fetch(guildId ? { guildId } : undefined);
-        const shouldReset = /^(true|1|yes)$/i.test(process.env.SLASH_RESET || '');
-        let created = 0;
-        let updated = 0;
-
-        if (shouldReset) {
-            for (const registered of registeredCommands.values()) {
-                await commandManager.delete(registered.id, guildId);
-            }
-            registeredCommands.clear();
-            console.log(`[SLASH] Reset ${guildId ? `guild ${guildId}` : 'global'} commands`);
-        }
-
-        for (const { command, data } of slashCommands) {
-            const registered = registeredCommands.find(item => item.name === data.name);
-            if (!registered) {
-                await commandManager.create(data, guildId);
-                created += 1;
-                continue;
-            }
-
-            if (getSlashCommandSignature(registered) !== getSlashCommandSignature(data)) {
-                await commandManager.edit(registered.id, data);
-                updated += 1;
-            }
-        }
-
-        console.log(`[SLASH] Checked ${slashCommands.length} commands${guildId ? ` in guild ${guildId}` : ' globally'}: ${created} created, ${updated} updated.`);
-    } catch (error) {
-        console.error('[SLASH] Failed to register commands:', error);
-    }
+client.once('ready', () => {
+    notifi.startNotifications(client);
 });
 
 // Connecting database
@@ -186,7 +149,18 @@ async function connectData() {
         client.db = dbmanager;
         client.rpg = rpgmanager;
 
-        await client.login(process.env.DISCORD_BOT_API_KEY);
+        await retryWithBackoff(() => client.login(process.env.DISCORD_BOT_API_KEY), {
+            initialDelayMs: 5_000,
+            maxDelayMs: 60_000,
+            shouldRetry: error => ![
+                'TokenInvalid',
+                'TokenMissing',
+            ].includes(error.code) && error.status !== 401,
+            onRetry: (error, attempt, delayMs) => {
+                console.error(`[LOGIN] Discord connection attempt ${attempt} failed: ${error.message}`);
+                console.warn(`[LOGIN] Retrying in ${Math.ceil(delayMs / 1000)} seconds.`);
+            },
+        });
 
         const updateStatus = () => {
             const serverCount = client.guilds.cache.size;
@@ -212,4 +186,4 @@ async function connectData() {
 connectData();
 
 // Initiating Auto-Updater
-initUpdater();
+initUpdater(client);

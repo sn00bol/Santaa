@@ -62,7 +62,7 @@ async function promptUpdate(versionData, showChangelog) {
 }
 
 
-async function checkForUpdates() {
+async function checkForUpdates(client) {
     if (isUpdating) return;
 
     const autoUpdate = process.env.AUTO_UPDATE === 'true';
@@ -205,7 +205,7 @@ async function checkForUpdates() {
     }
 }
 
-function initUpdater() {
+function initUpdater(client) {
     const autoUpdate = process.env.AUTO_UPDATE === 'true';
     const intervalStr = process.env.CHECK_INTERVAL;
     let intervalMs = 3600 * 1000;
@@ -219,8 +219,8 @@ function initUpdater() {
 
     if (autoUpdate) {
         setTimeout(() => {
-            checkForUpdates();
-            setInterval(checkForUpdates, intervalMs);
+            checkForUpdates(client);
+            setInterval(() => checkForUpdates(client), intervalMs);
         }, 5000);
     }
 }

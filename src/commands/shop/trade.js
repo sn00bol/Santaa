@@ -6,6 +6,7 @@ const path = require('path');
 const { applySelectMenuDefaults } = require('../Utils/NavigateManager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 const formatNumber = require('../Utils/formatNumber');
+const { getSetting } = require('../MainCMD/stgfiles');
 
 const ITEMS_PER_PAGE = 25; // Discord Select Menu limit
 const TRADE_TIMEOUT = 120_000; // 2 minutes
@@ -146,6 +147,13 @@ module.exports = {
         if (userB.bot)
             return message.reply('You cannot trade with a bot!');
 
+        const recipientSettings = await dbmanager.getUserSettings(userB.id);
+        const tradeLock = getSetting('trade_lock');
+        if (tradeLock.blocksIncomingTrade(recipientSettings)) {
+            return message.reply(`${userB.username} has trade requests disabled.`);
+        }
+        const dmNotifications = getSetting('reminder');
+
         const requestEmbed = new EmbedBuilder()
             .setTitle('📨 Trade Request')
             .setColor(0xFEE75C)
@@ -171,6 +179,11 @@ module.exports = {
             embeds: [requestEmbed],
             components: [requestRow],
         });
+
+        if (dmNotifications.shouldRemind(recipientSettings)) {
+            const location = message.guild?.name ? ` in ${message.guild.name}` : '';
+            userB.send(`You received a trade request from ${userA.username}${location}.`).catch(() => { });
+        }
 
         const requestCollector = requestMsg.createMessageComponentCollector({
             componentType: ComponentType.Button,

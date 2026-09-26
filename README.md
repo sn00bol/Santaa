@@ -10,7 +10,7 @@
   <a href="#PREREQUISITES">BEGIN SETUP</a> ·
   <a href="docs/CHANGELOG.md">CHANGELOG</a> ·
   <a href="docs/ISSUES.md">KNOWN ISSUES</a> ·
-  <a href="docs/INSTRUCTION.md">BOT INSTRUCTION</a>
+  <a href="docs/GUIDE.md">BOT GUIDE</a>
 </p>
 
 ---

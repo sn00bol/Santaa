@@ -62,9 +62,9 @@ module.exports = {
             const container = new ContainerBuilder()
                 .addTextDisplayComponents(text1)
                 .addSeparatorComponents(new SeparatorBuilder())
-                .addActionRowComponents(currentMenuRow)
+                .addTextDisplayComponents(text2)
                 .addSeparatorComponents(new SeparatorBuilder())
-                .addTextDisplayComponents(text2);
+                .addActionRowComponents(currentMenuRow);
 
             if (totalPages > 1) {
                 container.addSeparatorComponents(new SeparatorBuilder());

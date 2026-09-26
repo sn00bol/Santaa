@@ -4,6 +4,7 @@ const { CrimeSuccess, CrimeFail, CrimeWorse } = require('../Utils/misc');
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
 const formatNumber = require('../Utils/formatNumber');
+const { getSetting } = require('../MainCMD/stgfiles');
 
 module.exports = {
     name: 'crime',
@@ -14,12 +15,18 @@ module.exports = {
         const { client, author } = message;
         const dbManager = client.db;
         const rpgManager = client.rpg;
+        const passive = getSetting('passive');
+        const userSettings = await dbManager.getUserSettings(author.id);
+
+        if (passive.blocksCrime(userSettings)) {
+            return message.reply('Passive Mode is enabled, you cannot commit any crimes');
+        }
 
         // Cooldown
         const timeLeft = checkCooldown(author.id, this.name);
 
         if (timeLeft) {
-            return message.reply({ content: `Please wait ${timeLeft} before using the \`${this.name}\` command again.`, ephemeral: true });
+            return message.reply({ content: `Please wait ${timeLeft} before using the \`${this.name}\` command again`, ephemeral: true });
         }
 
         const wantedCheck = await checkWantedRestrictions(author.id, this.name, client, message);

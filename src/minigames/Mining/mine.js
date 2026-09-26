@@ -6,6 +6,7 @@ const mineBoard = require('./mineBoard');
 const mineUI = require('./mineUI');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
 const formatNumber = require('../../commands/Utils/formatNumber');
+const notifi = require('../../commands/Utils/notifi');
 
 const mineCounts = new Map();
 
@@ -122,6 +123,9 @@ module.exports = {
 
 				const rowsAfter = mineUI.buildButtonRows(session);
 				await i.update({ embeds: [keepEmbed], components: rowsAfter }).catch(() => { });
+				if (newLevel > (Number(statsNow.level) || 1)) {
+					notifi.notifyLevelUp(message.client, userId, formatNumber(newLevel));
+				}
 				return;
 			}
 

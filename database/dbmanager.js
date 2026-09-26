@@ -22,6 +22,14 @@ module.exports = {
         `);
 
         await db.exec(`
+            CREATE TABLE IF NOT EXISTS net_worth_peaks (
+                user_id TEXT PRIMARY KEY,
+                peak_total INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL
+            )
+        `);
+
+        await db.exec(`
             CREATE TABLE IF NOT EXISTS job_states (
                 user_id TEXT PRIMARY KEY,
                 job_id TEXT DEFAULT NULL,
@@ -44,6 +52,62 @@ module.exports = {
                 user_id TEXT PRIMARY KEY,
                 last_categories TEXT DEFAULT 'all'
             )
+        `);
+
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS user_settings (
+                user_id TEXT NOT NULL,
+                setting_id TEXT NOT NULL,
+                value INTEGER NOT NULL DEFAULT 0 CHECK (value IN (0, 1)),
+                PRIMARY KEY (user_id, setting_id)
+            )
+        `);
+
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS settings_migrations (
+                migration_id TEXT PRIMARY KEY,
+                applied_at INTEGER NOT NULL
+            )
+        `);
+
+        const notificationMigration = await db.get(
+            'SELECT migration_id FROM settings_migrations WHERE migration_id = ?',
+            ['split_notification_settings_v1']
+        );
+        if (!notificationMigration) {
+            await db.run(`
+                INSERT OR IGNORE INTO user_settings (user_id, setting_id, value)
+                SELECT user_id, 'daily_reminder', value FROM user_settings
+                WHERE setting_id = 'reminder' AND value = 1
+            `);
+            await db.run(`
+                INSERT OR IGNORE INTO user_settings (user_id, setting_id, value)
+                SELECT user_id, 'reminder', value FROM user_settings
+                WHERE setting_id = 'dm_notify' AND value = 1
+            `);
+            await db.run(`
+                INSERT OR IGNORE INTO user_settings (user_id, setting_id, value)
+                SELECT user_id, 'lvl_notifi', value FROM user_settings
+                WHERE setting_id = 'dm_notify' AND value = 1
+            `);
+            await db.run(
+                'INSERT INTO settings_migrations (migration_id, applied_at) VALUES (?, ?)',
+                ['split_notification_settings_v1', Date.now()]
+            );
+        }
+
+        await db.exec(`
+            CREATE TABLE IF NOT EXISTS user_activity (
+                user_id TEXT PRIMARY KEY,
+                last_command_at INTEGER NOT NULL
+            )
+        `);
+
+        await db.run(`
+            INSERT OR IGNORE INTO user_activity (user_id, last_command_at)
+            SELECT user_id, CAST(strftime('%s', 'now') AS INTEGER) * 1000
+            FROM user_settings
+            WHERE setting_id = 'passive' AND value = 1
         `);
 
         // for debug @
@@ -72,6 +136,80 @@ module.exports = {
         `, [userId, value]);
     },
 
+    async getUserSettings(userId) {
+        const rows = await db.all(
+            'SELECT setting_id, value FROM user_settings WHERE user_id = ?',
+            [userId]
+        );
+        return rows.reduce((settings, row) => {
+            settings[row.setting_id] = Boolean(row.value);
+            return settings;
+        }, {});
+    },
+
+    async setUserSetting(userId, settingId, value) {
+        const result = await db.run(`
+            INSERT INTO user_settings (user_id, setting_id, value)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id, setting_id) DO UPDATE SET value = excluded.value
+        `, [userId, settingId, value ? 1 : 0]);
+
+        if (settingId === 'passive' && value) {
+            await this.recordUserActivity(userId, Date.now(), true);
+        }
+
+        return result;
+    },
+
+    async getUsersWithSettingEnabled(settingId) {
+        const rows = await db.all(
+            'SELECT user_id FROM user_settings WHERE setting_id = ? AND value = 1',
+            [settingId]
+        );
+        return rows.map(row => row.user_id);
+    },
+
+    async recordUserActivity(userId, timestamp = Date.now(), force = false) {
+        return await db.run(`
+            INSERT INTO user_activity (user_id, last_command_at)
+            SELECT ?, ?
+            WHERE ? = 1 OR EXISTS (
+                SELECT 1 FROM user_settings
+                WHERE user_id = ? AND setting_id = 'passive' AND value = 1
+            )
+            ON CONFLICT(user_id) DO UPDATE SET last_command_at = excluded.last_command_at
+        `, [userId, timestamp, force ? 1 : 0, userId]);
+    },
+
+    async expireInactivePassiveSettings(inactiveBefore) {
+        const candidates = await db.all(`
+            SELECT settings.user_id
+            FROM user_settings AS settings
+            JOIN user_activity AS activity ON activity.user_id = settings.user_id
+            WHERE settings.setting_id = 'passive'
+                AND settings.value = 1
+                AND activity.last_command_at <= ?
+        `, [inactiveBefore]);
+        const expiredUserIds = [];
+
+        for (const { user_id: userId } of candidates) {
+            const result = await db.run(`
+                UPDATE user_settings
+                SET value = 0
+                WHERE user_id = ?
+                    AND setting_id = 'passive'
+                    AND value = 1
+                    AND EXISTS (
+                        SELECT 1 FROM user_activity
+                        WHERE user_id = ? AND last_command_at <= ?
+                    )
+            `, [userId, userId, inactiveBefore]);
+            if (result.changes > 0) expiredUserIds.push(userId);
+        }
+
+        return expiredUserIds;
+    },
+
     // get user info
     async getUser(userId) {
         let user = await db.get('SELECT * FROM balances WHERE user_id = ?', [userId]);
@@ -90,24 +228,31 @@ module.exports = {
         if (options.trackEarning && amount > 0) {
             await db.run('UPDATE balances SET total_earned = total_earned + ? WHERE user_id = ?', [amount, userId]);
         }
+        await this.updateNetWorthPeak(userId);
         return true;
     },
     // Set user money
     async setMoney(userId, amount) {
         await this.getUser(userId);
-        return await db.run('UPDATE balances SET balance = ? WHERE user_id = ?', [amount, userId]);
+        const result = await db.run('UPDATE balances SET balance = ? WHERE user_id = ?', [amount, userId]);
+        await this.updateNetWorthPeak(userId);
+        return result;
     },
 
     // Remove money from user balance
     async removeMoney(userId, amount) {
         await this.getUser(userId);
-        return await db.run('UPDATE balances SET balance = balance - ? WHERE user_id = ?', [amount, userId]);
+        const result = await db.run('UPDATE balances SET balance = balance - ? WHERE user_id = ?', [amount, userId]);
+        await this.updateNetWorthPeak(userId);
+        return result;
     },
 
     // Reset user balance to 0
     async resetMoney(userId) {
         await this.getUser(userId);
-        return await db.run('UPDATE balances SET balance = 0 WHERE user_id = ?', [userId]);
+        const result = await db.run('UPDATE balances SET balance = 0 WHERE user_id = ?', [userId]);
+        await this.updateNetWorthPeak(userId);
+        return result;
     },
 
     async getJobState(userId) {
@@ -160,7 +305,9 @@ module.exports = {
     // Remove money from user bank
     async removeBank(userId, amount) {
         await this.getUser(userId);
-        return await db.run('UPDATE balances SET bank = bank - ? WHERE user_id = ?', [amount, userId]);
+        const result = await db.run('UPDATE balances SET bank = bank - ? WHERE user_id = ?', [amount, userId]);
+        await this.updateNetWorthPeak(userId);
+        return result;
     },
 
     // Add money to user bank
@@ -177,6 +324,7 @@ module.exports = {
             'UPDATE balances SET bank = bank + ? WHERE user_id = ? AND bank + ? <= ?',
             [amount, userId, amount, limit]
         );
+        if (result.changes > 0) await this.updateNetWorthPeak(userId);
         return result.changes > 0;
     },
 
@@ -203,6 +351,60 @@ module.exports = {
             totalAssets,
             totalEarned: Number(user.total_earned || 0)
         };
+    },
+
+    async updateNetWorthPeak(userId, currentTotal) {
+        const total = currentTotal ?? (await this.getNetWorthBreakdown(userId)).totalAssets;
+        await db.run(`
+            INSERT INTO net_worth_peaks (user_id, peak_total, updated_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                peak_total = MAX(net_worth_peaks.peak_total, excluded.peak_total),
+                updated_at = CASE
+                    WHEN excluded.peak_total > net_worth_peaks.peak_total THEN excluded.updated_at
+                    ELSE net_worth_peaks.updated_at
+                END
+        `, [userId, total, Date.now()]);
+        const row = await db.get('SELECT peak_total FROM net_worth_peaks WHERE user_id = ?', [userId]);
+        return Number(row?.peak_total || 0);
+    },
+
+    async getNetWorthSummary(userId) {
+        const breakdown = await this.getNetWorthBreakdown(userId);
+        const totalCoins = breakdown.cash + breakdown.bank;
+        const peakTotal = await this.updateNetWorthPeak(userId, breakdown.totalAssets);
+        return { ...breakdown, totalCoins, peakTotal };
+    },
+
+    async getFinancialLeaderboard() {
+        const [accounts, inventory] = await Promise.all([
+            db.all('SELECT user_id, balance, bank FROM balances'),
+            rpgmanager.getAllInventory(),
+        ]);
+        const inventoryValues = new Map();
+        const accountsByUser = new Map(accounts.map(account => [account.user_id, account]));
+
+        for (const item of inventory) {
+            const definition = allItemsCache.get(item.item_id);
+            const value = Number(definition?.sell ?? definition?.cost ?? 0);
+            inventoryValues.set(item.user_id, (inventoryValues.get(item.user_id) || 0) + value);
+            if (!accountsByUser.has(item.user_id)) {
+                accountsByUser.set(item.user_id, { user_id: item.user_id, balance: 0, bank: 0 });
+            }
+        }
+
+        return [...accountsByUser.values()].map(account => {
+            const balance = Number(account.balance || 0);
+            const bank = Number(account.bank || 0);
+            const inventoryValue = inventoryValues.get(account.user_id) || 0;
+            return {
+                user_id: account.user_id,
+                balance,
+                bank,
+                inventoryValue,
+                totalAssets: balance + bank + inventoryValue,
+            };
+        });
     },
 
     async getMoneyLeaderboard(limit = 10) {

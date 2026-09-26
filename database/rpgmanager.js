@@ -69,7 +69,9 @@ module.exports = {
 
     // Add item to inventory
     async addItem(userId, itemId, itemName) {
-        return await db.run('INSERT INTO inventory (user_id, item_id, item_name) VALUES (?, ?, ?)', [userId, itemId, itemName]);
+        const result = await db.run('INSERT INTO inventory (user_id, item_id, item_name) VALUES (?, ?, ?)', [userId, itemId, itemName]);
+        await require('./dbmanager').updateNetWorthPeak(userId);
+        return result;
     },
 
     // Get user inventory
@@ -79,7 +81,12 @@ module.exports = {
 
     // Remove single item from inventory
     async removeItem(inventoryId) {
-        return await db.run('DELETE FROM inventory WHERE id = ?', [inventoryId]);
+        const item = await db.get('SELECT user_id FROM inventory WHERE id = ?', [inventoryId]);
+        const result = await db.run('DELETE FROM inventory WHERE id = ?', [inventoryId]);
+        if (result.changes > 0 && item?.user_id) {
+            await require('./dbmanager').updateNetWorthPeak(item.user_id);
+        }
+        return result;
     },
 
     // Get user stats
@@ -194,7 +201,14 @@ module.exports = {
 
     // Transfer an inventory item to another user (for trade)
     async transferItem(inventoryId, newUserId) {
-        return await db.run('UPDATE inventory SET user_id = ? WHERE id = ?', [newUserId, inventoryId]);
+        const item = await db.get('SELECT user_id FROM inventory WHERE id = ?', [inventoryId]);
+        const result = await db.run('UPDATE inventory SET user_id = ? WHERE id = ?', [newUserId, inventoryId]);
+        if (result.changes > 0 && item?.user_id) {
+            const dbmanager = require('./dbmanager');
+            await dbmanager.updateNetWorthPeak(item.user_id);
+            if (item.user_id !== newUserId) await dbmanager.updateNetWorthPeak(newUserId);
+        }
+        return result;
     },
 
     // ── PVP History ───────────────────────────────────────────────────────
@@ -291,6 +305,41 @@ module.exports = {
              LIMIT ?`,
             [limit]
         );
+    },
+
+    async getLeaderboardStats() {
+        return await db.all(`
+                 SELECT stats.user_id, stats.level, stats.exp, stats.steals,
+                     stats.crimes, stats.begs,
+                   stats.fishing_profile,
+                   COALESCE(wins.count, 0) AS pvp_wins,
+                   COALESCE(losses.count, 0) AS pvp_losses
+            FROM stats
+            LEFT JOIN (
+                SELECT winner_id AS user_id, COUNT(*) AS count
+                FROM pvp_history
+                GROUP BY winner_id
+            ) AS wins ON wins.user_id = stats.user_id
+            LEFT JOIN (
+                SELECT loser_id AS user_id, COUNT(*) AS count
+                FROM pvp_history
+                GROUP BY loser_id
+            ) AS losses ON losses.user_id = stats.user_id
+        `);
+    },
+
+    async getAllInventory() {
+        return await db.all('SELECT user_id, item_id FROM inventory');
+    },
+
+    async getItemOwnershipLeaderboard(itemId) {
+        return await db.all(`
+            SELECT user_id, COUNT(*) AS owned_count
+            FROM inventory
+            WHERE item_id = ?
+            GROUP BY user_id
+            ORDER BY owned_count DESC, user_id ASC
+        `, [itemId]);
     },
 };
 

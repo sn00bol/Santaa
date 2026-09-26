@@ -4,6 +4,7 @@ const { decideBotAction, applyTurn } = require('./botPvpLogic');
 const { getBossProfiles, getBossProfile, createBossTrainer } = require('./bosses');
 const rpgmanager = require('../../../database/rpgmanager');
 const formatNumber = require('../Utils/formatNumber');
+const notifi = require('../Utils/notifi');
 
 /**
  * `Zpvp @user` – Challenge another user to a PvP duel.
@@ -170,6 +171,7 @@ module.exports = {
               ? `🎉 <@${winnerId}> won by exhaustion and LEVELED UP to ${formatNumber(expResult.newLevel)}!`
               : `🏆 <@${winnerId}> won by exhaustion!`;
             await message.channel.send({ content: winMsg });
+            if (expResult.levelUp) notifi.notifyLevelUp(message.client, winnerId, formatNumber(expResult.newLevel));
 
             battleOver = true;
             continue;
@@ -249,6 +251,7 @@ module.exports = {
                 : `🏆 <@${winnerId}> won the duel!`;
 
               await message.channel.send({ content: winMsg });
+              if (expResult.levelUp) notifi.notifyLevelUp(message.client, winnerId, formatNumber(expResult.newLevel));
 
               battleOver = true;
             } else {

@@ -4,6 +4,7 @@ const { StealSuccess, StealFail, StealBusted } = require('../Utils/misc');
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
 const formatNumber = require('../Utils/formatNumber');
+const { getSetting } = require('../MainCMD/stgfiles');
 
 const MIN_TARGET_BALANCE = 50; // target must have at least this much to be steal-able
 
@@ -31,6 +32,18 @@ module.exports = {
         }
         if (targetUser.bot) {
             return message.reply('Bots don\'t carry wallets. Nice try though.');
+        }
+
+        const passive = getSetting('passive');
+        const [authorSettings, targetSettings] = await Promise.all([
+            dbManager.getUserSettings(author.id),
+            dbManager.getUserSettings(targetUser.id),
+        ]);
+        if (passive.blocksSteal(authorSettings)) {
+            return message.reply('Passive Mode is enabled, you cannot stealing anyone, find a job now');
+        }
+        if (passive.protectsFromSteal(targetSettings)) {
+            return message.reply(`${targetUser.username} is protected by Passive Mode`);
         }
 
         // ── Cooldown ───────────────────────────────────────────────────────

@@ -26,18 +26,26 @@ const configs = {
         jobWorkCooldown: 5 * 60 * 1000, // Currently this command use their own cooldown
         jobFirePenalty: 2.5 * 60 * 60 * 1000,
         wantedDecay: 24 * 60 * 60 * 1000,
+        passiveInactivityMs: 30 * 24 * 60 * 60 * 1000,
+        passiveSweepIntervalMs: 5 * 60 * 1000,
+        passiveInactivityLabel: '30 days',
+        jobReminderCooldownMs: 24 * 60 * 60 * 1000,
     },
     test: {
         parttime: 5 * 1000,
         beg: 5 * 1000,
         crime: 5 * 1000,
         steal: 5 * 1000,
-        daily: 10 * 1000,
+        daily: 10 * 60 * 1000,
         fishExhaustion: 5 * 1000,
         mineExhaustion: 5 * 1000,
         jobWorkCooldown: 5 * 1000,
         jobFirePenalty: 2 * 1000,
         wantedDecay: 5 * 60 * 1000, // 5 minutes for testing
+        passiveInactivityMs: 5 * 60 * 1000,
+        passiveSweepIntervalMs: 1 * 10000,
+        passiveInactivityLabel: '5 minutes',
+        jobReminderCooldownMs: 10 * 60 * 1000,
     }
 };
 
@@ -50,4 +58,5 @@ module.exports = {
     noSLASH,
     mode: COOLDOWN_MODE,
     ...configs[COOLDOWN_MODE],
+    dailyReminderCooldownMs: configs[COOLDOWN_MODE].daily,
 };

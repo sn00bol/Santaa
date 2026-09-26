@@ -1,10 +1,11 @@
-v1.3.0-alpha.2
-- Add DMs and slash command
-- Revert back to legacy embed for balance and upgrade it
-- Upgrade level image
-- Remove color when use `Zhelp <command>`
-- Add bank limit to deposit
-- Now allow to add your source
+v1.3.0-alpha.3
+- Make settings fully worked
+- Revert back to legacy embed for leaderboard and upgrade it
+- Add back net worth
+- Upgrade minelist like fishlist
+- Upgrade and Highly debloat slash register in index.js into a file
+- Fix unknow interaction and connect timeout error for Slash and DMs
+- Complete all stuff before begin rework
 
 # CHANGELOG
 
@@ -14,8 +15,9 @@ v1.3.0-alpha.2
 - Add mining shops with pickaxe, bags and helmet
 - Add crafting system to upgrade pickaxe and helmet (to nothing to +8) or fixing it
 - Add settings, fast navigate button and reload button in navigation
+- Move fishlist select bar to bottom
 - Added a lot of new small minigames and memes
-- Other: add new mining achievements, jobs reminder, bank limit to deposit
+- Other: add new mining achievements, reminder, bank limit to deposit
 - Allow to DMs bot and add slash commands
 - Revert from image to legacy embed for leaderboard, and balance
 - Add auto update and update Santaa bot source (disable via .env)

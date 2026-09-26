@@ -11,6 +11,7 @@ const {
 const { getPaginationRow, createFastNavigateModal } = require("../Utils/NavigateManager");
 const { execSync } = require("child_process");
 const { version: PKG_VERSION } = require("../../../package.json");
+const { getSettings } = require("./stgfiles");
 
 const COMMIT_COUNT = (() => {
     try { return execSync("git rev-list --count HEAD", { encoding: "utf8" }).trim(); }
@@ -18,39 +19,7 @@ const COMMIT_COUNT = (() => {
 })();
 const BOT_VERSION = `v${PKG_VERSION}.${COMMIT_COUNT}`;
 
-// Temporarily, will make it into a file soon
-const SETTINGS = [
-    {
-        id: "passive",
-        label: "Passive Mode",
-        description: "Protects you from being stolen from, but in return you cannot steal from others or perform any crimes.",
-    },
-    {
-        id: "dm_notify",
-        label: "DM Notifications",
-        description: "Receive direct messages for important events like heists, trades, and level-ups.",
-    },
-    {
-        id: "show_balance",
-        label: "Public Balance",
-        description: "Allow other users to view your wallet and bank balance via the profile command.",
-    },
-    {
-        id: "trade_lock",
-        label: "Trade Lock",
-        description: "Prevents anyone from sending you trade requests. Useful if you want to avoid unsolicited trades.",
-    },
-    {
-        id: "heist_invite",
-        label: "Heist Invites",
-        description: "Allow other users to invite you to heist parties. Disable to block all heist invitations.",
-    },
-    {
-        id: "compact_profile",
-        label: "Compact Profile",
-        description: "Display a condensed version of your profile to reduce message length.",
-    },
-];
+const SETTINGS = getSettings();
 
 const ITEMS_PER_PAGE = 5;
 
@@ -138,17 +107,22 @@ module.exports = {
 
         const collector = response.createMessageComponentCollector();
 
-        const refresh = (i) => {
+        const refresh = async (i) => {
+            await i.deferUpdate();
             const { container } = buildSettingsPage(
                 SETTINGS, currentPage, userSettings
             );
-            return i.update({ components: [container], flags: MessageFlags.IsComponentsV2 });
+            return response.edit({ components: [container] }).catch((error) => {
+                if (error.code !== 10062) console.error("Failed to update settings menu:", error);
+            });
         };
 
         collector.on("collect", async (i) => {
             if (i.user.id !== message.author.id) {
                 return i.reply({ content: "These are not your settings!", ephemeral: true });
             }
+
+            message.client.db.recordUserActivity(message.author.id).catch(() => { });
 
             if (i.isButton() && i.customId === "fast_navigate") {
                 const totalPages = Math.max(1, Math.ceil(SETTINGS.length / ITEMS_PER_PAGE));
@@ -172,12 +146,10 @@ module.exports = {
                     }
 
                     currentPage = targetPageNum - 1;
+                    await submitted.deferUpdate();
                     const { container } = buildSettingsPage(SETTINGS, currentPage, userSettings);
 
-                    return submitted.update({
-                        components: [container],
-                        flags: MessageFlags.IsComponentsV2,
-                    });
+                    return response.edit({ components: [container] });
                 } catch {
                     // Modal submission timed out or closed
                     return;
@@ -197,18 +169,22 @@ module.exports = {
 
             if (i.isButton() && i.customId.startsWith("toggle_")) {
                 const settingId = i.customId.slice("toggle_".length);
-                if (!SETTINGS.find((s) => s.id === settingId)) return i.deferUpdate();
+                const setting = SETTINGS.find((entry) => entry.id === settingId);
+                if (!setting) return i.deferUpdate();
 
-                const newValue = !(userSettings[settingId]);
-                userSettings = { ...userSettings, [settingId]: newValue };
+                const newValue = setting.toggle(userSettings);
+                await i.deferUpdate();
 
                 try {
                     await message.client.db.setUserSetting(message.author.id, settingId, newValue);
                 } catch {
-                    // DB unavailable — in-memory state kept for session
+                    return i.followUp({ content: "Couldn't save this setting. Please try again.", ephemeral: true });
                 }
 
-                return refresh(i);
+                userSettings = { ...userSettings, [settingId]: newValue };
+
+                const { container } = buildSettingsPage(SETTINGS, currentPage, userSettings);
+                return response.edit({ components: [container] });
             }
         });
     },
