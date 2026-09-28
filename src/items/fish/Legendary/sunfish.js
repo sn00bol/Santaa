@@ -1,7 +1,7 @@
 module.exports = {
     id: 'sunfish',
     name: 'Ocean Sunfish',
-    sell: 545,
+    cost: 545,
     desc: 'strange giant that basks on the surface, enormous and docile',
     type: ['fish'],
     is_sellable: true,

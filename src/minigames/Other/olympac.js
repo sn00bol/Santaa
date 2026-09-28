@@ -1,48 +1,106 @@
-const {
-  EmbedBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ComponentType
-} = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags} = require('discord.js');
 const formatNumber = require('../../commands/Utils/formatNumber');
+const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const dbmanager = require('../../../database/dbmanager');
 
 const olympacPrompts = [
   {
     id: 'run-1',
     prompt: 'Tap as fast as you can!',
     targetTaps: 10,
-    timeLimitMs: 5000,
+    timeLimitMs: 10000,
     reward: 100
   },
   {
     id: 'run-2',
     prompt: 'Lightning Sprint! Go!',
     targetTaps: 15,
-    timeLimitMs: 6000,
+    timeLimitMs: 12000,
     reward: 150
   },
   {
     id: 'run-3',
     prompt: 'Olympic Final Sprint!',
     targetTaps: 22,
-    timeLimitMs: 7000,
+    timeLimitMs: 15000,
     reward: 220
   },
   {
     id: 'run-4',
     prompt: 'Speed Demon Challenge!',
     targetTaps: 18,
-    timeLimitMs: 5500,
+    timeLimitMs: 11000,
     reward: 180
   }
 ];
 
 const defaultConfig = {
   targetTaps: 12,
-  timeLimitMs: 5500,
+  timeLimitMs: 11000,
   reward: 120
 };
+
+function buildSprintContainer({ ownerId, prompt, phase, tapCount = 0, timeLeftMs = 0, elapsedMs = 0, rewardError = false, balance = null }) {
+  const progressSegments = 10;
+  const filledSegments = Math.min(progressSegments, Math.floor((tapCount / prompt.targetTaps) * progressSegments));
+  const progressBar = `${'█'.repeat(filledSegments)}${'░'.repeat(progressSegments - filledSegments)}`;
+
+  let title = '# 🏃 Olympac Sprint';
+  let body = `**Challenge**\n${prompt.prompt}\n\n` +
+    `**Target**\n${formatNumber(prompt.targetTaps)} taps in ${formatNumber(prompt.timeLimitMs / 1000)} seconds\n\n` +
+    `**Reward**\n${CURRENCY_EMOJI} $${formatNumber(prompt.reward)}\n\n-# Ready when you are, <@${ownerId}>.`;
+  let buttonId = `olympac_start_${ownerId}`;
+  let buttonLabel = 'Start sprint';
+  let buttonStyle = ButtonStyle.Success;
+  let disabled = false;
+
+  if (phase === 'running') {
+    title = '# ⚡ Sprint in progress';
+    body = `**${prompt.prompt}**\n\n` +
+      `**Progress**\n${progressBar}  ${formatNumber(tapCount)} / ${formatNumber(prompt.targetTaps)} taps\n\n` +
+      `**Time left**\n${formatNumber(Math.max(0, Math.ceil(timeLeftMs / 1000)))} seconds\n\n-# Tap the button to build speed.`;
+    buttonId = `olympac_tap_${ownerId}`;
+    buttonLabel = 'Tap';
+    buttonStyle = ButtonStyle.Primary;
+  } else if (phase === 'finishing') {
+    title = '# 🏁 Sprint complete';
+    body = `Target reached with **${formatNumber(tapCount)} taps**.\n\n-# Recording your reward...`;
+    buttonLabel = 'Finishing';
+    buttonStyle = ButtonStyle.Secondary;
+    disabled = true;
+  } else if (phase === 'finished') {
+    const succeeded = tapCount >= prompt.targetTaps;
+    title = succeeded ? '# 🏅 Sprint complete' : '# ⏱️ Time is up';
+    body = succeeded
+      ? `You reached the target with **${formatNumber(tapCount)} taps** in **${formatNumber((elapsedMs / 1000).toFixed(1))} seconds**.\n\n` +
+        (rewardError
+          ? 'The reward could not be recorded. Please contact the server team.'
+          : `**Reward**\n${CURRENCY_EMOJI} +$${formatNumber(prompt.reward)}${balance === null ? '' : `\n**New balance:** $${formatNumber(balance)}`}`)
+      : `You reached **${formatNumber(tapCount)} / ${formatNumber(prompt.targetTaps)} taps**. Try another sprint to beat the target.`;
+    buttonLabel = 'Sprint ended';
+    buttonStyle = ButtonStyle.Secondary;
+    disabled = true;
+  } else if (phase === 'expired') {
+    title = '# ⌛ Sprint expired';
+    body = 'The start window ended before the sprint began. Run the command again when you are ready.';
+    buttonLabel = 'Expired';
+    buttonStyle = ButtonStyle.Secondary;
+    disabled = true;
+  }
+
+  return new ContainerBuilder()
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(title))
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
+    .addActionRowComponents(new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(buttonId)
+        .setLabel(buttonLabel)
+        .setStyle(buttonStyle)
+        .setDisabled(disabled)
+        .setEmoji(phase === 'running' ? '⚡' : phase === 'ready' ? '🏁' : '⏹️')
+    ));
+}
 
 module.exports = {
   name: 'olympac',
@@ -59,130 +117,157 @@ module.exports = {
   async execute(message) {
     try {
       const prompt = this.getPrompt(Math.floor(Math.random() * olympacPrompts.length));
-
-      const startEmbed = new EmbedBuilder()
-        .setTitle('🏃‍♂️ Olympac Sprint')
-        .setDescription(`**Challenge:** ${prompt.prompt}\n\n` +
-          `**Target:** ${formatNumber(prompt.targetTaps)} taps in ${formatNumber(prompt.timeLimitMs / 1000)} seconds\n` +
-          `**Reward:** ${formatNumber(prompt.reward)} points`)
-        .setColor('#F59E0B')
-        .setFooter({ text: 'Click Start to begin!' });
-
-      const startRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`olympac_start_${message.author.id}`)
-          .setLabel('Start Sprint!')
-          .setStyle(ButtonStyle.Success)
-          .setEmoji('🏁')
-      );
-
+      const ownerId = message.author.id;
       const sent = await message.channel.send({
-        embeds: [startEmbed],
-        components: [startRow]
+        components: [buildSprintContainer({ ownerId, prompt, phase: 'ready' })],
+        flags: [MessageFlags.IsComponentsV2]
       });
+
+      let phase = 'ready';
+      let tapCount = 0;
+      let startTime = 0;
+      let endTime = 0;
+      let tapCollector = null;
+      let gameTimer = null;
+      let clockInterval = null;
+      let renderTimer = null;
+      let lastRenderAt = 0;
+
+      const renderProgress = () => sent.edit({
+        components: [buildSprintContainer({
+          ownerId,
+          prompt,
+          phase,
+          tapCount,
+          timeLeftMs: endTime - Date.now()
+        })]
+      }).catch(() => { });
+
+      const scheduleProgressRender = () => {
+        if (phase !== 'running' || renderTimer) return;
+        const delay = Math.max(0, 900 - (Date.now() - lastRenderAt));
+        renderTimer = setTimeout(() => {
+          renderTimer = null;
+          if (phase !== 'running') return;
+          lastRenderAt = Date.now();
+          renderProgress();
+        }, delay);
+      };
+
+      const finishSprint = async () => {
+        if (phase !== 'running') return;
+        phase = 'finishing';
+        clearTimeout(gameTimer);
+        clearInterval(clockInterval);
+        clearTimeout(renderTimer);
+        tapCollector?.stop('finished');
+
+        const elapsedMs = Math.max(0, Math.min(prompt.timeLimitMs, Date.now() - startTime));
+        const succeeded = tapCount >= prompt.targetTaps;
+        let rewardError = false;
+        let balance = null;
+
+        if (succeeded) {
+          await sent.edit({
+            components: [buildSprintContainer({
+              ownerId,
+              prompt,
+              phase,
+              tapCount
+            })]
+          }).catch(() => { });
+        }
+
+        if (succeeded) {
+          try {
+            await dbmanager.addMoney(ownerId, prompt.reward, { trackEarning: true });
+            const user = await dbmanager.getUser(ownerId).catch(() => null);
+            balance = user?.balance ?? null;
+          } catch (error) {
+            rewardError = true;
+            console.error('Failed to record Olympac reward:', error);
+          }
+        }
+
+        phase = 'finished';
+        await sent.edit({
+          components: [buildSprintContainer({
+            ownerId,
+            prompt,
+            phase,
+            tapCount,
+            elapsedMs,
+            rewardError,
+            balance
+          })]
+        }).catch(() => { });
+      };
 
       const startCollector = sent.createMessageComponentCollector({
         componentType: ComponentType.Button,
-        time: 30000,
-        max: 1
+        time: 30000
       });
 
       startCollector.on('collect', async (interaction) => {
-        if (interaction.user.id !== message.author.id) {
+        if (interaction.user.id !== ownerId) {
           return interaction.reply({ content: 'This sprint is not for you!', ephemeral: true });
         }
+        if (phase !== 'ready') return;
 
-        await interaction.deferUpdate();
+        phase = 'running';
+        try {
+          await interaction.deferUpdate();
+          startCollector.stop('started');
+          startTime = Date.now();
+          endTime = startTime + prompt.timeLimitMs;
+          lastRenderAt = startTime;
 
-        let tapCount = 0;
-        const startTime = Date.now();
-        const endTime = startTime + prompt.timeLimitMs;
+          await renderProgress();
+          tapCollector = sent.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: prompt.timeLimitMs + 1500
+          });
 
-        // Main Game Embed
-        const gameEmbed = new EmbedBuilder()
-          .setTitle('🏃‍♂️ SPRINTING!')
-          .setDescription(`**${prompt.prompt}**\n\n` +
-            `**Taps:** ${formatNumber(tapCount)}/${formatNumber(prompt.targetTaps)}\n` +
-            `**Time Left:** ${formatNumber(Math.ceil(prompt.timeLimitMs / 1000))}s`)
-          .setColor('#EA580C')
-          .setFooter({ text: 'TAP THE BUTTON AS FAST AS POSSIBLE!' });
+          tapCollector.on('collect', async (tapInteraction) => {
+            if (tapInteraction.user.id !== ownerId) {
+              return tapInteraction.reply({ content: 'This is not your sprint!', ephemeral: true });
+            }
+            if (phase !== 'running') {
+              return tapInteraction.reply({ content: 'This sprint has already ended.', ephemeral: true });
+            }
 
-        const tapRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`olympac_tap_${message.author.id}`)
-            .setLabel('TAP! TAP! TAP!')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji('⚡')
-        );
+            if (Date.now() >= endTime) {
+              await tapInteraction.deferUpdate().catch(() => { });
+              return finishSprint();
+            }
 
-        await sent.edit({ embeds: [gameEmbed], components: [tapRow] });
+            tapCount++;
+            await tapInteraction.deferUpdate().catch(() => { });
+            if (tapCount >= prompt.targetTaps) return finishSprint();
+            scheduleProgressRender();
+          });
 
-        // Tap Collector
-        const tapCollector = sent.createMessageComponentCollector({
-          componentType: ComponentType.Button,
-          time: prompt.timeLimitMs + 1000
-        });
+          tapCollector.on('end', () => {
+            if (phase === 'running') finishSprint();
+          });
 
-        tapCollector.on('collect', async (tapInteraction) => {
-          if (tapInteraction.user.id !== message.author.id) {
-            return tapInteraction.reply({
-              content: 'This is not your sprint!',
-              ephemeral: true
-            });
-          }
-
-          tapCount++;
-
-          const timeLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
-
-          // Update embed every few taps to avoid rate limits
-          if (tapCount % 3 === 0 || timeLeft <= 3) {
-            gameEmbed.setDescription(`**${prompt.prompt}**\n\n` +
-              `**Taps:** ${formatNumber(tapCount)}/${formatNumber(prompt.targetTaps)}\n` +
-              `**Time Left:** ${formatNumber(timeLeft)}s`);
-            await sent.edit({ embeds: [gameEmbed] }).catch(() => { });
-          }
-
-          await tapInteraction.deferUpdate().catch(() => { });
-        });
-
-        // End of game
-        tapCollector.on('end', async () => {
-          const timeTaken = Date.now() - startTime;
-          const success = tapCount >= prompt.targetTaps;
-
-          const resultEmbed = new EmbedBuilder()
-            .setTitle(success ? '🏅 SPRINT COMPLETE!' : '⏱️ Time\'s Up!')
-            .setDescription(success
-              ? `**Excellent!** You tapped **${formatNumber(tapCount)}** times in ${formatNumber(Math.floor(timeTaken / 1000))}s!\n\n` +
-              `**Reward:** +${formatNumber(prompt.reward)} points`
-              : `You managed **${formatNumber(tapCount)}** taps.\n` +
-              `You needed **${formatNumber(prompt.targetTaps)}** taps.`)
-            .setColor(success ? '#22C55E' : '#EF4444')
-            .addFields(
-              { name: 'Taps', value: formatNumber(tapCount), inline: true },
-              { name: 'Target', value: formatNumber(prompt.targetTaps), inline: true },
-              { name: 'Time', value: `${formatNumber(Math.floor(timeTaken / 1000))}s`, inline: true }
-            );
-
-          const disabledRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId('disabled')
-              .setLabel('Sprint Ended')
-              .setStyle(ButtonStyle.Secondary)
-              .setDisabled(true)
-          );
-
+          gameTimer = setTimeout(finishSprint, prompt.timeLimitMs);
+          clockInterval = setInterval(scheduleProgressRender, 1000);
+        } catch (error) {
+          console.error('Failed to start Olympac sprint:', error);
+          phase = 'expired';
           await sent.edit({
-            embeds: [resultEmbed],
-            components: [disabledRow]
+            components: [buildSprintContainer({ ownerId, prompt, phase })]
           }).catch(() => { });
+        }
+      });
 
-          // TODO: Add reward logic here (economy system)
-          if (success) {
-            // Example: await addPoints(message.author.id, prompt.reward);
-          }
-        });
+      startCollector.on('end', async (_, reason) => {
+        if (reason !== 'time' || phase !== 'ready') return;
+        phase = 'expired';
+        await sent.edit({
+          components: [buildSprintContainer({ ownerId, prompt, phase })]
+        }).catch(() => { });
       });
 
     } catch (error) {

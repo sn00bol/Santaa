@@ -103,8 +103,8 @@ const loadFish = () => {
                 try {
                     const fish = require(path.join(rarityDir, file));
                     // validate minimal fields
-                    if (!fish || !fish.id || !fish.name || fish.sell === undefined) {
-                        console.warn(`Skipping fish file ${file} in ${rarityDir}: missing id/name/sell`);
+                    if (!fish || !fish.id || !fish.name || fish.cost === undefined) {
+                        console.warn(`Skipping fish file ${file} in ${rarityDir}: missing id/name/cost`);
                         continue;
                     }
                     if (!isVisibleItem(fish)) continue;
@@ -198,9 +198,9 @@ function calculateExp(fish) {
     const r = fish.rarity || fish.rarityLabel || 'COMMON';
     const key = (RARITY_CONFIG[r]) ? r : Object.keys(RARITY_CONFIG).find(k => RARITY_CONFIG[k].label === r) || 'COMMON';
     const cfg = RARITY_CONFIG[key] || RARITY_CONFIG.COMMON;
-    // scale by sell value slightly
-    const sellFactor = Math.max(1, Math.floor((fish.sell || 10) / 10));
-    return Math.max(1, Math.floor(cfg.exp * sellFactor));
+    // Scale by item cost slightly.
+    const costFactor = Math.max(1, Math.floor((fish.cost || 10) / 10));
+    return Math.max(1, Math.floor(cfg.exp * costFactor));
 }
 
 function applyWeatherModifiers(weatherType, baseThreshold) {

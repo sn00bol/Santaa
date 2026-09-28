@@ -77,8 +77,11 @@ function buildMain(profile = {}, inventory = null, noticeMessage = null) {
     const rodName = resolveItemName(profile.equipment?.currentRod, 'Bare Hand');
 
     const isBareHand = String(profile.equipment?.currentRod || '').toLowerCase() === 'hand' || rodName.toLowerCase().includes('hand');
-    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? 0);
-    const durabilityMax = isBareHand ? '∞' : '100';
+    const rodItem = allItemsCache.get(profile.equipment?.currentRod);
+    const baseDurability = rodItem?.durability ?? 100;
+    const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
+    const durabilityMax = isBareHand ? '∞' : String(baseDurability + imStrongerLevel * 10);
+    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability !== undefined ? profile.equipment.durability : durabilityMax);
 
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, rodName, 10);
     const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), bucketLabel, 10);
@@ -180,7 +183,7 @@ function formatStatLine(current, max, label, length = 10) {
 
 
 function bucketSellValue(items = []) {
-    return items.reduce((sum, entry) => sum + ((allItemsCache.get(entry.id)?.sell) || 0), 0);
+    return items.reduce((sum, entry) => sum + ((allItemsCache.get(entry.id)?.cost) || 0), 0);
 }
 
 // Bucket stats shown across the fishing menus: aggregate across ALL real owned
@@ -223,8 +226,8 @@ function buildBucketDetailText(bucket) {
     const fishLines = bucket.items.map((entry, index) => {
         const def = allItemsCache.get(entry.id);
         const name = (def && def.name) || entry.name || entry.id;
-        const sellValue = (def && def.sell) || 0;
-        return `**${formatNumber(index + 1)}.** ${name} — ${formatNumber(sellValue)} ${CURRENCY_EMOJI}`;
+        const itemCost = (def && def.cost) || 0;
+        return `**${formatNumber(index + 1)}.** ${name} — ${formatNumber(itemCost)} ${CURRENCY_EMOJI}`;
     });
     return `${head}\n\n${fishLines.slice(0, 25).join('\n')}${fishLines.length > 25 ? `\n…and ${formatNumber(fishLines.length - 25)} more.` : ''}`;
 }
@@ -328,7 +331,7 @@ function buildBucket(profile = {}, inventory = [], state = null) {
                     label: `${formatNumber(index + 1)}. ${(def && def.name) || entry.name || entry.id}`,
                     value: `${bucket.rowId}:${index}`,
                 };
-                if (def && typeof def.sell === 'number') option.description = `${formatNumber(def.sell)} ${CURRENCY_EMOJI}`;
+                if (def && typeof def.cost === 'number') option.description = `${formatNumber(def.cost)} ${CURRENCY_EMOJI}`;
                 return option;
             });
             container.addActionRowComponents(
@@ -403,7 +406,7 @@ function buildSkill(profile = {}, skillState = null) {
 
     if (state.view !== 'branch' || !fishSkills.SKILL_BRANCHES[state.branch]) {
         // ── MAIN MENU ──────────────────────────────────────────────────────
-        
+
         // 1. Header Text Component
         const headerText = `# 🧠 Upgrading skills\nSkill Point: **${formatNumber(availablePoints)}**\n${expText}`;
 
@@ -412,12 +415,12 @@ function buildSkill(profile = {}, skillState = null) {
         for (const [, branch] of Object.entries(fishSkills.SKILL_BRANCHES)) {
             // Tên Nhánh (Header)
             listText += `### ${branch.emoji ? branch.emoji + ' ' : ''}${branch.label}\n`;
-            
+
             // Liệt kê các Skill trong nhánh
             for (const skill of branch.skills) {
                 // buildBranchBar đã tự chứa thanh tiến trình và số cấp độ (VD: "░░░░░░░░░░ 0/6")
                 const skillBar = fishSkills.buildBranchBar(profile, { skills: [skill] }, 10);
-                
+
                 // Đã bỏ phần ${currentLevel}/${maxLevel} thừa ở đây
                 listText += `[${skillBar}] **${skill.name}**\n`;
             }
@@ -554,7 +557,7 @@ function buildLocation(profile = {}, selectedMapId = null) {
             if (mythicRate > 0) descriptionText += `| \`Mythic: ${mythicRate}%\``;
             descriptionText += '\n';
         }
-        
+
         const weatherInfo = weatherManager.getWeatherInfo(targetMapId);
         if (weatherInfo) {
             descriptionText += `\n**Current Weather:** ${weatherInfo.emoji} ${weatherInfo.label} (resets in ${weatherInfo.timeRemainingStr})\n`;
@@ -621,8 +624,11 @@ function buildFishingNow(profile = {}, inventory = null) {
     const bucketLabel = bucketSummary.owned > 1 ? `(${formatNumber(bucketSummary.owned)} buckets)` : '';
     const rodName = resolveItemName(profile.equipment?.currentRod, 'Bare Hand');
     const isBareHand = String(profile.equipment?.currentRod || '').toLowerCase() === 'hand' || rodName.toLowerCase().includes('hand');
-    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? 0);
-    const durabilityMax = isBareHand ? '∞' : '100';
+    const rodItem = allItemsCache.get(profile.equipment?.currentRod);
+    const baseDurability = rodItem?.durability ?? 100;
+    const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
+    const durabilityMax = isBareHand ? '∞' : String(baseDurability + imStrongerLevel * 10);
+    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? durabilityMax);
 
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, rodName, 10);
     const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), bucketLabel, 10);
@@ -663,8 +669,11 @@ function buildWaitingEmbed(profile, inventory = null) {
 
     const rodName = resolveItemName(profile.equipment?.currentRod, 'Bare Hand');
     const isBareHand = String(profile.equipment?.currentRod || '').toLowerCase() === 'hand' || rodName.toLowerCase().includes('hand');
-    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? 0);
-    const durabilityMax = isBareHand ? '∞' : '100';
+    const rodItem = allItemsCache.get(profile.equipment?.currentRod);
+    const baseDurability = rodItem?.durability ?? 100;
+    const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
+    const durabilityMax = isBareHand ? '∞' : String(baseDurability + imStrongerLevel * 10);
+    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? durabilityMax);
 
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, rodName, 10);
 
@@ -699,14 +708,14 @@ function buildTugOfWarEmbed(profile, position, mapImage, inventory = null, fishS
     const strengthBar = '█'.repeat(filled) + '░'.repeat(10 - filled);
     const strengthLevel =
         fishStrength < 0.2 ? 'Weak' :
-        fishStrength < 0.4 ? 'Normal' :
-        fishStrength < 0.6 ? 'Strong' :
-        fishStrength < 0.8 ? 'Very Strong' : '💥 FEROCIOUS';
+            fishStrength < 0.4 ? 'Normal' :
+                fishStrength < 0.6 ? 'Strong' :
+                    fishStrength < 0.8 ? 'Very Strong' : '💥 FEROCIOUS';
 
     // Behavior indicator
     const behaviorLabel =
-        behavior === 'burst'   ? '⚡ Burst Swimmer' :
-        behavior === 'erratic' ? '🌀 Erratic'       : '〰️ Steady';
+        behavior === 'burst' ? '⚡ Burst Swimmer' :
+            behavior === 'erratic' ? '🌀 Erratic' : '〰️ Steady';
 
     return new EmbedBuilder()
         .setTitle('🎣 Tug of War!')
@@ -782,8 +791,11 @@ function buildEquipment(profile = {}, inventory = [], infoMessage = null) {
     const baitName = resolveItemName(baitId, 'None');
 
     const isBareHand = rodId.toLowerCase() === 'hand' || rodName.toLowerCase().includes('hand');
-    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? 0);
-    const durabilityMax = isBareHand ? '∞' : '100';
+    const rodItem = allItemsCache.get(rodId);
+    const baseDurability = rodItem?.durability ?? 100;
+    const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
+    const durabilityMax = isBareHand ? '∞' : (baseDurability + imStrongerLevel * 10);
+    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? durabilityMax);
 
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, '', 10);
 
@@ -792,7 +804,6 @@ function buildEquipment(profile = {}, inventory = [], infoMessage = null) {
 
     let rodInfo = '';
     const ownedRod = inventory.some(item => String(item.item_id) === String(rodId));
-    const rodItem = allItemsCache.get(rodId);
 
     if (!ownedRod) {
         rodInfo = `**Durability:**\n${durabilityLine}\n\n**Stats:**\n• No stats currently`;

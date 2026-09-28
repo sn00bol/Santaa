@@ -1,6 +1,6 @@
 {
   "name": "santaa",
-  "version": "1.3.0-alpha.3",
+  "version": "1.3.0-alpha.4",
   "description": "With great cave comes great miners",
   "main": "src/index.js",
   "scripts": {
@@ -22,7 +22,7 @@
     "santa"
   ],
   "author": "sn00bol",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",

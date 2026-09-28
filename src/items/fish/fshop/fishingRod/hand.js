@@ -1,7 +1,7 @@
 module.exports = {
     id: 'hand',
     name: 'Your Hand',
-    sell: 0,
+    cost: 0,
     desc: 'Catching fish by using your hand is not crazy idea, your ancestor do it daily too',
     type: ['fish'], // not using
     // Specific type for fishing rod

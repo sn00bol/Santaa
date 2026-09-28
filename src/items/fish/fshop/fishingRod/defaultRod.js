@@ -1,7 +1,7 @@
 module.exports = {
     id: 'defaultRod',
     name: 'Old fishing rod',
-    sell: 0,
+    cost: 0,
     desc: 'The default fishing rod for you when you start fishing, it is not sellable',
     type: ['fish'], // not using
     // Specific type for fishing rod
@@ -9,5 +9,6 @@ module.exports = {
     stats: '• Free fishing rod\n• Reel in faster than hand',
 
     is_sellable: false,
-    is_tradeable: false
+    is_tradeable: false,
+    show: false
 };

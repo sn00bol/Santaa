@@ -1,7 +1,7 @@
 module.exports = {
     id: 'kaboom',
     name: 'Dynamite Kaboom',
-    sell: 50,
+    cost: 320,
     desc: 'Tired using arm? try explosion! (it will damage you a lot if you stand too close)',
     type: ['fish'], // not using
     // Specific type for fishing rod

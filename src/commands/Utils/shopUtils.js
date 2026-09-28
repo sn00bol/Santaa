@@ -51,7 +51,7 @@ const loadShopItems = (shopType) => {
 };
 
 const getShopItemCost = (item) => {
-    return Number(item.cost ?? item.sell ?? 0) || 0;
+    return Number(item.cost ?? 0) || 0;
 };
 
 const sortShopItems = (itemMap) => {

@@ -37,7 +37,7 @@ module.exports = {
 
         const generateContainer = (category, page, disabled = false) => {
             const list = [...(mineralData[category] || [])].sort((a, b) => {
-                return (a.sell - b.sell) || a.name.localeCompare(b.name);
+                return (a.cost - b.cost) || a.name.localeCompare(b.name);
             });
             const totalPages = Math.ceil(list.length / itemsPerPage) || 1;
             const start = page * itemsPerPage;
@@ -45,7 +45,7 @@ module.exports = {
 
             const displayContent = paged.map((item, index) => {
                 const descText = item.desc ? `\n-# ${item.desc}` : '';
-                return `**${formatNumber(start + index + 1)}. ${item.name.toUpperCase()}** — ${formatNumber(item.sell)} ${CURRENCY_EMOJI} ${descText}`;
+                return `**${formatNumber(start + index + 1)}. ${item.name.toUpperCase()}** — ${formatNumber(item.cost)} ${CURRENCY_EMOJI} ${descText}`;
             }).join('\n\n') || 'No minerals found in this rarity.';
 
             const rarityLabel = RARITY_CONFIG[category]?.label || category;

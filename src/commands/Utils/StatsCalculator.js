@@ -25,7 +25,6 @@ const loadItems = () => {
                 const item = require(path.join(dirPath, file));
                 item.shop = d;
                 if (item.cost !== undefined) item.baseCost = item.cost;
-                if (item.sell !== undefined) item.baseSell = item.sell;
                 allItems.set(item.id, item);
             }
         }
@@ -50,7 +49,6 @@ const loadItems = () => {
                     if (item && item.id) {
                         item.shop = shopName;
                         if (item.cost !== undefined) item.baseCost = item.cost;
-                        if (item.sell !== undefined) item.baseSell = item.sell;
                         allItems.set(item.id, item);
                     }
                 } catch (e) { /* skip invalid items */ }

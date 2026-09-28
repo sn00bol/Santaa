@@ -2,6 +2,7 @@ const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const config = require('../src/commands/Utils/config');
 const { parseFishingProfile, DEFAULT_FISHING_PROFILE } = require('../src/commands/Utils/fishingSchema');
+const { parseMiningProfile, DEFAULT_MINING_PROFILE } = require('../src/commands/Utils/miningSchema');
 
 let db;
 
@@ -35,7 +36,8 @@ module.exports = {
                 equipped_items TEXT DEFAULT '[]',
                 wanted_level INTEGER DEFAULT 0,
                 wanted_updated_at INTEGER DEFAULT 0,
-                fishing_profile TEXT DEFAULT '{}'
+                fishing_profile TEXT DEFAULT '{}',
+                mining_profile TEXT DEFAULT '{}'
             )
         `);
 
@@ -59,6 +61,7 @@ module.exports = {
         try { await db.exec(`ALTER TABLE stats ADD COLUMN wanted_level INTEGER DEFAULT 0;`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN wanted_updated_at INTEGER DEFAULT 0;`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN fishing_profile TEXT DEFAULT '{}';`); } catch (e) {}
+        try { await db.exec(`ALTER TABLE stats ADD COLUMN mining_profile TEXT DEFAULT '{}';`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN crimes INTEGER DEFAULT 0;`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN begs INTEGER DEFAULT 0;`); } catch (e) {}
         try { await db.exec(`ALTER TABLE stats ADD COLUMN items_sold INTEGER DEFAULT 0;`); } catch (e) {}
@@ -93,8 +96,8 @@ module.exports = {
     async getStats(userId) {
         let stats = await db.get('SELECT * FROM stats WHERE user_id = ?', [userId]);
         if (!stats) {
-            await db.run('INSERT OR IGNORE INTO stats (user_id, health, stamina, attack, defense, level, exp, steals, equipped_item_id, wanted_level, wanted_updated_at, fishing_profile) VALUES (?, 100, 100, 5, 2, 1, 0, 0, NULL, 0, 0, ?)', [userId, JSON.stringify(DEFAULT_FISHING_PROFILE)]);
-            stats = { user_id: userId, health: 100, stamina: 100, attack: 5, defense: 2, level: 1, exp: 0, steals: 0, equipped_item_id: null, wanted_level: 0, wanted_updated_at: 0, equipped_items: '[]', fishing_profile: DEFAULT_FISHING_PROFILE };
+            await db.run('INSERT OR IGNORE INTO stats (user_id, health, stamina, attack, defense, level, exp, steals, equipped_item_id, wanted_level, wanted_updated_at, fishing_profile, mining_profile) VALUES (?, 100, 100, 5, 2, 1, 0, 0, NULL, 0, 0, ?, ?)', [userId, JSON.stringify(DEFAULT_FISHING_PROFILE), JSON.stringify(DEFAULT_MINING_PROFILE)]);
+            stats = { user_id: userId, health: 100, stamina: 100, attack: 5, defense: 2, level: 1, exp: 0, steals: 0, equipped_item_id: null, wanted_level: 0, wanted_updated_at: 0, equipped_items: '[]', fishing_profile: DEFAULT_FISHING_PROFILE, mining_profile: DEFAULT_MINING_PROFILE };
         }
 
         if (stats.fishing_profile) {
@@ -102,6 +105,7 @@ module.exports = {
         } else {
             stats.fishing_profile = { ...DEFAULT_FISHING_PROFILE };
         }
+        stats.mining_profile = parseMiningProfile(stats.mining_profile);
 
         // Decay wanted level
         const now = Date.now();
@@ -133,7 +137,7 @@ module.exports = {
     },
 
     // Specifically update attack/defense/level/exp
-    async updateProgress(userId, { attack, defense, level, exp, steals, crimes, begs, items_sold, items_bought, unknown_category_visits, pvp_wins, fishing_profile }) {
+    async updateProgress(userId, { attack, defense, level, exp, steals, crimes, begs, items_sold, items_bought, unknown_category_visits, pvp_wins, fishing_profile, mining_profile }) {
         const updates = [];
         const params = [];
         if (attack !== undefined) { updates.push('attack = ?'); params.push(attack); }
@@ -150,6 +154,10 @@ module.exports = {
         if (fishing_profile !== undefined) {
             updates.push('fishing_profile = ?');
             params.push(JSON.stringify(parseFishingProfile(fishing_profile)));
+        }
+        if (mining_profile !== undefined) {
+            updates.push('mining_profile = ?');
+            params.push(JSON.stringify(parseMiningProfile(mining_profile)));
         }
 
         if (updates.length === 0) return;
@@ -197,6 +205,17 @@ module.exports = {
         const fishingProfile = parseFishingProfile(profile);
         await this.getStats(userId);
         return await db.run('UPDATE stats SET fishing_profile = ? WHERE user_id = ?', [JSON.stringify(fishingProfile), userId]);
+    },
+
+    async getMiningProfile(userId) {
+        const stats = await this.getStats(userId);
+        return stats.mining_profile;
+    },
+
+    async setMiningProfile(userId, profile) {
+        const miningProfile = parseMiningProfile(profile);
+        await this.getStats(userId);
+        return await db.run('UPDATE stats SET mining_profile = ? WHERE user_id = ?', [JSON.stringify(miningProfile), userId]);
     },
 
     // Transfer an inventory item to another user (for trade)

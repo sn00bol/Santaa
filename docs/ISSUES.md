@@ -111,7 +111,15 @@
 - **Status**: Discord problem
 - **Detail**: At fish tug of war minigames, if user clicking reel in too fast make bot couldnt respond in time, had fixed but discord moment again
 
+### [BUG-003]: Fake fish durability
+- **Status**: Fixed
+- **Detail**: From v1.2.0, I literally forgot this and become the longest bugs exists, it literally fake durability with `0 / 100` hardcode instead use real one, had fixed it at Alpha 4 v1.3.0
+
+### [BUG-003]: Your hand items in Fishing Rod have no stats
+- **Status**: Fixed
+- **Detail**: the name described it
+
 ---
 ## STILL NOT FIX OR OTHER ISSUE
 
-### [BUG-003]: Still not found
+### [BUG-004]: Still not found

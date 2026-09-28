@@ -147,6 +147,23 @@ module.exports = {
         }, {});
     },
 
+    async ensureDefaultUserSettings(userId) {
+        const result = await db.run(`
+            INSERT OR IGNORE INTO user_settings (user_id, setting_id, value)
+            SELECT ?, defaults.setting_id, 1
+            FROM (
+                SELECT 'reminder' AS setting_id
+                UNION ALL SELECT 'daily_reminder'
+                UNION ALL SELECT 'lvl_notifi'
+            ) AS defaults
+            WHERE NOT EXISTS (
+                SELECT 1 FROM user_settings WHERE user_id = ?
+            )
+        `, [userId, userId]);
+
+        return result.changes > 0;
+    },
+
     async setUserSetting(userId, settingId, value) {
         const result = await db.run(`
             INSERT INTO user_settings (user_id, setting_id, value)

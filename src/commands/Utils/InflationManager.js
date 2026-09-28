@@ -86,12 +86,9 @@ class InflationManager {
         for (const [id, item] of allItemsCache) {
             const multiplier = this.getMultiplier(item);
             
-            // Only modify if it has a cost or sell value
+            // Only modify items with a cost value.
             if (item.baseCost !== undefined) {
                 item.cost = Math.max(1, Math.round(item.baseCost * multiplier));
-            }
-            if (item.baseSell !== undefined) {
-                item.sell = Math.max(1, Math.round(item.baseSell * multiplier));
             }
         }
     }

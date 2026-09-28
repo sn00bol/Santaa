@@ -289,7 +289,7 @@ async function sellAllFish(userId, profile, inventory, bucketKeyOrAll) {
         const remaining = [];
         for (const entry of bucket.items) {
             const def = allItemsCache.get(entry.id);
-            if (def && def.is_sellable && (def.sell ?? 0) > 0) {
+            if (def && def.is_sellable && (def.cost ?? 0) > 0) {
                 const existing = itemsToSellMap.get(entry.id) || { itemData: def, quantity: 0 };
                 existing.quantity += 1;
                 itemsToSellMap.set(entry.id, existing);

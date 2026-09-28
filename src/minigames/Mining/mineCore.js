@@ -58,10 +58,10 @@ const calculateExp = (mineral) => {
     if (!mineral) return 0;
     const r = mineral.rarity || 'COMMON';
     const cfg = RARITY_CONFIG[r] || RARITY_CONFIG.COMMON;
-    // Base exp from rarity; scale lightly by sell value
+    // Base exp from rarity; scale lightly by item cost.
     const base = cfg.exp || 5;
-    const sellFactor = Math.max(1, Math.floor((mineral.sell || 10) / 10));
-    return Math.max(1, Math.floor(base * sellFactor));
+    const costFactor = Math.max(1, Math.floor((mineral.cost || 10) / 10));
+    return Math.max(1, Math.floor(base * costFactor));
 };
 
 module.exports = {

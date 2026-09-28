@@ -1,7 +1,7 @@
 module.exports = {
     id: 'niceGlove',
     name: 'The Glove',
-    sell: 30,
+    cost: 500,
     desc: 'If you a anti-fishing Rod user and a hand lover, this is for you',
     type: ['fish'],
     // Specific type for fishing rod

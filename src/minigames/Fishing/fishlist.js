@@ -38,7 +38,7 @@ module.exports = {
         const generateContainer = (category, page, disabled = false) => {
             const fishData = getFishData();
             const fishList = [...(fishData[category] || [])].sort((a, b) => {
-                return (a.sell - b.sell) || a.name.localeCompare(b.name);
+                return (a.cost - b.cost) || a.name.localeCompare(b.name);
             });
             const totalPages = Math.ceil(fishList.length / itemsPerPage) || 1;
             const start = page * itemsPerPage;
@@ -46,7 +46,7 @@ module.exports = {
 
             const displayContent = pagedFish.map((fish, index) => {
                 const descText = fish.desc ? `\n-# ${fish.desc}` : '';
-                return `**${formatNumber(start + index + 1)}. ${fish.name.toUpperCase()}** — ${formatNumber(fish.sell)} ${CURRENCY_EMOJI} ${descText}`;
+                return `**${formatNumber(start + index + 1)}. ${fish.name.toUpperCase()}** — ${formatNumber(fish.cost)} ${CURRENCY_EMOJI} ${descText}`;
             }).join('\n\n') || 'No fish found in this category.';
 
             const rarityLabel = RARITY_CONFIG[category]?.label || category;

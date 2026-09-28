@@ -1,11 +1,10 @@
-v1.3.0-alpha.3
-- Make settings fully worked
-- Revert back to legacy embed for leaderboard and upgrade it
-- Add back net worth
-- Upgrade minelist like fishlist
-- Upgrade and Highly debloat slash register in index.js into a file
-- Fix unknow interaction and connect timeout error for Slash and DMs
-- Complete all stuff before begin rework
+v1.3.0-alpha.4
+- What worked on this alpha: equipments, buckets, mining now
+- Copy paste fishing to mining but still blank (lol)
+- Fix fishing fake durability
+- Unify items object `cost` and `sell` to only `cost`
+- Upgrade UI/UX for guess meme, olympac
+- Helmet now not working perfectly or useless
 
 # CHANGELOG
 
@@ -14,13 +13,16 @@ v1.3.0-alpha.3
 - Rework and added new a lot of material
 - Add mining shops with pickaxe, bags and helmet
 - Add crafting system to upgrade pickaxe and helmet (to nothing to +8) or fixing it
-- Add settings, fast navigate button and reload button in navigation
+- Add settings, fast navigate button and reload button in navigation, add categories button in fish/mine shops
+- Unify items object `cost` and `sell` to only `cost`
 - Move fishlist select bar to bottom
 - Added a lot of new small minigames and memes
 - Other: add new mining achievements, reminder, bank limit to deposit
 - Allow to DMs bot and add slash commands
 - Revert from image to legacy embed for leaderboard, and balance
-- Add auto update and update Santaa bot source (disable via .env)
+- Fix your hand fishing stats
+- Fix fishing fake durability
+- Add auto update and update Santaa bot source (enable via .env)
 
 Alpha release: [e664ab5](https://github.com/sn00bol/Santaa/commit/e664ab5bdca5448d1d445c323e0e043145013ab8), [73b18d2](https://github.com/sn00bol/Santaa/commit/73b18d2d37a78aaba86d104c2dd6bc4c2d0ee44c), [ecb7990](https://github.com/sn00bol/Santaa/commit/ecb79904dd387f1fea24ad853395f2fc2c7c11a4), [4de1239](https://github.com/sn00bol/Santaa/commit/4de123908d1e95d50340ebafb16e8949e1c1ed26), [7ec3ba8](https://github.com/sn00bol/Santaa/commit/7ec3ba838ac9e5c9e43c1accad176562b13dfb3c)
 

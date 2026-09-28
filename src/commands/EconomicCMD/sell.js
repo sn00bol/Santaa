@@ -20,7 +20,7 @@ async function sellItemsCore(userId, itemsToSell) {
 
     let equippedChanged = false;
     for (const { itemData, quantity } of itemsToSell) {
-        if (!itemData.is_sellable || (itemData.sell ?? 0) <= 0) continue;
+        if (!itemData.is_sellable || (itemData.cost ?? 0) <= 0) continue;
         
         const matchingItems = inventoryMap[itemData.id] || [];
         if (matchingItems.length < quantity) continue;
@@ -37,7 +37,7 @@ async function sellItemsCore(userId, itemsToSell) {
         
         inventoryMap[itemData.id] = matchingItems.slice(quantity);
 
-        const earned = itemData.sell * quantity;
+        const earned = itemData.cost * quantity;
         totalEarned += earned;
         soldItems.push({ itemId: itemData.id, name: itemData.name, quantity, earned });
     }
@@ -95,7 +95,7 @@ async function executeSell(userId, itemData, quantity, replyFn) {
     }
 
     // Guard: sell price
-    const unitPrice = itemData.sell ?? 0;
+    const unitPrice = itemData.cost ?? 0;
     if (unitPrice <= 0) {
         await replyFn(`**${itemData.name}** is worthless, can't sell it.`);
         return false;
@@ -171,7 +171,7 @@ module.exports = {
             const sellableItems = [];
             for (const itemId of Object.keys(counts)) {
                 const itemData = allItemsCache.get(itemId);
-                if (itemData && itemData.is_sellable && (itemData.sell ?? 0) > 0) {
+                if (itemData && itemData.is_sellable && (itemData.cost ?? 0) > 0) {
                     sellableItems.push({ itemData, quantity: counts[itemId] });
                 }
             }
@@ -183,7 +183,7 @@ module.exports = {
             const options = sellableItems.slice(0, 25).map((sellable) => ({
                 label: sellable.itemData.name,
                 value: sellable.itemData.id,
-                description: `Quantity: ${formatNumber(sellable.quantity)} (Total Value: $${formatNumber(sellable.itemData.sell * sellable.quantity)})`
+                description: `Quantity: ${formatNumber(sellable.quantity)} (Total Value: $${formatNumber(sellable.itemData.cost * sellable.quantity)})`
             }));
 
             const selectRow = new ActionRowBuilder().addComponents(

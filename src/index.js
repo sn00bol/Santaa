@@ -8,7 +8,7 @@ const { Client, IntentsBitField, Partials, Collection, ActivityType } = require(
 const dbmanager = require('../database/dbmanager');
 const rpgmanager = require('../database/rpgmanager');
 const { isOwner } = require('./commands/Utils/permission');
-const {createInteractionMessage,getInteractionArgs} = require('./commands/Utils/slashCommand');
+const { createInteractionMessage, getInteractionArgs } = require('./commands/Utils/slashCommand');
 const { initUpdater } = require('./scripts/updater');
 const notifi = require('./commands/Utils/notifi');
 const { retryWithBackoff } = require('./commands/Utils/retry');
@@ -83,6 +83,12 @@ commandFolders.forEach(folder => {
 });
 
 async function runCommand(command, context, args) {
+    try {
+        await client.db.ensureDefaultUserSettings(context.author.id);
+    } catch (error) {
+        console.error('[SETTINGS] Failed to apply user settings:', error);
+    }
+
     client.db.recordUserActivity(context.author.id).catch(error => {
         console.error('[ACTIVITY] Failed to record command usage:', error);
     });
