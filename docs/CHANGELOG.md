@@ -21,7 +21,7 @@ v1.3.0-alpha.5
 - Fix fishing fake durability
 - Add auto update and update Santaa bot source (enable via .env)
 
-Alpha release: [e664ab5](https://github.com/sn00bol/Santaa/commit/e664ab5bdca5448d1d445c323e0e043145013ab8), [73b18d2](https://github.com/sn00bol/Santaa/commit/73b18d2d37a78aaba86d104c2dd6bc4c2d0ee44c), [ecb7990](https://github.com/sn00bol/Santaa/commit/ecb79904dd387f1fea24ad853395f2fc2c7c11a4), [4de1239](https://github.com/sn00bol/Santaa/commit/4de123908d1e95d50340ebafb16e8949e1c1ed26), [7ec3ba8](https://github.com/sn00bol/Santaa/commit/7ec3ba838ac9e5c9e43c1accad176562b13dfb3c), [b65f806](https://github.com/sn00bol/Santaa/commit/b65f8061e4355258a2aa6241eec8a3e8b58a18f8)
+Alpha release: [e664ab5](https://github.com/sn00bol/Santaa/commit/e664ab5bdca5448d1d445c323e0e043145013ab8), [73b18d2](https://github.com/sn00bol/Santaa/commit/73b18d2d37a78aaba86d104c2dd6bc4c2d0ee44c), [ecb7990](https://github.com/sn00bol/Santaa/commit/ecb79904dd387f1fea24ad853395f2fc2c7c11a4), [4de1239](https://github.com/sn00bol/Santaa/commit/4de123908d1e95d50340ebafb16e8949e1c1ed26), [7ec3ba8](https://github.com/sn00bol/Santaa/commit/7ec3ba838ac9e5c9e43c1accad176562b13dfb3c), [b65f806](https://github.com/sn00bol/Santaa/commit/b65f8061e4355258a2aa6241eec8a3e8b58a18f8), [fd3e08e](https://github.com/sn00bol/Santaa/commit/fd3e08e3a17f2f6d31cdce6cc5b6ddd458e6cd5e)
 
 # v1.2.4 - 9.15.2026
 - Upgrading checking owner permission now checking if category have owner instead ONLY owner category
