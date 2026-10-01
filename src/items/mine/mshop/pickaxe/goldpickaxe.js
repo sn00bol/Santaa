@@ -6,7 +6,8 @@ module.exports = {
     type: ['mine'], // not using
     // Specific type for mining
     durability: 80,
-    stats: "• Increase your luck when mining\n• Can mine some specific ores",
+    luck: 1.4,
+    stats: "• Increase your luck when mining\n• 1.4x luck\n• Can mine some specific ores",
 
     is_sellable: true,
     is_tradeable: true

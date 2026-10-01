@@ -92,6 +92,19 @@ module.exports = {
         return result;
     },
 
+    // Mark an unbroken item as broken in inventory
+    async markItemBroken(userId, itemId, brokenName) {
+        const row = await db.get(
+            "SELECT id FROM inventory WHERE user_id = ? AND item_id = ? AND item_name NOT LIKE 'Broken %' ORDER BY id ASC LIMIT 1",
+            [userId, itemId]
+        );
+        if (row) {
+            await db.run('UPDATE inventory SET item_name = ? WHERE id = ?', [brokenName, row.id]);
+            return true;
+        }
+        return false;
+    },
+
     // Get user stats
     async getStats(userId) {
         let stats = await db.get('SELECT * FROM stats WHERE user_id = ?', [userId]);

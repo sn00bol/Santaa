@@ -4,7 +4,9 @@ const DEFAULT_MINING_PROFILE = {
         currentHelmet: 'defaulthelmet',
         currentBackpack: 'defaultbackpack',
         pickaxeDurability: 80,
-        helmetDurability: 100,
+        helmetDurability: 15,
+        helmetHealth: 15,
+        helmetHealths: {},
     },
     fallbackPickaxe: 'minehand',
     initialItemsGranted: false,
@@ -36,9 +38,19 @@ function parseMiningProfile(raw) {
         equipment.currentPickaxe = fallbackPickaxe;
     }
 
-    const helmetDurability = Number(equipment.helmetDurability);
-    equipment.helmetDurability = Number.isFinite(helmetDurability) ? Math.max(0, helmetDurability) : 0;
-    if (equipment.helmetDurability <= 0) {
+    if (!equipment.helmetHealths || typeof equipment.helmetHealths !== 'object') {
+        equipment.helmetHealths = {};
+    }
+
+    let helmetHealth = Number(equipment.helmetHealth);
+    if (!Number.isFinite(helmetHealth)) {
+        const legacyDur = Number(equipment.helmetDurability);
+        helmetHealth = Number.isFinite(legacyDur) && legacyDur <= 25 && legacyDur > 0 ? legacyDur : 15;
+    }
+    equipment.helmetHealth = Math.max(0, helmetHealth);
+    equipment.helmetDurability = equipment.helmetHealth;
+
+    if (equipment.helmetHealth <= 0) {
         equipment.currentHelmet = null;
     }
 

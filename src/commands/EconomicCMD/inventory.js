@@ -28,7 +28,6 @@ module.exports = {
                 const itemDef = allItems.get(invItem.item_id);
                 if (!itemDef) return true;
 
-                // Hide all fishing-related items (fish, rods, baits, buckets)
                 const itemType = Array.isArray(itemDef.type) ? itemDef.type : [itemDef.type];
                 if (itemType.includes('fish')) return false;
 
@@ -110,15 +109,15 @@ module.exports = {
             if (selectedInventoryIds.length > 0) {
                 // Verify all selected items still exist in inventory
                 const selectedInvItems = groupedItems.filter(i => selectedInventoryIds.includes(`${i.item_id}_${i.item_name}`));
-                
+
                 if (selectedInvItems.length > 0) {
                     const btnRow = new ActionRowBuilder();
-                    
+
                     if (selectedInvItems.length === 1) {
                         // Single item logic (Use / Equip / Unequip / Sell)
                         const selectedInvItem = selectedInvItems[0];
                         const itemData = allItems.get(selectedInvItem.item_id);
-                        
+
                         if (itemData) {
                             const primaryType = Array.isArray(itemData.type) ? itemData.type[0] : itemData.type;
                             if (primaryType === 'consumable') {
@@ -152,7 +151,7 @@ module.exports = {
                                 break;
                             }
                         }
-                        
+
                         if (allSellable) {
                             btnRow.addComponents(new ButtonBuilder().setCustomId('inv_sell').setLabel(`Sell ${formatNumber(selectedInvItems.length)} Items`).setStyle(ButtonStyle.Danger));
                         }
@@ -200,7 +199,7 @@ module.exports = {
 
                 if (i.customId === 'inv_sell') {
                     if (selectedInventoryIds.length === 0) return i.reply({ content: 'Select an item first!', ephemeral: true });
-                    
+
                     await i.deferReply({ ephemeral: true });
 
                     if (selectedInventoryIds.length === 1) {
@@ -230,7 +229,7 @@ module.exports = {
                 // ── Use / Equip / Unequip buttons ──
                 if (i.customId === 'inv_use' || i.customId === 'inv_equip' || i.customId === 'inv_unequip') {
                     if (selectedInventoryIds.length !== 1) return i.reply({ content: 'Select exactly one item!', ephemeral: true });
-                    
+
                     const selectedKey = selectedInventoryIds[0];
                     const [selectedInventoryId, selectedItemName] = selectedKey.split('_');
                     const rawInventory = await rpgmanager.getInventory(i.user.id);

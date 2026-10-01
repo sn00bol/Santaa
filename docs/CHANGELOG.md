@@ -1,10 +1,7 @@
-v1.3.0-alpha.4
-- What worked on this alpha: equipments, buckets, mining now
-- Copy paste fishing to mining but still blank (lol)
-- Fix fishing fake durability
-- Unify items object `cost` and `sell` to only `cost`
-- Upgrade UI/UX for guess meme, olympac
-- Helmet now not working perfectly or useless
+v1.3.0-alpha.5
+- Make helmet could broken if lose
+- Upgrade Mining board more advance
+- Add some items for mining
 
 # CHANGELOG
 

@@ -5,6 +5,7 @@ module.exports = {
     desc: 'A reliable starter pickaxe for your first mining runs.',
     type: ['mine'],
     durability: 80,
+    luck: 1,
     stats: '• Free pickaxe\n• Faster than hand lol',
     is_sellable: false,
     is_tradeable: false,

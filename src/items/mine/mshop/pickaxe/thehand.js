@@ -6,6 +6,7 @@ module.exports = {
     type: ['mine'], // not using
     // Specific type for mining
     durability: Infinity,
+    luck: 1,
     stats: "• Free pickaxe\n• Never worry about durability\n• Cannot mining some specific ores",
 
     is_sellable: false,

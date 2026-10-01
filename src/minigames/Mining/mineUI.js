@@ -21,7 +21,7 @@ const CELL_EMOJI = {
     mineral: '💎',
 };
 
-const COUNT_EMOJI = ['0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
+const COUNT_EMOJI = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣'];
 
 function buildBar(current, max, length = 10) {
     if (current === '∞' || max === '∞') {
@@ -64,7 +64,6 @@ function buildMain(user, stats, inventory = [], backpacks = [], notice = null, p
     const durabilityCurrent = isHand ? '∞' : String(equipment.pickaxeDurability ?? pickaxeItem?.durability ?? 80);
     const durabilityMax = isHand ? '∞' : String(pickaxeItem?.durability ?? 80);
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, pickaxeName, 10);
-
     const locationLine = profile.currentMap
         ? `📍 ${profile.currentMap}`
         : `📍 Default Mine`;
@@ -160,13 +159,19 @@ function buildEquipment(profile = {}, inventory = [], itemGroups = {}, infoMessa
     ];
 
     const helmetOptions = [
-        { label: 'No helmet', value: 'none', description: 'Leave the helmet slot empty', default: !equipment.currentHelmet },
+        { label: 'No helmet', value: 'none', description: 'Leave the helmet slot empty (no protection)', default: !equipment.currentHelmet },
         ...availableHelmets.map(item => {
-            const statsStr = formatItemStats(item.stats || item.stat);
-            const durStr = `Durability: ${formatNumber(item.durability || 100)}`;
-            const desc = statsStr ? `${statsStr} | ${durStr}` : durStr;
+            const hasUsable = inventory.some(inv => inv.item_id === item.id && !inv.item_name?.startsWith('Broken '));
+            const maxHp = item.stats?.health || 15;
+            const currentHp = hasUsable
+                ? (equipment.helmetHealths?.[item.id] ?? (item.id === equipment.currentHelmet ? (equipment.helmetHealth ?? maxHp) : maxHp))
+                : 0;
+            const desc = !hasUsable
+                ? '0 HP (Broken) - Cannot be equipped'
+                : `Health: ${currentHp}/${maxHp} HP | Protects on fail (-3 HP)`;
+
             return {
-                label: String(item.name).slice(0, 100),
+                label: (!hasUsable ? `[Broken] ${item.name}` : String(item.name)).slice(0, 100),
                 value: item.id,
                 description: desc.slice(0, 100),
                 default: item.id === equipment.currentHelmet,
@@ -184,22 +189,21 @@ function buildEquipment(profile = {}, inventory = [], itemGroups = {}, infoMessa
         .setPlaceholder('Choose a helmet')
         .addOptions(helmetOptions);
 
-    // Build the details text with bar format (pickaxe only — helmet info is in the select description)
     const pickaxeDurCurrent = pickaxe?.id === 'minehand' ? '∞' : String(equipment.pickaxeDurability ?? pickaxe?.durability ?? 80);
     const pickaxeDurMax = pickaxe?.id === 'minehand' ? '∞' : String(pickaxe?.durability ?? 80);
     const pickaxeDurLine = formatStatLine(pickaxeDurCurrent, pickaxeDurMax, '', 10);
     const pickaxeStatsText = statsText(pickaxe);
 
-    const pickaxeSection = [
+    const detailsLines = [
         `**Pickaxe: ${pickaxe?.name || 'Your Hand'}**`,
         `Durability:`,
         ` ${pickaxeDurLine}`,
         ``,
         `Stats:`,
         pickaxeStatsText,
-    ].join('\n');
+    ];
 
-    const details = new TextDisplayBuilder().setContent(pickaxeSection);
+    const details = new TextDisplayBuilder().setContent(detailsLines.join('\n'));
 
     const container = new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent('# 🧰 Mining Equipment\n> Select your pickaxe and helmet before heading underground.'))
@@ -406,11 +410,18 @@ function buildPlaceholder(section) {
         ));
 }
 
-function getCellLabel(cell, revealAll) {
+function getCellLabel(cell, revealAll, flagMode) {
     if (!cell) return CELL_EMOJI.hidden;
-    if (!cell.revealed && !revealAll) return CELL_EMOJI.hidden;
-    if (cell.type === 'cashout') return 'Cash';
+    if (cell.type === 'cashout') return '💸';
+    if (cell.type === 'filler') return '⬛';
+
+    if (!cell.revealed && !revealAll) {
+        return cell.flagged ? '🚩' : CELL_EMOJI.hidden;
+    }
     if (cell.type === 'bomb') return CELL_EMOJI.bomb;
+    if (cell.type === 'goldmine') return '💰';
+    if (cell.type === 'chest') return '🎁';
+    if (cell.type === 'trap') return '🕸️';
     if (cell.type === 'mineral') return CELL_EMOJI.mineral;
     if (cell.type === 'empty') return (cell.adjacentMines ? COUNT_EMOJI[cell.adjacentMines] : CELL_EMOJI.empty);
     return CELL_EMOJI.hidden;
@@ -419,21 +430,35 @@ function getCellLabel(cell, revealAll) {
 function buildButtonRows(session, revealAll = false) {
     const rows = [];
     const board = session.board || [];
+    const flagMode = session.flagMode || false;
 
     for (let r = 0; r < 5; r++) {
         const row = new ActionRowBuilder();
         for (let c = 0; c < 5; c++) {
             const idx = r * 5 + c;
             const cell = board[idx];
-            const label = getCellLabel(cell, revealAll);
-            let customId;
+            const label = getCellLabel(cell, revealAll, flagMode);
+            let customId = `mine_cell_${idx}`;
             let disabled = revealAll || session.status !== 'playing';
             let style = ButtonStyle.Secondary;
 
-            if (idx === 24) {
+            if (idx === 22 || idx === 23) {
+                customId = `mine_filler_${idx}`;
+                disabled = true;
+                style = ButtonStyle.Secondary;
+            } else if (idx === 24) {
                 customId = 'mine_cashout';
+                style = ButtonStyle.Success;
+                disabled = revealAll || session.status !== 'playing';
             } else if (!cell || !cell.revealed) {
                 customId = `mine_cell_${idx}`;
+                if (flagMode) {
+                    style = cell.flagged ? ButtonStyle.Success : ButtonStyle.Secondary;
+                } else {
+                    if (cell.flagged) {
+                        disabled = true;
+                    }
+                }
             } else if (cell.type === 'mineral') {
                 if (cell.committed) {
                     customId = `mine_cell_${idx}`;
@@ -466,18 +491,37 @@ function buildButtonRows(session, revealAll = false) {
 }
 
 function buildBoardContainer(user, stats, session, { revealAll = false, notice = null } = {}) {
-    const loot = session.sessionLoot?.length
-        ? session.sessionLoot.map(item => item.name).join(', ')
-        : '*No minerals collected yet*';
-    const status = `**HP** ${formatNumber(stats.health)}/100 · **Safe tiles** ${formatNumber(session.revealedCount || 0)}/${formatNumber(session.safeCells || 0)}\n**Session loot** ${loot}`;
+    const flagMode = session.flagMode || false;
+    const frozenLeft = session.frozenUntil && session.frozenUntil > Date.now()
+        ? ` · ❄️ Frozen ${Math.ceil((session.frozenUntil - Date.now()) / 1000)}s`
+        : '';
+    const footer = `-# Safe tiles: ${formatNumber(session.revealedCount || 0)}/${formatNumber(session.safeCells || 0)}${frozenLeft}`;
+    const bodyText = `${notice ? `> ${notice}\n\n` : ''}${footer}`;
     const container = new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ⛏️ Mining · ${user.username}`))
         .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${notice ? `> ${notice}\n\n` : ''}${status}\n\n-# Reveal tiles; cash out to keep unclaimed loot.`));
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(bodyText));
 
     for (const row of buildButtonRows(session, revealAll)) {
         container.addActionRowComponents(row);
     }
+
+    const isPlaying = !revealAll && session.status === 'playing';
+    const controlRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('mine_flagToggle')
+            .setLabel(flagMode ? '🚩 Flag Mode: ON' : '🚩 Flag Mode')
+            .setStyle(flagMode ? ButtonStyle.Success : ButtonStyle.Secondary)
+            .setDisabled(!isPlaying),
+        new ButtonBuilder()
+            .setCustomId('mine_exit')
+            .setLabel('🚪 Exit')
+            .setStyle(ButtonStyle.Danger)
+            .setDisabled(!isPlaying)
+    );
+    container.addSeparatorComponents(new SeparatorBuilder())
+        .addActionRowComponents(controlRow);
+
     return container;
 }
 

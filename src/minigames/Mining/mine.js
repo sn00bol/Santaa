@@ -146,12 +146,17 @@ module.exports = {
 
 			const currentHelmet = itemGroups.helmets.find(item => item.id === equipment.currentHelmet);
 			if (currentHelmet) {
-				const remainingDurability = Math.max(0, Number(equipment.helmetDurability) - 1);
-				equipment.helmetDurability = remainingDurability;
-				if (remainingDurability === 0) {
+				const hasUsable = currentInventory.some(inv => inv.item_id === currentHelmet.id && !inv.item_name?.startsWith('Broken '));
+				const maxHp = currentHelmet.stats?.health || 15;
+				const currentHp = Number.isFinite(Number(equipment.helmetHealth)) ? Number(equipment.helmetHealth) : maxHp;
+				if (!hasUsable || currentHp <= 0) {
 					equipment.currentHelmet = null;
-					notices.push(`**${currentHelmet.name}** broke and was removed from your equipment.`);
-					equipmentBroke = true;
+					equipment.helmetHealth = 0;
+					equipment.helmetDurability = 0;
+					notices.push(`**${currentHelmet.name}** is broken and has been unequipped.`);
+				} else {
+					equipment.helmetHealth = currentHp;
+					equipment.helmetDurability = currentHp;
 				}
 			}
 
@@ -165,6 +170,7 @@ module.exports = {
 				return updateEquipment(interaction, notices.join('\n'));
 			}
 
+			const activeHelmet = itemGroups.helmets.find(item => item.id === equipment.currentHelmet);
 			const { board, bombCount, safeCells } = mineBoard.generateBoard();
 			session = {
 				userId,
@@ -174,7 +180,13 @@ module.exports = {
 				revealedCount: 0,
 				safeCells,
 				bombCount,
-				mainMsg
+				mainMsg,
+				helmet: activeHelmet ? {
+					id: activeHelmet.id,
+					name: activeHelmet.name,
+					health: equipment.helmetHealth,
+					maxHealth: activeHelmet.stats?.health || 15
+				} : null
 			};
 			view = 'board';
 			mineBoard.activeSessions.set(userId, session);
@@ -217,6 +229,17 @@ module.exports = {
 			const id = interaction.customId;
 			if (session.status !== 'playing') return interaction.deferUpdate();
 
+			if (id === 'mine_exit') {
+				session.status = 'exited';
+				mineBoard.activeSessions.delete(userId);
+				return updateMain(interaction);
+			}
+
+			if (id === 'mine_flagToggle') {
+				session.flagMode = !session.flagMode;
+				return updateBoard(interaction);
+			}
+
 			if (id === 'mine_cashout') {
 				const keptCount = session.sessionLoot.length;
 				const notice = await commitLoot(session.sessionLoot);
@@ -256,17 +279,108 @@ module.exports = {
 			}
 
 			if (!id.startsWith('mine_cell_')) return interaction.deferUpdate();
+
+			if (session.frozenUntil && session.frozenUntil > Date.now()) {
+				const left = Math.ceil((session.frozenUntil - Date.now()) / 1000);
+				return interaction.reply({ content: `❄️ You are frozen for ${left} more seconds!`, ephemeral: true });
+			}
+
 			const index = parseInt(id.slice('mine_cell_'.length), 10);
+
+			if (session.flagMode) {
+				if (session.board[index] && !session.board[index].revealed) {
+					session.board[index].flagged = !session.board[index].flagged;
+					return updateBoard(interaction);
+				}
+				return interaction.deferUpdate();
+			}
+
 			const result = mineBoard.revealCell(session, index);
 			if (result.changed === false && result.hitBomb === undefined) return interaction.deferUpdate();
 
+			if (result.isGoldMine) {
+				const bonus = Math.floor(Math.random() * 50000) + 50000;
+				await dbmanager.addMoney(userId, bonus);
+				return updateBoard(interaction, `💰 **GOLD MINE!** It exploded but it was made of pure gold! You gained ${formatNumber(bonus)} ${CURRENCY_EMOJI}!`);
+			}
+
+			if (result.revealedType === 'chest') {
+				const rand = Math.random();
+				let chestNotice = '';
+				if (rand < 0.4) {
+					const coins = Math.floor(Math.random() * 1000) + 500;
+					await dbmanager.addMoney(userId, coins);
+					chestNotice = `🎁 **CHEST!** You found ${formatNumber(coins)} ${CURRENCY_EMOJI}!`;
+				} else if (rand < 0.7) {
+					const expBonus = Math.floor(Math.random() * 50) + 20;
+					const statsNow = await rpgmanager.getStats(userId);
+					let newExp = (statsNow.exp || 0) + expBonus;
+					let newLevel = statsNow.level || 1;
+					while (newExp >= newLevel * 100) { newExp -= newLevel * 100; newLevel++; }
+					await rpgmanager.updateProgress(userId, { exp: newExp, level: newLevel });
+					chestNotice = `🎁 **CHEST!** You gained ${expBonus} EXP!`;
+				} else {
+					const mineral = mineCore.getRandomMineral();
+					await rpgmanager.addItem(userId, mineral.id, mineral.name);
+					chestNotice = `🎁 **CHEST!** You found a **${mineral.name}**!`;
+				}
+				return updateBoard(interaction, chestNotice);
+			}
+
+			if (result.revealedType === 'trap') {
+				if (Math.random() < 0.5) {
+					session.frozenUntil = Date.now() + 5000;
+					return updateBoard(interaction, `🕸️ **TRAP!** You are frozen for 5 seconds!`);
+				} else {
+					mineBoard.shuffleUnrevealed(session);
+					return updateBoard(interaction, `🕸️ **TRAP!** All hidden cells have been shuffled!`);
+				}
+			}
+
 			if (result.hitBomb) {
 				const currentStats = await rpgmanager.getStats(userId);
-				const newHealth = Math.max(0, currentStats.health - 15);
-				await rpgmanager.updateStats(userId, newHealth, currentStats.stamina);
+				profile = parseMiningProfile(currentStats.mining_profile || profile);
+				const equipment = profile.equipment || {};
+				const currentHelmet = itemGroups.helmets.find(item => item.id === equipment.currentHelmet);
+				const currentInventory = await rpgmanager.getInventory(userId);
+				const hasUsableHelmet = currentHelmet && currentInventory.some(inv => inv.item_id === currentHelmet.id && !inv.item_name?.startsWith('Broken '));
+
 				session.status = 'lost';
 				mineBoard.activeSessions.delete(userId);
-				return updateBoard(interaction, '💥 You hit a bomb and lost your session loot. -15 HP.', true);
+
+				if (hasUsableHelmet && (equipment.helmetHealth === undefined || equipment.helmetHealth > 0)) {
+					const maxHp = currentHelmet.stats?.health || 15;
+					const currentHp = Number.isFinite(Number(equipment.helmetHealth)) ? Number(equipment.helmetHealth) : maxHp;
+					const newHelmetHp = Math.max(0, currentHp - 3);
+					equipment.helmetHealth = newHelmetHp;
+					equipment.helmetDurability = newHelmetHp;
+					if (!equipment.helmetHealths) equipment.helmetHealths = {};
+					equipment.helmetHealths[currentHelmet.id] = newHelmetHp;
+					if (session.helmet) session.helmet.health = newHelmetHp;
+
+					if (newHelmetHp <= 0) {
+						equipment.currentHelmet = null;
+						await rpgmanager.markItemBroken(userId, currentHelmet.id, `Broken ${currentHelmet.name}`);
+						await rpgmanager.updateProgress(userId, { mining_profile: profile });
+						return updateBoard(
+							interaction,
+							`💥 **BOMB!** Your **${currentHelmet.name}** protected you from taking damage (-3 HP), but it broke into a **Broken ${currentHelmet.name}**! Session loot was lost.`,
+							true
+						);
+					} else {
+						await rpgmanager.updateProgress(userId, { mining_profile: profile });
+						return updateBoard(
+							interaction,
+							`💥 **BOMB!** Your **${currentHelmet.name}** absorbed the blast and protected your HP! (-3 Helmet HP, remaining: ${newHelmetHp}/${maxHp} HP). Session loot was lost.`,
+							true
+						);
+					}
+				} else {
+					const newHealth = Math.max(0, currentStats.health - 15);
+					await rpgmanager.updateStats(userId, newHealth, currentStats.stamina);
+					await rpgmanager.updateProgress(userId, { mining_profile: profile });
+					return updateBoard(interaction, '💥 **BOMB!** You hit a bomb without helmet protection and lost your session loot. -15 HP.', true);
+				}
 			}
 
 			if (session.revealedCount >= session.safeCells) {
@@ -420,12 +534,38 @@ module.exports = {
 				if (id === 'mine_equipment_select_helmet') {
 					const selected = interaction.values[0];
 					const currentInventory = await rpgmanager.getInventory(userId);
-					const owns = selected === 'none' || currentInventory.some(item => item.item_id === selected);
-					if (!owns) return await updateEquipment(interaction, 'You do not own this helmet.');
+					if (selected === 'none') {
+						profile.equipment = profile.equipment || {};
+						profile.equipment.currentHelmet = null;
+						await rpgmanager.updateProgress(userId, { mining_profile: profile });
+						return await updateEquipment(interaction, 'Helmet unequipped.');
+					}
+
+					const usableItem = currentInventory.find(item => item.item_id === selected && !item.item_name?.startsWith('Broken '));
+					if (!usableItem) {
+						const isBroken = currentInventory.some(item => item.item_id === selected && item.item_name?.startsWith('Broken '));
+						if (isBroken) {
+							return await updateEquipment(interaction, '❌ This helmet is broken (0 HP) and cannot be equipped! Please repair or replace it.');
+						}
+						return await updateEquipment(interaction, 'You do not own this helmet.');
+					}
+
+					const helmetItem = itemGroups.helmets.find(h => h.id === selected);
+					const maxHp = helmetItem?.stats?.health || 15;
 					profile.equipment = profile.equipment || {};
-					profile.equipment.currentHelmet = selected === 'none' ? null : selected;
+					profile.equipment.currentHelmet = selected;
+
+					if (profile.equipment.helmetHealths && profile.equipment.helmetHealths[selected] !== undefined) {
+						profile.equipment.helmetHealth = profile.equipment.helmetHealths[selected];
+					} else {
+						profile.equipment.helmetHealth = maxHp;
+						if (!profile.equipment.helmetHealths) profile.equipment.helmetHealths = {};
+						profile.equipment.helmetHealths[selected] = maxHp;
+					}
+					profile.equipment.helmetDurability = profile.equipment.helmetHealth;
+
 					await rpgmanager.updateProgress(userId, { mining_profile: profile });
-					return await updateEquipment(interaction);
+					return await updateEquipment(interaction, `Equipped **${helmetItem?.name || selected}** (${profile.equipment.helmetHealth}/${maxHp} HP).`);
 				}
 				if (id === 'mine_equipment_select_backpack') {
 					const selected = interaction.values[0];
@@ -483,6 +623,13 @@ module.exports = {
 					}
 					await dbmanager.removeMoney(userId, cost);
 					await rpgmanager.addItem(userId, item.id, item.name);
+					if (shopState.category === 'helmet' || itemGroups.helmets.some(h => h.id === item.id)) {
+						if (!profile.equipment) profile.equipment = {};
+						if (!profile.equipment.helmetHealths) profile.equipment.helmetHealths = {};
+						const maxHp = item.stats?.health || 15;
+						profile.equipment.helmetHealths[item.id] = maxHp;
+						await rpgmanager.updateProgress(userId, { mining_profile: profile });
+					}
 					return interaction.reply({ content: `Bought **${item.name}** for $${formatNumber(cost)}.`, ephemeral: true });
 				}
 

@@ -5,7 +5,8 @@ module.exports = {
     desc: 'With great miners comes great pickaxe',
     type: ['mine'], // not using
     // Specific type for mining
-    durability: 80,
+    durability: 100,
+    luck: 1,
     stats: "• Free pickaxe\n• Easy to break because of old age\n• Cannot mining some specific ores",
 
     is_sellable: true,
