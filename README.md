@@ -64,8 +64,13 @@ Docker Engine and the Docker Compose plugin are required. Create `.env` from `.e
 
 ```bash
 docker compose up --build -d    # Build and starting bot
+
+docker compose up -d --build --force-recreate bot # To rebuild image
+
 docker compose logs -f bot      # Stop running
+
 docker compose down             # View bot logs
+
 ```
 
 The Compose service stores bot data in the project's `database/` directory, so that data is available to both Docker and the traditional npm workflow. Do not run both bot instances at the same time because they would write to the same SQLite databases. The updater is disabled inside Docker even if `AUTO_UPDATE=true` is set in `.env`, it remains available when running the bot with npm on the host

@@ -9,15 +9,10 @@ const {
     MessageFlags,
 } = require("discord.js");
 const { getPaginationRow, createFastNavigateModal } = require("../Utils/NavigateManager");
-const { execSync } = require("child_process");
 const { version: PKG_VERSION } = require("../../../package.json");
 const { getSettings } = require("./stgfiles");
 
-const COMMIT_COUNT = (() => {
-    try { return execSync("git rev-list --count HEAD", { encoding: "utf8" }).trim(); }
-    catch { return "0"; }
-})();
-const BOT_VERSION = `v${PKG_VERSION}.${COMMIT_COUNT}`;
+const BOT_VERSION = `v${PKG_VERSION}`;
 
 const SETTINGS = getSettings();
 
