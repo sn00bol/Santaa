@@ -15,15 +15,15 @@ const SKILL_CACHE_DURATION = 5000; // 5 seconds cache
 const getCachedSkillLevel = (profile, skillId) => {
     const cacheKey = `${profile.skill?.totalPoints || 0}_${skillId}`;
     const now = Date.now();
-    
+
     if (skillCache.has(cacheKey) && (now - skillCacheTime) < SKILL_CACHE_DURATION) {
         return skillCache.get(cacheKey);
     }
-    
+
     const level = fishSkills.getSkillLevel(profile, skillId);
     skillCache.set(cacheKey, level);
     skillCacheTime = now;
-    
+
     return level;
 };
 
@@ -103,12 +103,12 @@ function containersOfBucket(profile, bucketKey) {
 function getOwnedBuckets(profile = {}, inventory = []) {
     const cacheKey = getCacheKey(profile, inventory);
     const now = Date.now();
-    
+
     // Check cache first
     if (ownedBucketsCache && ownedBucketsCacheKey === cacheKey && (now - ownedBucketsCacheTime) < OWNED_BUCKETS_CACHE_DURATION) {
         return ownedBucketsCache;
     }
-    
+
     ensureContainers(profile, inventory);
     syncActiveBucket(profile, inventory);
 

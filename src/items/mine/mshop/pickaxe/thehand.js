@@ -3,8 +3,7 @@ module.exports = {
     name: 'Your Hand',
     cost: 0,
     desc: 'With great miners comes great pickaxe',
-    type: ['mine'], // not using
-    // Specific type for mining
+    type: ['mine'],
     durability: Infinity,
     luck: 1,
     stats: "• Free pickaxe\n• Never worry about durability\n• Cannot mining some specific ores",

@@ -1,4 +1,4 @@
-const { getRandomMineral } = require('./mineCore');
+const { getRandomMineral, RARITY_ORDER } = require('./mineCore');
 
 const GRID_TOTAL_CELLS = 25; // 5x5 layout
 const PLAYABLE_CELLS = 22; // indices 0..21 are playable
@@ -17,7 +17,7 @@ function shuffle(arr) {
     return arr;
 }
 
-function generateBoard() {
+function generateBoard(rollOptions = {}) {
     const bombCount = randomInt(3, 4);
     const mineralCount = randomInt(4, 6);
     
@@ -49,7 +49,7 @@ function generateBoard() {
     });
 
     for (const idx of mineralIndices) {
-        board[idx] = { type: 'mineral', revealed: false, adjacentMines: 0, mineral: getRandomMineral(), flagged: false };
+        board[idx] = { type: 'mineral', revealed: false, adjacentMines: 0, mineral: getRandomMineral(rollOptions), flagged: false };
     }
 
     // compute adjacent bombs
@@ -83,6 +83,18 @@ function countAdjacentBombs(board, index) {
     return getNeighbors(index).filter(i => board[i].type === 'bomb' || board[i].type === 'goldmine').length;
 }
 
+function addMineralLoot(session, mineral, sourceIndex) {
+    const item = Object.assign({}, mineral, { sourceIndex });
+    session.sessionLoot.push(item);
+
+    const duplicateChance = Math.max(0, Math.min(1, Number(session.rareDropDoubleChance) || 0));
+    const rarityIndex = RARITY_ORDER.indexOf(item.rarity);
+    if (rarityIndex >= RARITY_ORDER.indexOf('RARE') && Math.random() < duplicateChance) {
+        session.sessionLoot.push({ ...item });
+    }
+    return item;
+}
+
 function revealCell(session, index) {
     if (!session || !session.board) return { changed: false };
     const cell = session.board[index];
@@ -98,9 +110,7 @@ function revealCell(session, index) {
     if (cell.type === 'trap') return { hitBomb: false, revealedType: 'trap' };
 
     if (cell.type === 'mineral') {
-        // store sourceIndex so single-item commits can be handled
-        const item = Object.assign({}, cell.mineral, { sourceIndex: index });
-        session.sessionLoot.push(item);
+        const item = addMineralLoot(session, cell.mineral, index);
         cell.keepable = true;
         return { hitBomb: false, revealedType: 'mineral', mineral: item };
     }
@@ -123,8 +133,7 @@ function floodReveal(session, startIndex) {
             c.revealed = true;
             session.revealedCount = (session.revealedCount || 0) + 1;
             if (c.type === 'mineral') {
-                const item = Object.assign({}, c.mineral, { sourceIndex: ni });
-                session.sessionLoot.push(item);
+                addMineralLoot(session, c.mineral, ni);
                 c.keepable = true;
             }
             if (c.type === 'empty' && c.adjacentMines === 0 && !seen.has(ni)) {

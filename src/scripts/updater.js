@@ -1,8 +1,13 @@
+const fs = require('fs');
 const { execSync } = require('child_process');
 const readline = require('readline');
 const { createBackup } = require('./backup');
 
 let isUpdating = false;
+
+function isDockerEnvironment() {
+    return process.platform === 'linux' && fs.existsSync('/.dockerenv');
+}
 
 function execCmd(command) {
     try {
@@ -63,6 +68,10 @@ async function promptUpdate(versionData, showChangelog) {
 
 
 async function checkForUpdates(client) {
+    if (isDockerEnvironment()) {
+        return;
+    }
+
     if (isUpdating) return;
 
     const autoUpdate = process.env.AUTO_UPDATE === 'true';
@@ -206,6 +215,10 @@ async function checkForUpdates(client) {
 }
 
 function initUpdater(client) {
+    if (isDockerEnvironment()) {
+        return;
+    }
+
     const autoUpdate = process.env.AUTO_UPDATE === 'true';
     const intervalStr = process.env.CHECK_INTERVAL;
     let intervalMs = 3600 * 1000;

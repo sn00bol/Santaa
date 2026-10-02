@@ -6,7 +6,9 @@ module.exports = {
     type: ['mine'],
     durability: Infinity,
     luck: 5,
-    stats: '• Will and never breaks\n• 5x luck\n• Randomly 2x rare items per pick',
+    canMineLegendaryPlus: true,
+    rareDropDoubleChance: 0.1,
+    stats: '• Never breaks\n• 5x luck\n• 10% chance to duplicate mined Rare+ ores\n• Legendary+ ore veins yield one rarity lower',
     is_sellable: true,
     is_tradeable: true,
     show: true

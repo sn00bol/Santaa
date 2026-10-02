@@ -1,7 +1,8 @@
-v1.3.0-alpha.5
-- Make helmet could broken if lose
-- Upgrade Mining board more advance
-- Add some items for mining
+v1.3.0-alpha.6
+- Add location (alpha 7 will officially add srry) and skills for mining
+- Add specific skills for each pickaxe
+- Add how to play Fishing, Mining guide 
+- Support running via Docker
 
 # CHANGELOG
 
@@ -16,6 +17,7 @@ v1.3.0-alpha.5
 - Added a lot of new small minigames and memes
 - Other: add new mining achievements, reminder, bank limit to deposit
 - Allow to DMs bot and add slash commands
+- Allow to starting bot via docker
 - Revert from image to legacy embed for leaderboard, and balance
 - Fix your hand fishing stats
 - Fix fishing fake durability

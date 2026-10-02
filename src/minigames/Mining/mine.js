@@ -6,6 +6,7 @@ const mineCore = require('./mineCore');
 const mineBoard = require('./mineBoard');
 const mineUI = require('./mineUI');
 const mineShop = require('./mineShop');
+const mineSkills = require('./mineSkills');
 const { parseMiningProfile } = require('../../commands/Utils/miningSchema');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
 const formatNumber = require('../../commands/Utils/formatNumber');
@@ -73,6 +74,7 @@ module.exports = {
 
 		let view = 'main';
 		let session = null;
+		let skillState = { view: 'main', branch: null, skillIndex: 0 };
 		const shopState = { category: null, items: new Map(), returnToEquipment: false };
 		let backpackState = { view: 'overview', backpackKey: null, page: 0, showMineralSelect: false };
 		const collector = mainMsg.createMessageComponentCollector({ time: 300000 });
@@ -108,6 +110,13 @@ module.exports = {
 			});
 		};
 
+		const updateSkills = async (interaction, notice = null) => {
+			view = 'skills';
+			await interaction.update({
+				components: [mineUI.buildSkill(profile, skillState, notice)]
+			});
+		};
+
 		const openShopCategory = async (interaction, categoryKey) => {
 			if (!mineShop.CATEGORIES[categoryKey]) return interaction.deferUpdate();
 			view = 'shopCategory';
@@ -116,6 +125,18 @@ module.exports = {
 			await interaction.update({
 				components: [mineShop.buildCategoryContainer(categoryKey, shopState.items, { returnToEquipment: shopState.returnToEquipment })]
 			});
+		};
+
+		const getRollOptions = pickaxe => ({
+			pickaxe,
+			luckBonus: mineSkills.getSkillEffect('keen_eye', mineSkills.getSkillLevel(profile, 'keen_eye'))
+				+ mineSkills.getSkillEffect('vein_reader', mineSkills.getSkillLevel(profile, 'vein_reader')),
+		});
+
+		const calculateMiningExp = (loot, multiplier = 1) => {
+			const baseExp = loot.reduce((sum, mineral) => sum + mineCore.calculateExp(mineral), 0);
+			const skillBonus = mineSkills.getSkillEffect('efficient_strike', mineSkills.getSkillLevel(profile, 'efficient_strike'));
+			return Math.floor(baseExp * multiplier * (1 + skillBonus));
 		};
 
 		const startMining = async interaction => {
@@ -130,17 +151,45 @@ module.exports = {
 			let equipmentBroke = false;
 			const currentInventory = await rpgmanager.getInventory(userId);
 			const currentPickaxe = itemGroups.pickaxes.find(item => item.id === equipment.currentPickaxe);
+			const dynamiteInventoryEntry = currentPickaxe?.id === 'dynamite'
+				? currentInventory.find(item => item.item_id === 'dynamite')
+				: null;
 
-			if (currentPickaxe && currentPickaxe.id !== profile.fallbackPickaxe) {
-				const maxDurability = Number(currentPickaxe.durability) || 80;
-				const remainingDurability = Math.max(0, Number(equipment.pickaxeDurability) - 1);
-				equipment.pickaxeDurability = remainingDurability;
-				if (remainingDurability === 0) {
+			if (currentPickaxe?.id === 'dynamite') {
+				if (!dynamiteInventoryEntry) {
 					equipment.currentPickaxe = profile.fallbackPickaxe;
-					notices.push(`**${currentPickaxe.name}** broke. You switched to Your Hand.`);
-					equipmentBroke = true;
-				} else if (!Number.isFinite(Number(equipment.pickaxeDurability))) {
-					equipment.pickaxeDurability = maxDurability - 1;
+					equipment.pickaxeDurability = 0;
+					await rpgmanager.updateProgress(userId, { mining_profile: profile });
+					return updateEquipment(interaction, 'Dynamite was unavailable and has been unequipped.');
+				}
+				const availableCapacity = mineBackpack.getAvailableCapacity(profile, currentInventory);
+				if (availableCapacity < 3) {
+					return interaction.reply({
+						content: `Dynamite needs at least 3 free backpack slots. You currently have ${availableCapacity}. Free up space before using it.`,
+						ephemeral: true,
+					});
+				}
+			}
+
+			if (currentPickaxe && currentPickaxe.id !== profile.fallbackPickaxe && currentPickaxe.id !== 'dynamite') {
+				const maxDurability = Number(currentPickaxe.durability);
+				if (!Number.isFinite(maxDurability)) {
+					equipment.pickaxeDurability = Infinity;
+				} else {
+					const saveChance = mineSkills.getSkillEffect('steady_grip', mineSkills.getSkillLevel(profile, 'steady_grip'));
+					if (Math.random() < saveChance) {
+						notices.push('Steady Grip preserved your pickaxe durability.');
+					} else {
+						const remainingDurability = Math.max(0, Number(equipment.pickaxeDurability) - 1);
+						equipment.pickaxeDurability = remainingDurability;
+						if (remainingDurability === 0) {
+							equipment.currentPickaxe = profile.fallbackPickaxe;
+							notices.push(`**${currentPickaxe.name}** broke. You switched to Your Hand.`);
+							equipmentBroke = true;
+						} else if (!Number.isFinite(Number(equipment.pickaxeDurability))) {
+							equipment.pickaxeDurability = maxDurability - 1;
+						}
+					}
 				}
 			}
 
@@ -170,12 +219,34 @@ module.exports = {
 				return updateEquipment(interaction, notices.join('\n'));
 			}
 
+			if (dynamiteInventoryEntry) {
+				await rpgmanager.removeItem(dynamiteInventoryEntry.id);
+				equipment.currentPickaxe = profile.fallbackPickaxe;
+				equipment.pickaxeDurability = 0;
+				notices.push('💥 Dynamite self-destructed after use. You switched to Your Hand.');
+				await rpgmanager.updateProgress(userId, { mining_profile: profile });
+			}
+
 			const activeHelmet = itemGroups.helmets.find(item => item.id === equipment.currentHelmet);
-			const { board, bombCount, safeCells } = mineBoard.generateBoard();
+			const rollOptions = getRollOptions(currentPickaxe);
+			const dynamiteRollCount = currentPickaxe?.id === 'dynamite' ? mineCore.getDynamiteDropCount() : 0;
+			const dynamiteCommonChance = dynamiteRollCount ? mineCore.getDynamiteCommonChance() : null;
+			const dynamiteCapacity = dynamiteRollCount ? mineBackpack.getAvailableCapacity(profile, currentInventory) : 0;
+			const rolledDynamiteLoot = Array.from({ length: dynamiteRollCount }, () => mineCore.getRandomMineral({
+				...rollOptions,
+				dynamite: true,
+				commonChance: dynamiteCommonChance,
+			})).filter(Boolean);
+			const dynamiteLoot = mineCore.prioritizeMineralsByRarity(rolledDynamiteLoot, dynamiteCapacity);
+			const dynamiteDropCount = dynamiteLoot.length;
+			const { board, bombCount, safeCells } = mineBoard.generateBoard(rollOptions);
 			session = {
 				userId,
 				board,
-				sessionLoot: [],
+				sessionLoot: dynamiteLoot,
+				dynamiteLoot,
+				rollOptions,
+				rareDropDoubleChance: Number(currentPickaxe?.rareDropDoubleChance) || 0,
 				status: 'playing',
 				revealedCount: 0,
 				safeCells,
@@ -191,12 +262,13 @@ module.exports = {
 			view = 'board';
 			mineBoard.activeSessions.set(userId, session);
 			await interaction.update({
-				components: [mineUI.buildBoardContainer(message.author, currentStats, session)]
+				components: [mineUI.buildBoardContainer(message.author, currentStats, session, {
+					notice: notices.join('\n') || null,
+				})]
 			});
 		};
 
 		const commitLoot = async (loot, expMultiplier = 1) => {
-			let totalExp = 0;
 			const currentInventory = await rpgmanager.getInventory(userId);
 			let backpackNotice = '';
 
@@ -206,16 +278,16 @@ module.exports = {
 				if (placement && !placement.placed && placement.reason === 'full') {
 					backpackNotice = `\n> ⚠️ **${placement.backpackName}** is full! The overflow went to your general inventory.`;
 				}
-				totalExp += mineCore.calculateExp(mineral);
 			}
-			totalExp = Math.floor(totalExp * expMultiplier);
+			const totalExp = calculateMiningExp(loot, expMultiplier);
+			const { earnedPoints } = mineSkills.awardSkillPoints(profile, totalExp);
 
 			const currentStats = await rpgmanager.getStats(userId);
 			let { exp, level } = currentStats;
 			exp = (exp || 0) + totalExp;
 			while (exp >= level * 100) { exp -= level * 100; level++; }
 			await rpgmanager.updateProgress(userId, { exp, level, mining_profile: profile });
-			return backpackNotice;
+			return `${backpackNotice}${earnedPoints ? `\n> 🧠 Earned ${formatNumber(earnedPoints)} Mining Skill Point${earnedPoints === 1 ? '' : 's'}.` : ''}`;
 		};
 
 		const updateBoard = async (interaction, notice = null, revealAll = false) => {
@@ -251,29 +323,16 @@ module.exports = {
 
 			if (id.startsWith('mine_keep_')) {
 				const index = parseInt(id.slice('mine_keep_'.length), 10);
-				const lootIndex = session.sessionLoot.findIndex(item => item.sourceIndex === index);
-				if (lootIndex === -1) return updateBoard(interaction, 'That mineral was already claimed or is no longer available.');
-
-				const item = session.sessionLoot.splice(lootIndex, 1)[0];
-				await rpgmanager.addItem(userId, item.id, item.name);
-				
-				const currentInventory = await rpgmanager.getInventory(userId);
-				const placement = mineBackpack.placeMinedMineral(profile, currentInventory, item);
-				let overflowNotice = '';
-				if (placement && !placement.placed && placement.reason === 'full') {
-					overflowNotice = `\n> ⚠️ **${placement.backpackName}** is full! The overflow went to your general inventory.`;
-				}
-				
-				const expGain = mineCore.calculateExp(item);
+				const items = session.sessionLoot.filter(item => item.sourceIndex === index);
+				if (!items.length) return updateBoard(interaction, 'That mineral was already claimed or is no longer available.');
+				session.sessionLoot = session.sessionLoot.filter(item => item.sourceIndex !== index);
 				const statsNow = await rpgmanager.getStats(userId);
-				let newExp = (statsNow.exp || 0) + expGain;
-				let newLevel = statsNow.level || 1;
-				while (newExp >= newLevel * 100) { newExp -= newLevel * 100; newLevel++; }
-				await rpgmanager.updateProgress(userId, { exp: newExp, level: newLevel, mining_profile: profile });
+				const overflowNotice = await commitLoot(items);
 				if (session.board[index]) session.board[index].committed = true;
-				await updateBoard(interaction, `Kept **${item.name}** and added it to your inventory.${overflowNotice}`);
-				if (newLevel > (Number(statsNow.level) || 1)) {
-					notifi.notifyLevelUp(message.client, userId, formatNumber(newLevel));
+				await updateBoard(interaction, `Kept **${items[0].name}**${items.length > 1 ? ` and its ${items.length - 1} duplicate` : ''} and added it to your inventory.${overflowNotice}`);
+				const statsAfter = await rpgmanager.getStats(userId);
+				if ((statsAfter.level || 1) > (Number(statsNow.level) || 1)) {
+					notifi.notifyLevelUp(message.client, userId, formatNumber(statsAfter.level));
 				}
 				return;
 			}
@@ -320,7 +379,7 @@ module.exports = {
 					await rpgmanager.updateProgress(userId, { exp: newExp, level: newLevel });
 					chestNotice = `🎁 **CHEST!** You gained ${expBonus} EXP!`;
 				} else {
-					const mineral = mineCore.getRandomMineral();
+					const mineral = mineCore.getRandomMineral(session.rollOptions);
 					await rpgmanager.addItem(userId, mineral.id, mineral.name);
 					chestNotice = `🎁 **CHEST!** You found a **${mineral.name}**!`;
 				}
@@ -377,9 +436,11 @@ module.exports = {
 					}
 				} else {
 					const newHealth = Math.max(0, currentStats.health - 15);
-					await rpgmanager.updateStats(userId, newHealth, currentStats.stamina);
+					const damageReduction = mineSkills.getSkillEffect('blast_training', mineSkills.getSkillLevel(profile, 'blast_training'));
+					const damage = Math.max(1, 15 - damageReduction);
+					await rpgmanager.updateStats(userId, Math.max(0, currentStats.health - damage), currentStats.stamina);
 					await rpgmanager.updateProgress(userId, { mining_profile: profile });
-					return updateBoard(interaction, '💥 **BOMB!** You hit a bomb without helmet protection and lost your session loot. -15 HP.', true);
+					return updateBoard(interaction, `💥 **BOMB!** You hit a bomb without helmet protection and lost your session loot. -${damage} HP.`, true);
 				}
 			}
 
@@ -514,8 +575,51 @@ module.exports = {
 					}
 				}
 				if (id === 'mine_skills') {
-					view = 'skills';
-					return await interaction.update({ components: [mineUI.buildSkill(profile)] });
+					skillState = { view: 'main', branch: null, skillIndex: 0 };
+					return await updateSkills(interaction);
+				}
+				if (id === 'mine_skill_branch') {
+					const branch = interaction.values[0];
+					skillState = branch === 'main'
+						? { view: 'main', branch: null, skillIndex: 0 }
+						: { view: 'branch', branch, skillIndex: 0 };
+					return await updateSkills(interaction);
+				}
+				if (id === 'mine_skill_unlock' || id === 'mine_skill_unlock_all') {
+					const branch = mineSkills.SKILL_BRANCHES[skillState.branch];
+					const skill = branch?.skills[Math.max(0, Math.min(skillState.skillIndex || 0, (branch?.skills.length || 1) - 1))];
+					if (!skill) return await updateSkills(interaction, 'Skill not found.');
+
+					if (id === 'mine_skill_unlock') {
+						const result = mineSkills.unlockSkillLevel(profile, skill.id);
+					if (!result.ok) return await updateSkills(interaction, result.message);
+					} else {
+						let result = { ok: true };
+						while (mineSkills.getSkillLevel(profile, skill.id) < skill.maxLevel) {
+							result = mineSkills.unlockSkillLevel(profile, skill.id);
+							if (!result.ok) break;
+						}
+						if (!result.ok) return await updateSkills(interaction, result.message);
+					}
+
+					await rpgmanager.updateProgress(userId, { mining_profile: profile });
+					return await updateSkills(interaction);
+				}
+				if (id === 'mine_skill_reset') {
+					mineSkills.resetSkills(profile);
+					await rpgmanager.updateProgress(userId, { mining_profile: profile });
+					return await updateSkills(interaction, 'All skill points have been refunded.');
+				}
+				if (id === 'mine_skill_back') {
+					skillState = { view: 'main', branch: null, skillIndex: 0 };
+					return await updateSkills(interaction);
+				}
+				if (id === 'mine_skill_prev' || id === 'mine_skill_next') {
+					const skills = mineSkills.SKILL_BRANCHES[skillState.branch]?.skills || [];
+					if (!skills.length) return await updateSkills(interaction);
+					const direction = id === 'mine_skill_next' ? 1 : -1;
+					skillState.skillIndex = (skillState.skillIndex + direction + skills.length) % skills.length;
+					return await updateSkills(interaction);
 				}
 				if (id === 'mine_equipment') return await updateEquipment(interaction);
 				if (id === 'mine_equipment_back') return await updateMain(interaction);
@@ -528,6 +632,10 @@ module.exports = {
 					if (!owns) return await updateEquipment(interaction, 'You dont own this item!');
 					profile.equipment = profile.equipment || {};
 					profile.equipment.currentPickaxe = selected;
+					const selectedPickaxe = itemGroups.pickaxes.find(item => item.id === selected);
+					profile.equipment.pickaxeDurability = Number.isFinite(Number(selectedPickaxe?.durability))
+						? Number(selectedPickaxe.durability)
+						: Infinity;
 					await rpgmanager.updateProgress(userId, { mining_profile: profile });
 					return await updateEquipment(interaction);
 				}

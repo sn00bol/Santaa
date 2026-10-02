@@ -6,7 +6,6 @@ const mineShop = require('./mineShop');
 
 const FREE_SLOT_COUNT = 5;
 
-// Cache for owned backpacks to reduce repeated calculations
 let ownedBackpacksCache = null;
 let ownedBackpacksCacheKey = null;
 let ownedBackpacksCacheTime = 0;
@@ -16,10 +15,6 @@ const getCacheKey = (profile, inventory) => {
     return `${profile.equipment?.currentBackpack || 'defaultbackpack'}_${inventory.length}`;
 };
 
-/**
- * Returns true if the item definition is a valid mining backpack
- * (has a positive capacity AND belongs to the 'mine' type).
- */
 function isBackpackItemDefinition(itemDef) {
     return Boolean(itemDef)
         && typeof itemDef.capacity === 'number'
@@ -28,10 +23,6 @@ function isBackpackItemDefinition(itemDef) {
         && itemDef.type.includes('mine');
 }
 
-/**
- * Ensure every backpack in the player's inventory has a container state entry in
- * profile.backpack.containers. Creates empty state for new ones.
- */
 function ensureContainers(profile, inventory) {
     profile.backpack = (profile.backpack && typeof profile.backpack === 'object') ? profile.backpack : {};
     if (!profile.backpack.containers || typeof profile.backpack.containers !== 'object') {
@@ -50,10 +41,6 @@ function ensureContainers(profile, inventory) {
     return containers;
 }
 
-/**
- * Get the container state for a specific backpack copy (by DB row id).
- * Lazily creates the state if it doesn't exist yet.
- */
 function getContainerState(profile, backpackKey) {
     profile.backpack = (profile.backpack && typeof profile.backpack === 'object') ? profile.backpack : {};
     if (!profile.backpack.containers || typeof profile.backpack.containers !== 'object') {
@@ -66,10 +53,6 @@ function getContainerState(profile, backpackKey) {
     return profile.backpack.containers[key];
 }
 
-/**
- * Resolve the player's owned backpacks from their inventory.
- * One entry per physical backpack copy. Cached for OWNED_BACKPACKS_CACHE_DURATION ms.
- */
 function getOwnedBackpacks(profile = {}, inventory = []) {
     const cacheKey = getCacheKey(profile, inventory);
     const now = Date.now();
@@ -114,9 +97,6 @@ function getOwnedBackpacks(profile = {}, inventory = []) {
     return owned;
 }
 
-/**
- * Aggregate filled / capacity across all owned backpacks.
- */
 function getBackpackTotals(ownedBackpacks = []) {
     return ownedBackpacks.reduce((acc, bp) => {
         acc.filled += bp.items.length;
@@ -124,20 +104,18 @@ function getBackpackTotals(ownedBackpacks = []) {
         return acc;
     }, { filled: 0, capacity: 0 });
 }
-
-/**
- * Summary shown on the mining main menu: aggregate minerals / capacity across
- * ALL backpacks the player owns. Returns zeros when no backpacks are found.
- */
 function getBackpackSummary(profile = {}, inventory = []) {
     const owned = getOwnedBackpacks(profile, inventory);
     const totals = getBackpackTotals(owned);
     return { filled: totals.filled, capacity: totals.capacity, owned: owned.length };
 }
 
-/**
- * Prev/next navigation between the player's backpacks. Disabled when only 1.
- */
+function getAvailableCapacity(profile = {}, inventory = []) {
+    return getOwnedBackpacks(profile, inventory)
+        .filter(backpack => !backpack.locked)
+        .reduce((total, backpack) => total + Math.max(0, backpack.capacity - backpack.items.length), 0);
+}
+
 function getBackpackNavigation(profile = {}, inventory = [], backpackKey) {
     const owned = getOwnedBackpacks(profile, inventory);
     const idx = owned.findIndex(bp => String(bp.rowId) === String(backpackKey));
@@ -150,22 +128,15 @@ function getBackpackNavigation(profile = {}, inventory = [], backpackKey) {
     };
 }
 
-/**
- * Toggle the locked state of a specific backpack copy.
- */
 function toggleBackpackLock(profile, backpackKey) {
     const state = getContainerState(profile, backpackKey);
     state.locked = !state.locked;
-    // Invalidate cache so next read reflects the new lock state
+
     ownedBackpacksCache = null;
     ownedBackpacksCacheKey = null;
     return state.locked;
 }
 
-/**
- * Place a mined mineral into the player's active (or first available) backpack.
- * Falls back to next unlocked/non-full backpack if the active one is full/locked.
- */
 function placeMinedMineral(profile, inventory, mineral) {
     const owned = getOwnedBackpacks(profile, inventory);
     let target = owned.find(bp => bp.isActive) || owned[0] || null;
@@ -187,9 +158,6 @@ function placeMinedMineral(profile, inventory, mineral) {
     return { placed: true, backpackName: target.name, capacity: target.capacity };
 }
 
-/**
- * Sell a single mineral from a specific backpack slot.
- */
 async function sellMineralFromBackpack(userId, profile, inventory, backpackKey, mineralIndex) {
     const owned = getOwnedBackpacks(profile, inventory);
 
@@ -222,9 +190,6 @@ async function sellMineralFromBackpack(userId, profile, inventory, backpackKey, 
     };
 }
 
-/**
- * Sell all sellable minerals from one backpack (by key) or from all unlocked backpacks ('all').
- */
 async function sellAllMinerals(userId, profile, inventory, backpackKeyOrAll) {
     const owned = getOwnedBackpacks(profile, inventory);
 
@@ -292,6 +257,7 @@ module.exports = {
     getOwnedBackpacks,
     getBackpackTotals,
     getBackpackSummary,
+    getAvailableCapacity,
     getBackpackNavigation,
     getContainerState,
     toggleBackpackLock,

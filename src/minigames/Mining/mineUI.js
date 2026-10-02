@@ -10,9 +10,11 @@ const {
 const formatNumber = require('../../commands/Utils/formatNumber');
 const mineCore = require('./mineCore');
 const mineBackpack = require('./mineBackpack');
+const mineSkills = require('./mineSkills');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
+const MINING_GUIDE_URL = 'https://github.com/sn00bol/Santaa/blob/alpha/docs/instruction/Mine.md';
 
 const CELL_EMOJI = {
     hidden: '🔲',
@@ -92,7 +94,8 @@ function buildMain(user, stats, inventory = [], backpacks = [], notice = null, p
     const secondRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('mine_equipment').setLabel('Equipment').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('mine_location').setLabel('Location').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('mine_now').setLabel('Mining now').setStyle(ButtonStyle.Success)
+        new ButtonBuilder().setCustomId('mine_now').setLabel('Mining now').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setLabel('\u200B').setStyle(ButtonStyle.Link).setURL(MINING_GUIDE_URL)
     );
 
     return container
@@ -490,13 +493,36 @@ function buildButtonRows(session, revealAll = false) {
     return rows;
 }
 
+function buildDynamiteLootText(session) {
+    const bonusLoot = session.status === 'playing' && Array.isArray(session.dynamiteLoot)
+        ? session.dynamiteLoot
+        : [];
+    if (!bonusLoot.length) return '';
+
+    const groupedLoot = new Map();
+    for (const mineral of bonusLoot) {
+        const key = `${mineral.rarity}:${mineral.name}`;
+        const entry = groupedLoot.get(key) || { mineral, count: 0 };
+        entry.count++;
+        groupedLoot.set(key, entry);
+    }
+
+    const itemsText = Array.from(groupedLoot.values())
+        .map(({ mineral, count }) => {
+            const rarity = mineCore.RARITY_CONFIG[mineral.rarity]?.label || 'Common';
+            return `• **${mineral.name}** (${rarity})${count > 1 ? ` ×${formatNumber(count)}` : ''}`;
+        })
+        .join('\n');
+    return `🧨 **Dynamite bonus: ${formatNumber(bonusLoot.length)} ores**\n${itemsText}`;
+}
+
 function buildBoardContainer(user, stats, session, { revealAll = false, notice = null } = {}) {
     const flagMode = session.flagMode || false;
     const frozenLeft = session.frozenUntil && session.frozenUntil > Date.now()
         ? ` · ❄️ Frozen ${Math.ceil((session.frozenUntil - Date.now()) / 1000)}s`
         : '';
     const footer = `-# Safe tiles: ${formatNumber(session.revealedCount || 0)}/${formatNumber(session.safeCells || 0)}${frozenLeft}`;
-    const bodyText = `${notice ? `> ${notice}\n\n` : ''}${footer}`;
+    const bodyText = [notice ? `> ${notice}` : '', buildDynamiteLootText(session), footer].filter(Boolean).join('\n\n');
     const container = new ContainerBuilder()
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ⛏️ Mining · ${user.username}`))
         .addSeparatorComponents(new SeparatorBuilder())
@@ -545,24 +571,99 @@ function buildLocation(profile = {}, notice = null) {
         .addActionRowComponents(navRow);
 }
 
-function buildSkill(profile = {}, notice = null) {
-    const container = new ContainerBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('# 🧠 Mining Skills\n> Level up your mining masteries to extract rare ores.'))
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('*Mining skill tree is coming soon!*'));
-
-    if (notice) {
-        container.addSeparatorComponents(new SeparatorBuilder())
-            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`> ${notice}`));
-    }
-
-    const navRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('mine_menu_back').setLabel('Back to Mining').setStyle(ButtonStyle.Secondary)
+function buildSkill(profile = {}, skillState = null, notice = null) {
+    const state = skillState || { view: 'main', branch: null, skillIndex: 0 };
+    const availablePoints = mineSkills.getAvailablePoints(profile);
+    const totalXp = Number(profile.skill?.totalXp) || 0;
+    const nextPointXp = (Math.floor(totalXp / 100) + 1) * 100;
+    const expText = `Mining EXP: **${formatNumber(totalXp)} / ${formatNumber(nextPointXp)}** to next Skill Point`;
+    const branchOptions = [
+        { label: 'All skills', value: 'main', description: 'Overview of every skill branch', default: state.view === 'main' },
+        ...Object.entries(mineSkills.SKILL_BRANCHES).map(([key, branch]) => ({
+            label: `${branch.emoji} ${branch.label}`,
+            value: key,
+            default: state.view === 'branch' && state.branch === key,
+        })),
+    ];
+    const branchSelectRow = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId('mine_skill_branch')
+            .setPlaceholder('Select a skill branch')
+            .addOptions(branchOptions)
     );
 
-    return container
+    if (state.view !== 'branch' || !mineSkills.SKILL_BRANCHES[state.branch]) {
+        let listText = '';
+        for (const branch of Object.values(mineSkills.SKILL_BRANCHES)) {
+            listText += `### ${branch.emoji} ${branch.label}\n`;
+            for (const skill of branch.skills) {
+                const bar = mineSkills.buildBranchBar(profile, { skills: [skill] }, 8);
+                listText += `[${bar}] **${skill.name}**\n`;
+            }
+            listText += '\n';
+        }
+
+        const actionRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('mine_menu_back').setLabel('Back to Mining').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('mine_skill_reset')
+                .setLabel('Reset skills')
+                .setStyle(ButtonStyle.Danger)
+                .setDisabled(mineSkills.getSpentPoints(profile) === 0)
+        );
+
+        const container = new ContainerBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🧠 Mining Skills\nSkill Points: **${formatNumber(availablePoints)}**\n${expText}`))
+            .addSeparatorComponents(new SeparatorBuilder())
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(listText.trim()))
+            .addSeparatorComponents(new SeparatorBuilder())
+            .addActionRowComponents(actionRow)
+            .addSeparatorComponents(new SeparatorBuilder())
+            .addActionRowComponents(branchSelectRow);
+        if (notice) container.addSeparatorComponents(new SeparatorBuilder()).addTextDisplayComponents(new TextDisplayBuilder().setContent(`> ${notice}`));
+        return container;
+    }
+
+    const branch = mineSkills.SKILL_BRANCHES[state.branch];
+    const skillIndex = Math.max(0, Math.min(state.skillIndex || 0, branch.skills.length - 1));
+    const skill = branch.skills[skillIndex];
+    const currentLevel = mineSkills.getSkillLevel(profile, skill.id);
+    const isMaxed = currentLevel >= skill.maxLevel;
+    const prereq = skill.prereq && mineSkills.getSkillLevel(profile, skill.prereq) < 1
+        ? mineSkills.findSkill(skill.prereq)?.skill.name || skill.prereq
+        : null;
+    const header = `## ${branch.emoji} ${skill.name}\n> ${skill.desc}${prereq ? `\n> Requires **${prereq}** first.` : ''}`;
+    const body = `Skill Points: **${formatNumber(availablePoints)}** | ${expText}\n\n${mineSkills.buildLevelList(profile, skill)}`;
+    const levelsToMax = skill.maxLevel - currentLevel;
+    const canUnlockAll = !isMaxed && !prereq && availablePoints >= levelsToMax * skill.cost;
+    const actionRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('mine_skill_prev')
+            .setEmoji('1502935282272436306')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('mine_skill_back').setLabel('Go back').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('mine_skill_unlock')
+            .setLabel(isMaxed ? '✅ Maxed' : `Unlock ${mineSkills.ROMAN[currentLevel] || 'Next'}`)
+            .setStyle(isMaxed ? ButtonStyle.Secondary : ButtonStyle.Success)
+            .setDisabled(isMaxed || availablePoints < skill.cost || Boolean(prereq)),
+        new ButtonBuilder().setCustomId('mine_skill_unlock_all').setLabel('Unlock All').setStyle(ButtonStyle.Primary).setDisabled(!canUnlockAll),
+        new ButtonBuilder()
+            .setCustomId('mine_skill_next')
+            .setEmoji('1502935300677046412')
+            .setStyle(ButtonStyle.Secondary)
+    );
+
+    const container = new ContainerBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(header))
         .addSeparatorComponents(new SeparatorBuilder())
-        .addActionRowComponents(navRow);
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(body))
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addActionRowComponents(actionRow)
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addActionRowComponents(branchSelectRow);
+    if (notice) container.addSeparatorComponents(new SeparatorBuilder()).addTextDisplayComponents(new TextDisplayBuilder().setContent(`> ${notice}`));
+    return container;
 }
 
 module.exports = {

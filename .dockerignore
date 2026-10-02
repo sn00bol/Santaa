@@ -1,0 +1,10 @@
+.env
+.env.*
+.git
+node_modules
+.backups
+.scrap_dbtest
+test
+database/*.db*
+database/bosses_memory/
+database/inflation.json

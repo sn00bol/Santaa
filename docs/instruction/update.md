@@ -49,3 +49,5 @@ D:\Santaa>
 To change where to update, set `UPDATE_REPOSITORY` to the repository URL and change `UPDATE_BRANCH` to `main` (for stable), `alpha` (for latest dev/feature) or `beta` (for latest unstable feature). If `UPDATE_REPOSITORY` is empty, the updater keeps using the repository already configured as the local Git `origin` remote.
 
 (If you saw this link `https://github.com/meh2025/Example-Discord-Bot-using-Javascript` at the top of response, it basically old repo name of bots)
+
+Finally, updater WILL and NERVER work in Docker because I have disable for its unstable, you could enable it back but not recommend

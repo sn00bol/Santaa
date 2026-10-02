@@ -11,6 +11,8 @@ const RARITY_CONFIG = {
     MYTHIC:    { weight: 0.5,  label: 'Mythic',    emoji: '🔴', valueMultiplier: 200, exp: 300 },
 };
 
+const RARITY_ORDER = Object.keys(RARITY_CONFIG);
+
 const mineralData = { COMMON: [], UNCOMMON: [], RARE: [], EPIC: [], LEGENDARY: [], MYTHIC: [] };
 
 const resolveMineralsBaseDir = () => {
@@ -40,18 +42,80 @@ const loadMinerals = () => {
 
 loadMinerals();
 
-const getRandomMineral = () => {
-    const roll = Math.random() * 100;
-    let cumulativeWeight = 0;
+const getRandomMineral = (options = {}) => {
+    const random = typeof options.random === 'function' ? options.random : Math.random;
+    const pickaxe = options.pickaxe || null;
+    const rawLuck = Number(options.luck ?? pickaxe?.luck);
+    const luck = Math.max(0.05, (Number.isFinite(rawLuck) ? rawLuck : 1) + (Number(options.luckBonus) || 0));
+    const canMineLegendaryPlus = !options.dynamite && Boolean(pickaxe?.canMineLegendaryPlus);
+    const availableRarities = RARITY_ORDER.filter(rarity => mineralData[rarity].length > 0);
+    if (!availableRarities.length) return null;
 
-    for (const [rarity, config] of Object.entries(RARITY_CONFIG)) {
-        cumulativeWeight += config.weight;
-        if (roll <= cumulativeWeight) {
-            const pool = mineralData[rarity];
-            return pool[Math.floor(Math.random() * pool.length)];
+    const tierWeights = availableRarities.map(rarity => {
+        const tier = RARITY_ORDER.indexOf(rarity);
+        const blocked = tier >= RARITY_ORDER.indexOf('LEGENDARY') && !canMineLegendaryPlus;
+        return {
+            rarity,
+            weight: blocked ? 0 : RARITY_CONFIG[rarity].weight * (luck ** tier),
+        };
+    });
+    const eligibleWeights = tierWeights.filter(entry => entry.weight > 0);
+    const totalWeight = eligibleWeights.reduce((sum, entry) => sum + entry.weight, 0);
+    if (!totalWeight) return mineralData.COMMON[0] || mineralData[availableRarities[0]][0];
+
+    let target;
+    if (options.dynamite) {
+        const configuredChance = Number(options.commonChance);
+        const commonChance = Number.isFinite(configuredChance)
+            ? Math.max(0.9, Math.min(0.95, configuredChance))
+            : getDynamiteCommonChance(random);
+        if (random() < commonChance && mineralData.COMMON.length) {
+            return mineralData.COMMON[Math.floor(random() * mineralData.COMMON.length)];
+        }
+        const nonCommon = eligibleWeights.filter(entry => entry.rarity !== 'COMMON');
+        target = random() * nonCommon.reduce((sum, entry) => sum + entry.weight, 0);
+        for (const entry of nonCommon) {
+            target -= entry.weight;
+            if (target < 0) {
+                return mineralData[entry.rarity][Math.floor(random() * mineralData[entry.rarity].length)];
+            }
+        }
+        const fallbackRarity = nonCommon[0]?.rarity || 'COMMON';
+        return mineralData[fallbackRarity][0];
+    }
+
+    target = random() * totalWeight;
+    let selectedRarity = eligibleWeights[0].rarity;
+    for (const entry of eligibleWeights) {
+        target -= entry.weight;
+        if (target < 0) {
+            selectedRarity = entry.rarity;
+            break;
         }
     }
-    return mineralData.COMMON[0];
+
+    if (canMineLegendaryPlus) {
+        const selectedTier = RARITY_ORDER.indexOf(selectedRarity);
+        if (selectedTier >= RARITY_ORDER.indexOf('LEGENDARY')) {
+            const lowerTier = RARITY_ORDER[selectedTier - 1];
+            selectedRarity = mineralData[lowerTier].length
+                ? lowerTier
+                : [...availableRarities].reverse().find(rarity => RARITY_ORDER.indexOf(rarity) < selectedTier) || lowerTier;
+        }
+    }
+
+    const pool = mineralData[selectedRarity];
+    return pool[Math.floor(random() * pool.length)];
+};
+
+const getDynamiteCommonChance = (random = Math.random) => 0.9 + random() * 0.05;
+const getDynamiteDropCount = (random = Math.random) => 3 + Math.floor(random() * 3);
+
+const prioritizeMineralsByRarity = (minerals, capacity) => {
+    const limit = Math.max(0, Math.floor(Number(capacity) || 0));
+    return [...minerals]
+        .sort((left, right) => RARITY_ORDER.indexOf(right.rarity) - RARITY_ORDER.indexOf(left.rarity))
+        .slice(0, limit);
 };
 
 const calculateExp = (mineral) => {
@@ -66,7 +130,11 @@ const calculateExp = (mineral) => {
 
 module.exports = {
     RARITY_CONFIG,
+    RARITY_ORDER,
     mineralData,
     getRandomMineral,
+    getDynamiteCommonChance,
+    getDynamiteDropCount,
+    prioritizeMineralsByRarity,
     calculateExp
 };

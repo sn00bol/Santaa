@@ -9,6 +9,7 @@ const fishBucket = require('./fishBucket');
 const mapManager = require('./MapManager');
 const weatherManager = require('./WeatherManager');
 const fishSkills = require('./fishSkills');
+const FISH_GUIDE_URL = 'https://github.com/meh2025/Example-Discord-Bot-using-Javascript/blob/alpha/docs/instruction/Fish.md';
 
 function resolveItemName(itemId, fallback) {
     const item = allItemsCache.get(itemId);
@@ -132,7 +133,11 @@ function buildMain(profile = {}, inventory = null, noticeMessage = null) {
             .setCustomId('fish_now')
             .setLabel('Fishing now')
             .setStyle(profile.currentMap ? ButtonStyle.Success : ButtonStyle.Secondary)
-            .setDisabled(!profile.currentMap)
+            .setDisabled(!profile.currentMap),
+        new ButtonBuilder()
+            .setLabel('\u200B')
+            .setStyle(ButtonStyle.Link)
+            .setURL(FISH_GUIDE_URL)
     );
 
     const container = new ContainerBuilder()

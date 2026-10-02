@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    env_file:
+      - .env
+    environment:
+      AUTO_UPDATE: "false"
+    user: "${SANTAA_UID:-1000}:${SANTAA_GID:-1000}"
+    volumes:
+      - ./database:/app/database
+    restart: unless-stopped

@@ -1,4 +1,9 @@
 const DEFAULT_MINING_PROFILE = {
+    skill: {
+        totalPoints: 0,
+        totalXp: 0,
+        levels: {},
+    },
     equipment: {
         currentPickaxe: 'defaultpickaxe',
         currentHelmet: 'defaulthelmet',
@@ -27,6 +32,10 @@ function parseMiningProfile(raw) {
     }
 
     const fallbackPickaxe = parsed.fallbackPickaxe || DEFAULT_MINING_PROFILE.fallbackPickaxe;
+    const skill = parsed.skill && typeof parsed.skill === 'object' ? parsed.skill : {};
+    const skillLevels = skill.levels && typeof skill.levels === 'object' && !Array.isArray(skill.levels)
+        ? skill.levels
+        : {};
     const equipment = {
         ...DEFAULT_MINING_PROFILE.equipment,
         ...(parsed.equipment && typeof parsed.equipment === 'object' ? parsed.equipment : {}),
@@ -59,6 +68,13 @@ function parseMiningProfile(raw) {
 
     return {
         ...parsed,
+        skill: {
+            ...DEFAULT_MINING_PROFILE.skill,
+            ...skill,
+            totalPoints: Math.max(0, Number(skill.totalPoints) || 0),
+            totalXp: Math.max(0, Number(skill.totalXp) || 0),
+            levels: skillLevels,
+        },
         equipment,
         fallbackPickaxe,
         initialItemsGranted: Boolean(parsed.initialItemsGranted),
