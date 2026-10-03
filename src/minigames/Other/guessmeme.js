@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ComponentType, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags} = require('discord.js');
 
 function buildGuessContainer(question, ownerId, hint, status, buttonMode = 'answer') {
@@ -35,12 +36,12 @@ module.exports = {
     try {
       const question = await this.getRandomMeme();
       if (!question) {
-        return message.reply('Could not connect to the meme database. Please try again later');
+        return replyToCommand(message, 'Could not connect to the meme database. Please try again later');
       }
 
       const hint = this.generateHint(question.answer);
-      const ownerId = message.author.id;
-      const sent = await message.channel.send({
+      const ownerId = getCommandUser(message).id;
+      const sent = await sendCommandMessage(message, {
         components: [buildGuessContainer(question, ownerId, hint, '')],
         flags: [MessageFlags.IsComponentsV2]
       });
@@ -173,7 +174,7 @@ module.exports = {
 
     } catch (error) {
       console.error('Error in guessmeme game:', error);
-      message.reply('An error occurred while running the game. Please try again!');
+      replyToCommand(message, 'An error occurred while running the game. Please try again!');
     }
   },
 

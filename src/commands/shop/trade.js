@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ComponentType } = require('discord.js');
 const rpgmanager = require('../../../database/rpgmanager');
 const dbmanager = require('../../../database/dbmanager');
@@ -131,26 +132,28 @@ module.exports = {
     category: 'eco',
     usage: 'Ztrade `@user`',
     notes: 'Can only trade items that are tradeable.',
-    args: [
+    slashOptions: [
         { name: 'target', description: 'The user to trade with', type: 'user', required: true },
     ],
 
     async execute(message, args) {
         const allItems = loadItems();
-        const userA = message.author;
+        const userA = getCommandUser(message);
 
-        const userB = message.mentions.users.first();
+        const userB = message.isChatInputCommand?.()
+            ? message.options.getUser('target')
+            : message.mentions.users.first();
         if (!userB)
-            return message.reply('Usage: `Ztrade `@user``');
+            return replyToCommand(message, 'Usage: `Ztrade `@user``');
         if (userB.id === userA.id)
-            return message.reply('You cannot trade with yourself!');
+            return replyToCommand(message, 'You cannot trade with yourself!');
         if (userB.bot)
-            return message.reply('You cannot trade with a bot!');
+            return replyToCommand(message, 'You cannot trade with a bot!');
 
         const recipientSettings = await dbmanager.getUserSettings(userB.id);
         const tradeLock = getSetting('trade_lock');
         if (tradeLock.blocksIncomingTrade(recipientSettings)) {
-            return message.reply(`${userB.username} has trade requests disabled.`);
+            return replyToCommand(message, `${userB.username} has trade requests disabled.`);
         }
         const dmNotifications = getSetting('reminder');
 
@@ -174,7 +177,7 @@ module.exports = {
                 .setStyle(ButtonStyle.Danger)
         );
 
-        const requestMsg = await message.channel.send({
+        const requestMsg = await sendCommandMessage(message, {
             content: `${userB}`,
             embeds: [requestEmbed],
             components: [requestRow],
@@ -383,12 +386,12 @@ module.exports = {
                         const val = parseInt(collected.first().content);
                         collected.first().delete().catch(() => { });
                         if (isNaN(val) || val < 0)
-                            return message.channel.send({ content: `${i.user} ❌ Invalid amount.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
+                            return sendCommandMessage(message, { content: `${i.user} ❌ Invalid amount.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
 
                         // Validate user has enough
                         const userDb = await dbmanager.getUser(i.user.id);
                         if (val > userDb.balance)
-                            return message.channel.send({ content: `${i.user} ❌ You only have **$${formatNumber(userDb.balance)}** balance.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
+                            return sendCommandMessage(message, { content: `${i.user} ❌ You only have **$${formatNumber(userDb.balance)}** balance.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
 
                         if (side === 'A') { moneyA = val; readyA = false; }
                         else { moneyB = val; readyB = false; }
@@ -405,11 +408,11 @@ module.exports = {
                         const val = parseInt(collected.first().content);
                         collected.first().delete().catch(() => { });
                         if (isNaN(val) || val < 0)
-                            return message.channel.send({ content: `${i.user} ❌ Invalid amount.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
+                            return sendCommandMessage(message, { content: `${i.user} ❌ Invalid amount.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
 
                         const userDb = await dbmanager.getUser(i.user.id);
                         if (val > userDb.bank)
-                            return message.channel.send({ content: `${i.user} ❌ You only have **$${formatNumber(userDb.bank)}** bank balance.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
+                            return sendCommandMessage(message, { content: `${i.user} ❌ You only have **$${formatNumber(userDb.bank)}** bank balance.`, allowedMentions: { users: [i.user.id] } }).then(m => setTimeout(() => m.delete().catch(() => { }), 4000));
 
                         if (side === 'A') { bankA = val; readyA = false; }
                         else { bankB = val; readyB = false; }

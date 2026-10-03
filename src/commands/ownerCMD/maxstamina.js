@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 require('dotenv').config();
 const { getTotalStats } = require('../Utils/StatsCalculator');
 const formatNumber = require('../Utils/formatNumber');
@@ -7,11 +8,13 @@ module.exports = {
     description: 'GET BACK TO WORK!!! (Owner only)',
     category: 'owner',
     usage: 'Zmaxstamina `@user`',
-    args: [
+    slashOptions: [
         { name: 'target', description: 'The user whose stamina to restore', type: 'user', required: false },
     ],
-    async execute(message, args) {
-        const targetUser = message.mentions.users.first() || message.author;
+    async execute(message) {
+        const targetUser = message.isChatInputCommand?.()
+            ? message.options.getUser('target') || getCommandUser(message)
+            : message.mentions.users.first() || getCommandUser(message);
         const rpgmanager = message.client.rpg || require('../../../database/rpgmanager');
 
         try {
@@ -20,10 +23,10 @@ module.exports = {
             
             await rpgmanager.updateStats(targetUser.id, currentStats.health, totalStats.maxStamina);
             
-            message.reply(`Fully restored **${targetUser.username}**'s stamina to ${formatNumber(totalStats.maxStamina)}!`);
+            replyToCommand(message, `Fully restored **${targetUser.username}**'s stamina to ${formatNumber(totalStats.maxStamina)}!`);
         } catch (error) {
             console.error(error);
-            message.reply('An error occurred while restoring stamina.');
+            replyToCommand(message, 'An error occurred while restoring stamina.');
         }
     }
 };

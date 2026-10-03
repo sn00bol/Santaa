@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { attemptRun, executeAttack, applyLosses, awardExperience, recordMatch } = require('./pvpCore'); // core logic
 const { decideBotAction, applyTurn } = require('./botPvpLogic');
@@ -21,24 +22,38 @@ module.exports = {
   description: 'Challenge another user to a PvP duel',
   category: 'mie',
   usage: 'Zpvp `@user`/`boss`/`bot`',
-  args: [
-    { name: 'target', description: 'User mention, boss, or bot', type: 'string', required: true },
+  slashOptions: [
+    { name: 'target', description: 'The user to challenge', type: 'user', required: false },
+    { name: 'mode', description: 'Challenge a boss or random bot', type: 'string', required: false },
+    { name: 'boss', description: 'The boss name', type: 'string', required: false },
   ],
   async execute(message) {
-    const challenger = message.author;
-    const args = message.content.slice(1).trim().split(/\s+/);
-    const isBossMode = args.includes('boss') || args.includes('bot');
-    const targetUser = message.mentions.users.first();
+    const challenger = getCommandUser(message);
+    const isSlash = message.isChatInputCommand?.();
+    const args = isSlash
+      ? []
+      : message.content.slice((process.env.PFX || 'Z').length).trim().split(/\s+/);
+    const targetArg = isSlash ? message.options.getUser('target') : null;
+    const modeOption = isSlash ? message.options.getString('mode') : null;
+    const bossOption = isSlash ? message.options.getString('boss') : null;
+    const normalizedTarget = String(isSlash ? modeOption || bossOption : args[0] || '').toLowerCase();
+    const isBossMode = ['boss', 'bot', 'random'].includes(normalizedTarget);
+    const targetUser = isSlash
+      ? targetArg
+      : message.mentions.users.first();
 
-    if (isBossMode) {
-      return this.executeBossFight(message, challenger, args);
+    if (isBossMode || (isSlash && bossOption)) {
+      const bossTarget = isSlash
+        ? bossOption || normalizedTarget
+        : args.slice(1).join(' ') || normalizedTarget;
+      return this.executeBossFight(message, challenger, bossTarget);
     }
 
     if (!targetUser) {
-      return message.reply('You must mention a user to challenge. Example: Zpvp `@user`');
+      return replyToCommand(message, 'You must mention a user to challenge. Example: Zpvp `@user`');
     }
     if (targetUser.id === challenger.id) {
-      return message.reply('You cannot challenge yourself.');
+      return replyToCommand(message, 'You cannot challenge yourself.');
     }
 
     // ---------- Challenge embed ----------
@@ -51,7 +66,7 @@ module.exports = {
       .setStyle(ButtonStyle.Success)
       .setEmoji('✅');
     const challengeRow = new ActionRowBuilder().addComponents(acceptBtn);
-    const challengeMsg = await message.channel.send({ embeds: [challengeEmbed], components: [challengeRow] });
+    const challengeMsg = await sendCommandMessage(message, { embeds: [challengeEmbed], components: [challengeRow] });
 
     // ---------- Wait for target to accept ----------
     const acceptFilter = i => i.customId.startsWith('pvp_accept') && i.user.id === targetUser.id;
@@ -86,7 +101,7 @@ module.exports = {
         .setStyle(ButtonStyle.Primary)
         .setEmoji('🛡️');
       const chooseRow = new ActionRowBuilder().addComponents(challengerFirstBtn, targetFirstBtn);
-      const chooseMsg = await message.channel.send({ embeds: [chooseEmbed], components: [chooseRow] });
+      const chooseMsg = await sendCommandMessage(message, { embeds: [chooseEmbed], components: [chooseRow] });
 
       const chooseFilter = i => i.customId.startsWith('pvp_first') && i.user.id === challenger.id; // only challenger decides
       const chooseCollector = chooseMsg.createMessageComponentCollector({ filter: chooseFilter, time: 60000, max: 1 });
@@ -146,7 +161,7 @@ module.exports = {
           .setEmoji('🏃');
         const actionRow = new ActionRowBuilder().addComponents(attackBtn, runBtn);
 
-        let combatMsg = await message.channel.send({
+        let combatMsg = await sendCommandMessage(message, {
           embeds: [await createCombatEmbed(currentTurnId, attackerId, defenderId)],
           components: [actionRow]
         });
@@ -170,7 +185,7 @@ module.exports = {
             const winMsg = expResult.levelUp
               ? `🎉 <@${winnerId}> won by exhaustion and LEVELED UP to ${formatNumber(expResult.newLevel)}!`
               : `🏆 <@${winnerId}> won by exhaustion!`;
-            await message.channel.send({ content: winMsg });
+            await sendCommandMessage(message, { content: winMsg });
             if (expResult.levelUp) notifi.notifyLevelUp(message.client, winnerId, formatNumber(expResult.newLevel));
 
             battleOver = true;
@@ -250,7 +265,7 @@ module.exports = {
                 ? `🎉 <@${winnerId}> won and LEVELED UP to ${formatNumber(expResult.newLevel)}!`
                 : `🏆 <@${winnerId}> won the duel!`;
 
-              await message.channel.send({ content: winMsg });
+              await sendCommandMessage(message, { content: winMsg });
               if (expResult.levelUp) notifi.notifyLevelUp(message.client, winnerId, formatNumber(expResult.newLevel));
 
               battleOver = true;
@@ -292,9 +307,11 @@ module.exports = {
     });
   },
 
-  async executeBossFight(message, challenger, args = []) {
+  async executeBossFight(message, challenger, target = 'random') {
     const bossProfiles = getBossProfiles();
-    const requestedBoss = args.find(arg => !['pvp', 'boss', 'bot', 'random'].includes(arg.toLowerCase()));
+    const requestedBoss = !['boss', 'bot', 'random'].includes(String(target).toLowerCase())
+      ? String(target).toLowerCase()
+      : null;
     const bossProfile = requestedBoss
       ? getBossProfile(requestedBoss.toLowerCase())
       : bossProfiles[Math.floor(Math.random() * bossProfiles.length)];
@@ -350,7 +367,7 @@ module.exports = {
       .setEmoji('🏃');
     const actionRow = new ActionRowBuilder().addComponents(attackBtn, heavyAttackBtn, defendBtn, recoverBtn, runBtn);
 
-    let combatMsg = await message.channel.send({
+    let combatMsg = await sendCommandMessage(message, {
       embeds: [await createCombatEmbed('You')],
       components: [actionRow]
     });
@@ -425,12 +442,12 @@ module.exports = {
 
       if (player.hp <= 0) {
         trainer.update('loss', botAction, -80, 'loss');
-        await message.channel.send(`💀 ${challenger} was defeated by **${bossName}**.`);
+        await sendCommandMessage(message, `💀 ${challenger} was defeated by **${bossName}**.`);
         battleOver = true;
       } else if (boss.hp <= 0) {
         const reward = 120 + (bossProfile.behavior === 'aggressive' ? 30 : 0);
         trainer.update('win', botAction, 100, 'win');
-        await message.channel.send(`🎉 ${challenger} defeated **${bossName}** and earned **$${formatNumber(reward)}**!`);
+        await sendCommandMessage(message, `🎉 ${challenger} defeated **${bossName}** and earned **$${formatNumber(reward)}**!`);
         const dbManager = message.client.db;
         await dbManager.addMoney(challenger.id, reward, { trackEarning: true });
         await rpgmanager.recordPvpResult(challenger.id, 'boss', 20, 0);
@@ -442,7 +459,7 @@ module.exports = {
 
     if (!battleOver) {
       const final = player.hp > boss.hp ? 'You barely outlasted the boss.' : 'The boss outlasted you.';
-      await message.channel.send(`🏁 ${final}`);
+      await sendCommandMessage(message, `🏁 ${final}`);
     }
 
     // After battle ends, let trainer learn from combatLog

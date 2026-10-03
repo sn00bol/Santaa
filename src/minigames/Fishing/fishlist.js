@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const { ActionRowBuilder, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
 const { RARITY_CONFIG, getFishData } = require('./fishCore');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
@@ -83,7 +84,7 @@ module.exports = {
 
         let initial = generateContainer(currentCategory, currentPage);
 
-        const response = await message.reply({
+        const response = await replyToCommand(message, {
             components: [initial.container],
             flags: [MessageFlags.IsComponentsV2]
         });
@@ -91,7 +92,7 @@ module.exports = {
         const collector = response.createMessageComponentCollector({ time: 60000 });
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== message.author.id) return i.reply({ content: 'Not your menu!', ephemeral: true });
+            if (i.user.id !== getCommandUser(message).id) return i.reply({ content: 'Not your menu!', ephemeral: true });
 
             if (i.isStringSelectMenu() && i.customId === 'fishlist_menu') {
                 currentCategory = i.values[0];

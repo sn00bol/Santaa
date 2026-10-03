@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const {
     ActionRowBuilder,
     ContainerBuilder,
@@ -271,7 +272,8 @@ async function getLeaderboardData(message, request, invokerId, scopeCache) {
     const memberIds = await getServerMemberIds(message, scope, scopeCache);
 
     if (request.mode === 'user') {
-        const rawUserId = request.userId || message.mentions.users.first()?.id;
+        const rawUserId = request.userId
+            || (message.isChatInputCommand?.() ? getCommandUser(message).id : message.mentions.users.first()?.id);
         const userId = String(rawUserId || '').match(/^<@!?(\d+)>$/)?.[1] || String(rawUserId || '');
         if (!/^\d{17,20}$/.test(userId)) throw new Error('Use `Zleaderboard user @user [global|server]`.');
         if (memberIds && !memberIds.has(userId)) throw new Error('That user is not a member of this server.');
@@ -392,6 +394,7 @@ function createLeaderboardContainer(data, request, page, disabled = false) {
 
 function getUserArgument(message, request, args) {
     if (request.userId) return request.userId;
+    if (message.isChatInputCommand?.()) return getCommandUser(message).id;
     const mention = message.mentions.users.first();
     if (mention) return mention.id;
     return args.find(arg => /^<@!?\d{17,20}>$/.test(arg)) || '';
@@ -402,7 +405,7 @@ module.exports = {
     description: 'View stat, item, achievement, or user leaderboards.',
     category: 'utl',
     usage: 'Zleaderboard [stat|item|achieve|user] [target] [global|server]',
-    args: [
+    slashOptions: [
         { name: 'mode', description: 'Leaderboard mode: stat, item, achieve, or user', type: 'string', required: false },
         { name: 'stat', description: 'Stat to rank', type: 'string', required: false },
         { name: 'item', description: 'Item ID or exact name', type: 'string', required: false },
@@ -411,48 +414,55 @@ module.exports = {
     ],
 
     async execute(message, args = []) {
-        if (!hasLeaderboardArguments(args, message.slashOptions)) {
-            return message.channel.send({
-                components: [createMainMenu(message.content)],
+        const slashOptions = message.isChatInputCommand?.() ? {
+            mode: message.options.getString('mode'),
+            stat: message.options.getString('stat'),
+            item: message.options.getString('item'),
+            user: message.options.getUser('user')?.id,
+            scope: message.options.getString('scope'),
+        } : {};
+        if (!hasLeaderboardArguments(args, slashOptions)) {
+            return sendCommandMessage(message, {
+                components: [createMainMenu(message.isChatInputCommand?.() ? '/leaderboard' : message.content)],
                 flags: [MessageFlags.IsComponentsV2],
             });
         }
 
         if (args.some(arg => String(arg).toLowerCase() === 'friend')
-            || String(message.slashOptions?.scope || '').toLowerCase() === 'friend') {
-            return message.reply('Friend scope is unavailable; choose `global` or `server`.');
+            || String(slashOptions.scope || '').toLowerCase() === 'friend') {
+            return replyToCommand(message, 'Friend scope is unavailable; choose `global` or `server`.');
         }
 
-        let request = parseLeaderboardRequest(args, message.slashOptions);
+        let request = parseLeaderboardRequest(args, slashOptions);
         if (request.mode === 'user' && !request.userId) {
             request.userId = getUserArgument(message, request, args);
         }
         if (!SCOPES.has(request.scope)) {
-            return message.reply('Scope must be `global` or `server`. Friend scope is unavailable.');
+            return replyToCommand(message, 'Scope must be `global` or `server`. Friend scope is unavailable.');
         }
         if (request.mode === 'achieve' && args.some(arg => String(arg).toLowerCase() === 'friend')) {
-            return message.reply('Achievement leaderboard does not use a scope.');
+            return replyToCommand(message, 'Achievement leaderboard does not use a scope.');
         }
 
         let currentPage = 0;
         const scopeCache = new Map();
         let data;
         try {
-            data = await getLeaderboardData(message, request, message.author.id, scopeCache);
+            data = await getLeaderboardData(message, request, getCommandUser(message).id, scopeCache);
         } catch (error) {
-            return message.reply(error.message || 'Could not load the leaderboard.');
+            return replyToCommand(message, error.message || 'Could not load the leaderboard.');
         }
 
         data = await addCurrentPageNames(message, data, currentPage);
         const initial = createLeaderboardContainer(data, request, currentPage);
-        const response = await message.channel.send({
+        const response = await sendCommandMessage(message, {
             components: [initial.container],
             flags: [MessageFlags.IsComponentsV2],
         });
         const collector = response.createMessageComponentCollector({ time: 120_000 });
 
         collector.on('collect', async interaction => {
-            if (interaction.user.id !== message.author.id) {
+            if (interaction.user.id !== getCommandUser(message).id) {
                 return interaction.reply({ content: 'This leaderboard belongs to another user.', ephemeral: true });
             }
 
@@ -464,7 +474,7 @@ module.exports = {
                     currentPage = 0;
                 }
 
-                data = await getLeaderboardData(message, request, message.author.id, scopeCache);
+                data = await getLeaderboardData(message, request, getCommandUser(message).id, scopeCache);
                 const pageCount = Math.max(1, Math.ceil(data.rows.length / PAGE_SIZE));
                 if (interaction.isButton()) {
                     switch (interaction.customId) {

@@ -1,3 +1,4 @@
+const { sendCommandMessage } = require('../../../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const { HelperNPC_intro, NPC } = require('../../../Utils/misc');
 
@@ -12,7 +13,7 @@ module.exports = async function runHelperNPC(message, dbManager, authorId) {
     .setDescription(`${getRandomText(HelperNPC_intro).replace('NPC', npcName)}\n\n${npcName} needs your help. Choose how to respond: \`help\`, \`watch\`, or \`run\`.`)
     .setColor('#4F46E5');
 
-  await message.channel.send({ embeds: [promptEmbed] });
+  await sendCommandMessage(message, { embeds: [promptEmbed] });
 
   const collected = await message.channel.awaitMessages({
     filter: (msg) => msg.author.id === authorId && ['help', 'watch', 'run'].includes(msg.content.toLowerCase()),

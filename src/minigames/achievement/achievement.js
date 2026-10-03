@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
 const achievementManager = require('./achievementManager');
 const achievementUI = require('./achievementUI');
@@ -10,7 +11,7 @@ module.exports = {
     category: 'mie',
     usage: 'Zachievement',
     async execute(message, args) {
-        const userId = message.author.id;
+        const userId = getCommandUser(message).id;
         const stats = await rpgmanager.getStats(userId);
         const profile = stats.fishing_profile || {}; 
         
@@ -24,7 +25,7 @@ module.exports = {
         };
         
         const container = achievementUI.buildMain(profile, categories, achievements, state);
-        const mainMsg = await message.reply({ components: [container], flags: [MessageFlags.IsComponentsV2] });
+        const mainMsg = await replyToCommand(message, { components: [container], flags: [MessageFlags.IsComponentsV2] });
 
         const collector = mainMsg.createMessageComponentCollector({
             filter: i => i.user.id === userId,

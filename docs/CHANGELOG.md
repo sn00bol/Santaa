@@ -1,9 +1,8 @@
-v1.3.0-alpha.7
-- Add location (now mining work fully)
-- Add axe items and `cut` to get wood
-- Add crafting
-- Fix notification and jobs reminder
-- Upgrading little bit for Docker
+v1.3.0-beta.0
+- Refactor and split index.js, database manager into handler and repo stuff
+- Upgrading command loading and database more faster
+- Fix nothing was sold when buckets have fish
+- Args now using discord native not have to compiler or anything stuff
 
 # CHANGELOG
 

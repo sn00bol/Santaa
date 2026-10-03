@@ -1,74 +1,41 @@
-# How Bot Works
+# How the Bot Works
 
-In `src/index.js`, the bot uses the `commandFolders` array:
-```js
-const commandFolders = ['commands', 'minigames', 'memes'];
+`src/index.js` is the application entry point and orchestrator. It creates the Discord client and shared runtime state, then wires together the handlers in `src/handlers/`. Keep command, database, lifecycle, and service logic in their respective modules rather than adding it directly to `index.js`.
+
+## Startup and runtime handlers
+
+Startup is coordinated in this order:
+
+1. `clientHandler.js` creates the Discord client, configures its intents and REST options, and attaches the HTTP agent used during shutdown.
+2. `healthcheckHandler.js` optionally starts the Docker health endpoint when `ENABLE_DOCKER_HEALTHCHECK=true`. The endpoint reports ready only after both databases initialize and the Discord client is ready.
+3. `commandHandler.js` loads commands and registers prefix and slash-interaction event listeners.
+4. `presenceHandler.js` starts notifications on `clientReady`; the orchestrator starts the bot presence after database initialization and login.
+5. `databaseHandler.js` initializes both database managers, assigns them to `client.db` and `client.rpg`, and logs in with retry handling.
+6. `lifecycleHandler.js` handles `SIGINT` and `SIGTERM`, waits for active commands, and closes the health server, Discord client, HTTP agent, and databases.
+7. `src/scripts/updater.js` is initialized by `index.js`.
+
+The configured prefix is `PFX`. Do not put secrets in source code; runtime credentials belong in environment variables.
+
+## Command execution
+
+For prefix commands, `messageCreate` checks the prefix, resolves the command name or alias, and passes the remaining words as `args`. For slash commands, `interactionCreate` passes the native `ChatInputCommandInteraction` directly to the command. Slash commands read values through `interaction.options.getString()`, `getInteger()`, `getUser()`, and the other Discord.js option getters; no synthetic message or positional-argument conversion is used. Small response helpers preserve prefix replies while handling native interaction acknowledgement, follow-ups, and public component messages.
+
+Both routes use the same tracked execution path. It applies default user settings, records activity, checks owner-only access and temporarily blocked commands, then executes the command. A command exception is logged and blocks that command for the current process to avoid repeated failures. Active command promises are tracked so shutdown can wait for them.
+
+## Registering slash commands
+
+Slash-command registration is a separate operation; it is not performed during normal bot startup. Each command's `slashOptions` descriptors are registration metadata used by `slash-register` to build Discord-native option definitions; command execution reads submitted values from the native interaction:
+
+```powershell
+npm run slash-register
 ```
-The bot recursively scans all .js files using fs.readdirSync(dir, { withFileTypes: true }). This reads directory entries directly without triggering additional I/O calls (fs.statSync), ensuring fast boot times even with hundreds of files.
 
-**Rules:**
-- Add a .js file to any subfolder inside commands, minigames, or memes $\rightarrow$ The bot loads it automatically
-- Add a new folder at the same level as `commands` $\rightarrow$ You must add that folder name to `commandFolders`.
+The script loads command modules, validates slash definitions, and creates missing or updates changed registrations without deleting unrelated registrations. Set `SLASH_GUILD_ID` in `.env` for a single server (changes appear faster); leave it empty for global registration.
 
-### Command Loading and Execution
+To remove existing registrations in the selected scope before synchronization, run:
 
-Every command must export a `name` and an `execute(message, args)` function. The loader stores commands in `client.commands` and stores their aliases in `client.aliases`.
-
-Prefix commands are handled through `messageCreate`:
-- The message must start with the configured `PFX` value.
-- The first word after the prefix is used as the command name.
-- The remaining words are passed to the command as the `args` array.
-- Unknown commands are ignored.
-
-Both prefix commands and slash commands use the same `runCommand` flow. This keeps owner checks, blocked-command checks, and command execution consistent across both command types.
-
-### Slash Commands
-
-Slash commands are built from the commands loaded by `src/index.js` and registered when the client is ready. The registration process:
-- Fetches commands already registered in the selected scope.
-- Creates missing commands.
-- Updates commands whose description, options, or DM permission changed.
-- Does not overwrite or remove existing commands during normal startup.
-
-Set `SLASH_GUILD_ID` in `.env` to register commands in one server for near-instant updates. Leave it empty to use global commands, which may take longer to appear.
-
-To remove old commands and register the current set again, set `SLASH_RESET=true` for one startup. After the reset completes, set it back to `SLASH_RESET=false`. Resetting with `SLASH_GUILD_ID` only affects that server; resetting without it affects global commands.
-
-### Slash Command Arguments
-
-Commands can define an `args` array to create named slash options:
-- Supported types are `string`, `integer`, `number`, `boolean`, and `user`.
-- Each argument needs a lowercase `name`; descriptions should explain its purpose.
-- Required arguments must come before optional arguments.
-- If `args` is omitted, the slash command has no options.
-- The adapter converts slash options into the same positional `args` format used by prefix commands.
-
-For user arguments, the adapter creates a mention-compatible value so existing `message.mentions.users.first()` logic can continue to work.
-
-### DM Availability
-
-Commands support the optional `DMs` property. It defaults to `true`:
-- `DMs: true` or no `DMs` property allows the command in DMs.
-- `DMs: false` silently ignores prefix usage in DMs and disables the slash command in DMs.
-- Server usage is unaffected by the `DMs` setting.
-
-The optional `show` property controls slash registration. `show: false` hides a command from slash registration, while the prefix command can still be loaded unless its own execution logic prevents it.
-
-### Startup Services
-
-Before login, the bot initializes both database managers and attaches them as `client.db` and `client.rpg`. After login, it updates the bot presence with the current server count. The updater is initialized after the main startup code so update checks do not change how commands are loaded.
-
-Finally, to prevent bot crashing (which is normally happen when a command or whole modular command have bug/error before v1.2.4), bot catch error logs and blocking commands temporarily to prevent bot crash (except some bugs will crash whole bot normally like database)
-```js
-    if (client.blockedCommands.has(command.name)) {
-        return message.reply('This command currently blocked due to a bugs or crashing, will fix it fast as possible');
-    }
-
-    try {
-        await command.execute(message, args);
-    } catch (error) {
-        console.error(`[ERROR] Command '${command.name}' failed and is now blocked:`, error);
-        client.blockedCommands.add(command.name);
-        message.reply('This command currently blocked due to a bugs or crashing, will fix it fast as possible');
-    }
+```powershell
+npm run slash-register -- --reset
 ```
+
+`SLASH_RESET=true` also enables reset for one run. Reset with `SLASH_GUILD_ID` affects only that server; without it, reset affects global commands.

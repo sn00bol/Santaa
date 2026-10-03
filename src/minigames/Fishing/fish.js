@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder } = require('discord.js');
 const { getRandomFish, calculateExp, getFishStrengthParams, applyWeatherModifiers } = require('./fishCore');
 const fs = require('fs');
@@ -89,16 +90,16 @@ module.exports = {
     resetFishLimit,
     checkFishLimit,
     async execute(message, args) {
-        const userId = message.author.id;
+        const userId = getCommandUser(message).id;
 
         const limitStatus = checkFishLimit(userId);
         if (!limitStatus.allowed) {
-            return message.reply(limitStatus.message);
+            return replyToCommand(message, limitStatus.message);
         }
 
         const wantedCheck = await checkWantedRestrictions(userId, this.name, message.client, message);
         if (!wantedCheck.allowed) {
-            if (!wantedCheck.handled && wantedCheck.message) message.reply(wantedCheck.message);
+            if (!wantedCheck.handled && wantedCheck.message) replyToCommand(message, wantedCheck.message);
             return;
         }
 
@@ -149,7 +150,7 @@ module.exports = {
         };
 
         const container = fishUI.buildMain(profile, mainInventory);
-        const mainMsg = await message.reply({ components: [container], flags: [MessageFlags.IsComponentsV2] });
+        const mainMsg = await replyToCommand(message, { components: [container], flags: [MessageFlags.IsComponentsV2] });
 
         async function handleFishingResult(success) {
             const lostRarity = tugOfWar.fishRarity;

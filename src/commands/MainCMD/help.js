@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const packageInfo = require('../../../package.json');
 require('dotenv').config();
@@ -25,21 +26,24 @@ module.exports = {
     description: 'Display help commands and bot information',
     category: 'gnr',
     usage: 'Zhelp `command`',
-    args: [
+    slashOptions: [
         { name: 'command', description: 'Show details for a specific command', type: 'string', required: false },
     ],
     async execute(message, args) {
         const { commands, aliases } = message.client;
+        const commandName = message.isChatInputCommand?.()
+            ? message.options.getString('command')
+            : args?.[0];
 
-        if (args && args.length > 0) {
-            const cmdName = args[0].toLowerCase();
+        if (commandName) {
+            const cmdName = commandName.toLowerCase();
             const command = commands.get(cmdName) || aliases.get(cmdName);
             if (!command) {
                 const similar = commands.find(c => c.name.includes(cmdName) || cmdName.includes(c.name) || (Array.isArray(c.aliases) && c.aliases.some(a => a.includes(cmdName) || cmdName.includes(a))));
                 if (similar) {
-                    return message.reply({ content: `Not found command, do you mean \`${similar.name}\`?`, ephemeral: true });
+                    return replyToCommand(message, { content: `Not found command, do you mean \`${similar.name}\`?`, ephemeral: true });
                 }
-                return message.reply({ content: `Command not found.`, ephemeral: true });
+                return replyToCommand(message, { content: `Command not found.`, ephemeral: true });
             }
             const aliasText = formatAliases(command);
             const cmdEmbed = new EmbedBuilder()
@@ -56,20 +60,20 @@ module.exports = {
             if (notes) {
                 cmdEmbed.addFields({ name: 'Important Notes', value: notes, inline: false });
             }
-            return message.channel.send({ embeds: [cmdEmbed] });
+            return sendCommandMessage(message, { embeds: [cmdEmbed] });
         }
 
         let currentPage = 0;
         const itemsPerPage = 5;
-        const isOwner = isOwnerUser(message.author.id);
+        const isOwner = isOwnerUser(getCommandUser(message).id);
 
         // Load last-accessed categories from DB, fallback to in-memory or 'all'
         let currentCategories;
         try {
-            const dbCategories = await message.client.db.getHelpPreference(message.author.id);
+            const dbCategories = await message.client.db.getHelpPreference(getCommandUser(message).id);
             currentCategories = dbCategories;
         } catch {
-            const memCategories = lastHelpCategoriesByUser.get(message.author.id);
+            const memCategories = lastHelpCategoriesByUser.get(getCommandUser(message).id);
             currentCategories = Array.isArray(memCategories) && memCategories.length > 0
                 ? [...memCategories]
                 : ['all'];
@@ -141,7 +145,7 @@ module.exports = {
 
         // Initial render — directly shows commands without a separate welcome embed
         const { embed: initialEmbed, components: initialComponents } = buildPage(currentCategories, currentPage);
-        const response = await message.channel.send({ embeds: [initialEmbed], components: initialComponents });
+        const response = await sendCommandMessage(message, { embeds: [initialEmbed], components: initialComponents });
 
         // Component collector for menu and pagination
         const collector = response.createMessageComponentCollector({ time: 60000 });
@@ -149,7 +153,7 @@ module.exports = {
         let currentMenuRow = initialComponents[0]; // keep track for end event
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== message.author.id) return i.reply({ content: 'Not your menu!', ephemeral: true });
+            if (i.user.id !== getCommandUser(message).id) return i.reply({ content: 'Not your menu!', ephemeral: true });
 
             if (i.isStringSelectMenu()) {
                 const newSelection = i.values;
@@ -182,11 +186,11 @@ module.exports = {
 
                 // Save to DB + in-memory fallback
                 try {
-                    await message.client.db.setHelpPreference(message.author.id, [...currentCategories]);
+                    await message.client.db.setHelpPreference(getCommandUser(message).id, [...currentCategories]);
                 } catch {
                     // DB write failed, at least update in-memory
                 }
-                lastHelpCategoriesByUser.set(message.author.id, [...currentCategories]);
+                lastHelpCategoriesByUser.set(getCommandUser(message).id, [...currentCategories]);
                 currentPage = 0;
 
             } else if (i.isButton()) {

@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const rpgmanager = require('../../../database/rpgmanager');
 const { LeaderboardConfig } = require('../Utils/misc');
@@ -13,7 +14,7 @@ module.exports = {
             const leaderboard = await rpgmanager.getPvpLeaderboard(10);
 
             if (!leaderboard || leaderboard.length === 0) {
-                return message.reply('No PVP matches have been recorded yet. Be the first — `Zpvp @user`!');
+                return replyToCommand(message, 'No PVP matches have been recorded yet. Be the first — `Zpvp @user`!');
             }
 
             const { Emoji } = LeaderboardConfig;
@@ -48,11 +49,11 @@ module.exports = {
                 .setFooter({ text: `Top ${formatNumber(leaderboard.length)} fighters by all-time wins` })
                 .setTimestamp();
 
-            message.channel.send({ embeds: [embed] });
+            sendCommandMessage(message, { embeds: [embed] });
 
         } catch (error) {
             console.error('Error in pvprank command:', error);
-            message.reply('An error occurred while fetching the PVP leaderboard.');
+            replyToCommand(message, 'An error occurred while fetching the PVP leaderboard.');
         }
     }
 };

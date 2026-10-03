@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const { jobs, jobs_txt } = require('../Utils/misc'); // Import job from tips.js
 const { checkCooldown } = require('../Utils/Cooldown'); // Import cooldown function from Cooldown.js
@@ -11,19 +12,20 @@ module.exports = {
     category: 'eco',
     usage: 'Zparttime',
     async execute(message) {
-        const { client, author } = message;
+        const { client } = message;
+        const author = getCommandUser(message);
         const dbManager = message.client.db;
 
         // Cooldown
         const timeLeft = checkCooldown(author.id, this.name);
 
         if (timeLeft) {
-            return message.reply(`Please wait ${timeLeft} before using the \`${this.name}\` command again.`);
+            return replyToCommand(message, `Please wait ${timeLeft} before using the \`${this.name}\` command again.`);
         }
 
         const wantedCheck = await checkWantedRestrictions(author.id, this.name, client, message);
         if (!wantedCheck.allowed) {
-            if (!wantedCheck.handled && wantedCheck.message) message.reply(wantedCheck.message);
+            if (!wantedCheck.handled && wantedCheck.message) replyToCommand(message, wantedCheck.message);
             return;
         }
 
@@ -35,13 +37,13 @@ module.exports = {
         const amountEarned = Math.floor(Math.random() * (50 - 5 + 1)) + 5;
 
         try {
-            await dbManager.addMoney(message.author.id, amountEarned, { trackEarning: true });
+            await dbManager.addMoney(getCommandUser(message).id, amountEarned, { trackEarning: true });
 
             // work embed
             const workEmbed = new EmbedBuilder()
                 .setAuthor({
-                    name: message.author.username,
-                    iconURL: message.author.displayAvatarURL()
+                    name: getCommandUser(message).username,
+                    iconURL: getCommandUser(message).displayAvatarURL()
                 })
                 .setDescription(
                     `**${randJob.name}**` +
@@ -49,7 +51,7 @@ module.exports = {
                     `*"${jobQuote}"*`
                 )
                 .setTimestamp();
-            message.channel.send({ embeds: [workEmbed] });
+            sendCommandMessage(message, { embeds: [workEmbed] });
 
             const rpgManager = message.client.rpg;
             const achievementChecker = require('../../minigames/achievement/achievementChecker');

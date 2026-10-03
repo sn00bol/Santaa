@@ -1,3 +1,4 @@
+const { sendCommandMessage } = require('../../../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const { GuessNum_intro, GuessNum_won, GuessNum_lost } = require('../../../Utils/misc');
 
@@ -27,7 +28,7 @@ module.exports = async function runNumberGuess(message, dbManager, authorId) {
     .setColor('#F59E0B')
     .setFooter({ text: 'You have 30 seconds per guess.' });
 
-  await message.channel.send({ embeds: [promptEmbed] });
+  await sendCommandMessage(message, { embeds: [promptEmbed] });
 
   const isValidGuess = (msg) =>
     msg.author.id === authorId &&
@@ -69,7 +70,7 @@ module.exports = async function runNumberGuess(message, dbManager, authorId) {
     .setTitle('🔢 Number Guess — Wrong!')
     .setDescription(`❌ **${guess1}** is not it.\n\n${hint}\n\n🎯 One more chance — type your next guess!`)
     .setColor('#F59E0B');
-  await message.channel.send({ embeds: [hintEmbed] });
+  await sendCommandMessage(message, { embeds: [hintEmbed] });
 
   // ── Attempt 2 ────────────────────────────────────────────────────────────
   const second = await message.channel.awaitMessages({

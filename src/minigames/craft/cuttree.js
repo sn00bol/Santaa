@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const rpgmanager = require('../../../database/rpgmanager');
 const { checkCooldown } = require('../../commands/Utils/Cooldown');
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
@@ -20,7 +21,7 @@ module.exports = {
     category: 'mie',
     usage: 'Zcut',
     async execute(message, args) {
-        const userId = message.author.id;
+        const userId = getCommandUser(message).id;
         const inventory = await rpgmanager.getInventory(userId);
         const axe = inventory.find(item =>
             (axeItemIds.has(item.item_id) ||
@@ -32,13 +33,13 @@ module.exports = {
             || allItemsCache.get(axe?.item_id);
 
         if (!axe || !axeItem) {
-            return message.reply('🪓 You need an axe in your inventory to chop trees.');
+            return replyToCommand(message, '🪓 You need an axe in your inventory to chop trees.');
         }
 
         // Cooldown check
         const cooldownLeft = checkCooldown(userId, 'cut', CUT_COOLDOWN_MS);
         if (cooldownLeft) {
-            return message.reply(`🌳 You're tired! Wait **${cooldownLeft}** before chopping again.`);
+            return replyToCommand(message, `🌳 You're tired! Wait **${cooldownLeft}** before chopping again.`);
         }
 
         const maxDurability = Number(axeItem.durability);
@@ -59,12 +60,12 @@ module.exports = {
         const drop = rollWoodDrop();
         if (!drop) {
             const brokenNotice = axeBroke ? `\n💥 Your **${axe.item_name}** broke.` : '';
-            return message.reply(`🌳 You swung your axe but the tree was empty...${brokenNotice}`);
+            return replyToCommand(message, `🌳 You swung your axe but the tree was empty...${brokenNotice}`);
         }
 
         const woodItem = allItemsCache.get(drop.id);
         if (!woodItem) {
-            return message.reply('🌳 Something went wrong while chopping. Try again later.');
+            return replyToCommand(message, '🌳 Something went wrong while chopping. Try again later.');
         }
 
         // Add items to inventory
@@ -77,7 +78,7 @@ module.exports = {
             ? `\n💥 Your **${axe.item_name}** broke.`
             : `\n🪓 **${axe.item_name}** durability: ${formatNumber(remainingDurability)}/${formatNumber(maxDurability)}`;
 
-        return message.reply(
+        return replyToCommand(message,
             `🌳 You chopped a tree and got:\n• **${formatNumber(drop.quantity)}x ${woodItem.name}**${durabilityLine}${nextLine}`
         );
     }

@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const { ComponentType, MessageFlags } = require('discord.js');
 const path = require('path');
 const rpgmanager = require('../../../database/rpgmanager');
@@ -25,27 +26,27 @@ module.exports = {
 	category: 'mie',
 	usage: 'Zmine',
 	async execute(message, args) {
-		const userId = message.author.id;
+		const userId = getCommandUser(message).id;
 
 		if (mineBoard.activeSessions.has(userId)) {
-			return message.reply('You already have an active mining session.');
+			return replyToCommand(message, 'You already have an active mining session.');
 		}
 
 		const count = mineCounts.get(userId) || 0;
 		if (count >= 5) {
 			const cooldownTime = checkCooldown(userId, 'mine_exhaustion');
-			if (cooldownTime) return message.reply(`You're exhausted! Wait **${cooldownTime}** before mining again.`);
+			if (cooldownTime) return replyToCommand(message, `You're exhausted! Wait **${cooldownTime}** before mining again.`);
 			mineCounts.set(userId, 0);
 		}
 
 		const wantedCheck = await checkWantedRestrictions(userId, this.name, message.client, message);
 		if (!wantedCheck.allowed) {
-			if (!wantedCheck.handled && wantedCheck.message) message.reply(wantedCheck.message);
+			if (!wantedCheck.handled && wantedCheck.message) replyToCommand(message, wantedCheck.message);
 			return;
 		}
 
 		const stats = await rpgmanager.getStats(userId);
-		if (!stats || stats.health <= 0) return message.reply('You need HP to mine. Heal before trying again.');
+		if (!stats || stats.health <= 0) return replyToCommand(message, 'You need HP to mine. Heal before trying again.');
 
 		let profile = parseMiningProfile(stats.mining_profile);
 		const itemGroups = {
@@ -69,8 +70,8 @@ module.exports = {
 			inventory = await rpgmanager.getInventory(userId);
 		}
 
-		const mainMsg = await message.reply({
-			components: [mineUI.buildMain(message.author, stats, inventory, allEquipmentItems, null, profile)],
+		const mainMsg = await replyToCommand(message, {
+			components: [mineUI.buildMain(getCommandUser(message), stats, inventory, allEquipmentItems, null, profile)],
 			flags: [MessageFlags.IsComponentsV2]
 		});
 
@@ -89,7 +90,7 @@ module.exports = {
 			]);
 			profile = parseMiningProfile(currentStats.mining_profile || profile);
 			await interaction.update({
-				components: [mineUI.buildMain(message.author, currentStats, currentInventory, allEquipmentItems, null, profile)]
+				components: [mineUI.buildMain(getCommandUser(message), currentStats, currentInventory, allEquipmentItems, null, profile)]
 			});
 		};
 
@@ -264,7 +265,7 @@ module.exports = {
 			view = 'board';
 			mineBoard.activeSessions.set(userId, session);
 			await interaction.update({
-				components: [mineUI.buildBoardContainer(message.author, currentStats, session, {
+				components: [mineUI.buildBoardContainer(getCommandUser(message), currentStats, session, {
 					notice: notices.join('\n') || null,
 				})]
 			});
@@ -295,7 +296,7 @@ module.exports = {
 		const updateBoard = async (interaction, notice = null, revealAll = false) => {
 			const currentStats = await rpgmanager.getStats(userId);
 			await interaction.update({
-				components: [mineUI.buildBoardContainer(message.author, currentStats, session, { notice, revealAll })]
+				components: [mineUI.buildBoardContainer(getCommandUser(message), currentStats, session, { notice, revealAll })]
 			});
 		};
 
@@ -781,7 +782,7 @@ module.exports = {
 			session.status = 'expired';
 			const currentStats = await rpgmanager.getStats(userId).catch(() => stats);
 			await mainMsg.edit({
-				components: [mineUI.buildBoardContainer(message.author, currentStats, session, {
+				components: [mineUI.buildBoardContainer(getCommandUser(message), currentStats, session, {
 					revealAll: true,
 					notice: 'Your mining session expired. Session loot was lost.'
 				})]

@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const {
     ButtonBuilder,
     ButtonStyle,
@@ -89,13 +90,13 @@ module.exports = {
 
     async execute(message) {
         let currentPage = 0;
-        let userSettings = await getUserSettings(message.client.db, message.author.id);
+        let userSettings = await getUserSettings(message.client.db, getCommandUser(message).id);
 
         const { container: initContainer } = buildSettingsPage(
             SETTINGS, currentPage, userSettings
         );
 
-        const response = await message.channel.send({
+        const response = await sendCommandMessage(message, {
             components: [initContainer],
             flags: MessageFlags.IsComponentsV2,
         });
@@ -113,11 +114,11 @@ module.exports = {
         };
 
         collector.on("collect", async (i) => {
-            if (i.user.id !== message.author.id) {
+            if (i.user.id !== getCommandUser(message).id) {
                 return i.reply({ content: "These are not your settings!", ephemeral: true });
             }
 
-            message.client.db.recordUserActivity(message.author.id).catch(() => { });
+            message.client.db.recordUserActivity(getCommandUser(message).id).catch(() => { });
 
             if (i.isButton() && i.customId === "fast_navigate") {
                 const totalPages = Math.max(1, Math.ceil(SETTINGS.length / ITEMS_PER_PAGE));
@@ -126,7 +127,7 @@ module.exports = {
 
                 try {
                     const submitted = await i.awaitModalSubmit({
-                        filter: (modalInt) => modalInt.customId === `fast_navigate_modal_${i.id}` && modalInt.user.id === message.author.id,
+                        filter: (modalInt) => modalInt.customId === `fast_navigate_modal_${i.id}` && modalInt.user.id === getCommandUser(message).id,
                         time: 60_000,
                     });
 
@@ -171,7 +172,7 @@ module.exports = {
                 await i.deferUpdate();
 
                 try {
-                    await message.client.db.setUserSetting(message.author.id, settingId, newValue);
+                    await message.client.db.setUserSetting(getCommandUser(message).id, settingId, newValue);
                 } catch {
                     return i.followUp({ content: "Couldn't save this setting. Please try again.", ephemeral: true });
                 }

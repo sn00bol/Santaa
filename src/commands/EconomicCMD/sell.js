@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const rpgmanager = require('../../../database/rpgmanager');
 const dbmanager = require('../../../database/dbmanager');
@@ -145,7 +146,7 @@ module.exports = {
     description: 'Sell items from your inventory for money',
     category: 'eco',
     usage: 'Zsell `item name or id` `quantity` (or Zsell `all` to sell all sellable items)',
-    args: [
+    slashOptions: [
         { name: 'item', description: 'The item name, ID, or all', type: 'string', required: true },
         { name: 'quantity', description: 'The quantity to sell', type: 'integer', required: false },
     ],
@@ -154,14 +155,16 @@ module.exports = {
     executeSellMultiple, // export bulk sell
     sellItemsCore, // export core sell logic
 
-    async execute(message, args) {
-        if (!args || args.length === 0) {
-            return message.reply('Usage: `Zsell `item name or id` `quantity` or `Zsell all`');
+    async execute(message, args = []) {
+        const isSlash = message.isChatInputCommand?.();
+        const itemOption = isSlash ? message.options.getString('item') : null;
+        if ((!isSlash && args.length === 0) || (isSlash && !itemOption)) {
+            return replyToCommand(message, 'Usage: `Zsell `item name or id` `quantity` or `Zsell all`');
         }
 
-        const isSellAll = args[0].toLowerCase() === 'all';
+        const isSellAll = (isSlash ? itemOption : args[0]).toLowerCase() === 'all';
         if (isSellAll) {
-            const inventory = await rpgmanager.getInventory(message.author.id);
+            const inventory = await rpgmanager.getInventory(getCommandUser(message).id);
             const counts = {};
             inventory.forEach(inv => {
                 if (!counts[inv.item_id]) counts[inv.item_id] = 1;
@@ -177,7 +180,7 @@ module.exports = {
             }
 
             if (sellableItems.length === 0) {
-                return message.reply("You have no sellable items in your inventory.");
+                return replyToCommand(message, "You have no sellable items in your inventory.");
             }
 
             const options = sellableItems.slice(0, 25).map((sellable) => ({
@@ -205,13 +208,13 @@ module.exports = {
                 .setDescription(`You are about to sell all your sellable items.\nIf you want to **keep** certain items, select them in the menu below to exclude them from being sold.`)
                 .setColor('Yellow');
 
-            const response = await message.channel.send({ embeds: [embed], components: [selectRow, btnRow] });
+            const response = await sendCommandMessage(message, { embeds: [embed], components: [selectRow, btnRow] });
             const collector = response.createMessageComponentCollector({ time: 60000 });
             
             let excludedIds = [];
 
             collector.on('collect', async (i) => {
-                if (i.user.id !== message.author.id) return i.reply({ content: 'Not your menu!', ephemeral: true });
+                if (i.user.id !== getCommandUser(message).id) return i.reply({ content: 'Not your menu!', ephemeral: true });
 
                 if (i.isStringSelectMenu() && i.customId === 'sell_all_exclude') {
                     excludedIds = i.values;
@@ -240,7 +243,7 @@ module.exports = {
                         if (itemsToSell.length === 0) {
                             return i.editReply({ content: 'No items left to sell after exclusions.', embeds: [], components: [] });
                         }
-                        await executeSellMultiple(message.author.id, itemsToSell, (payload) => i.editReply(typeof payload === 'string' ? { content: payload, embeds: [], components: [] } : { ...payload, components: [] }));
+                        await executeSellMultiple(getCommandUser(message).id, itemsToSell, (payload) => i.editReply(typeof payload === 'string' ? { content: payload, embeds: [], components: [] } : { ...payload, components: [] }));
                     }
                 }
             });
@@ -254,20 +257,24 @@ module.exports = {
             return;
         }
 
-        // Parse quantity — last arg if it's a number, else default 1
+        // Read native slash options directly; prefix commands keep their text parsing.
         let quantity = 1;
         let itemQuery;
-
-        const lastArg = args[args.length - 1];
-        if (!isNaN(lastArg) && parseInt(lastArg) > 0) {
-            quantity = parseInt(lastArg);
-            itemQuery = args.slice(0, -1).join(' ').toLowerCase().trim();
+        if (isSlash) {
+            itemQuery = itemOption.toLowerCase().trim();
+            quantity = message.options.getInteger('quantity') || 1;
         } else {
-            itemQuery = args.join(' ').toLowerCase().trim();
+            const lastArg = args[args.length - 1];
+            if (!isNaN(lastArg) && parseInt(lastArg) > 0) {
+                quantity = parseInt(lastArg);
+                itemQuery = args.slice(0, -1).join(' ').toLowerCase().trim();
+            } else {
+                itemQuery = args.join(' ').toLowerCase().trim();
+            }
         }
 
         if (!itemQuery) {
-            return message.reply('Usage: `Zsell <item name or id> <quantity>`');
+            return replyToCommand(message, 'Usage: `Zsell <item name or id> <quantity>`');
         }
 
         // Find item definition by name or id (case-insensitive)
@@ -280,9 +287,9 @@ module.exports = {
         }
 
         if (!itemData) {
-            return message.reply(`Item **"${itemQuery}"** not found. Check the name and try again.`);
+            return replyToCommand(message, `Item **"${itemQuery}"** not found. Check the name and try again.`);
         }
 
-        await executeSell(message.author.id, itemData, quantity, (content) => message.reply(content));
+        await executeSell(getCommandUser(message).id, itemData, quantity, (content) => replyToCommand(message, content));
     }
 };

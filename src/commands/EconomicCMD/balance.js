@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ContainerBuilder, MessageFlags, ModalBuilder, SectionBuilder, SeparatorBuilder, TextDisplayBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { CURRENCY_EMOJI } = require('../Utils/config');
 const formatNumber = require('../Utils/formatNumber');
@@ -10,23 +11,27 @@ module.exports = {
     description: 'Manage your currently balance and bank account',
     category: 'eco',
     usage: 'Zbalance `@user`',
-        args: [
+        slashOptions: [
         { name: 'target', description: 'The user to check the balance of', type: 'user', required: false },
     ],
     async execute(message) {
-        const { author, client } = message;
+        const author = getCommandUser(message);
+        const { client } = message;
         const dbManager = client.db;
-        const name = message.member?.displayName || author.username;
-        const targetUser = message.mentions.users.first();
+        const name = message.member?.displayName || author.globalName || author.username;
+        const targetUser = message.isChatInputCommand?.()
+            ? message.options.getUser('target')
+            : message.mentions.users.first();
 
         if (targetUser && targetUser.id !== author.id) {
             const targetSettings = await dbManager.getUserSettings(targetUser.id);
             if (!getSetting('show_balance').canViewBalance(targetSettings)) {
-                return message.reply('This user block anyone to check their balance, go away pls');
+                return replyToCommand(message, 'This user block anyone to check their balance, go away pls');
             }
 
             const targetData = await dbManager.getUser(targetUser.id);
-            const targetName = message.mentions.members?.find(member => member.id === targetUser.id)?.displayName
+            const targetName = (message.member?.guild?.members?.cache?.get(targetUser.id)?.displayName
+                || message.mentions?.members?.find(member => member.id === targetUser.id)?.displayName)
                 || targetUser.globalName
                 || targetUser.username;
             const publicBalance = new ContainerBuilder()
@@ -36,7 +41,7 @@ module.exports = {
                     `${CURRENCY_EMOJI} ${formatNumber(targetData.balance)}\n🏦 ${formatNumber(targetData.bank)}`
                 ));
 
-            return message.channel.send({
+            return sendCommandMessage(message, {
                 components: [publicBalance],
                 flags: [MessageFlags.IsComponentsV2],
             });
@@ -95,12 +100,12 @@ module.exports = {
         const balanceData = await buildBalanceData();
         let currentData = balanceData;
         let currentView = 'balances';
-        const response = await message.channel.send({
+        const response = await sendCommandMessage(message, {
             components: [buildBalanceContainer(balanceData, currentView)],
             flags: [MessageFlags.IsComponentsV2]
         });
 
-        const collector = response.createMessageComponentCollector({ filter: i => i.user.id === message.author.id, componentType: ComponentType.Button });
+        const collector = response.createMessageComponentCollector({ filter: i => i.user.id === getCommandUser(message).id, componentType: ComponentType.Button });
 
         collector.on('collect', async (i) => {
             if (i.customId === 'balance_reload' || i.customId === 'balance_view_toggle') {
@@ -129,7 +134,7 @@ module.exports = {
 
             if (submit) {
                 let input = submit.fields.getTextInputValue('amount_input').toLowerCase();
-                const curData = await dbManager.getUser(message.author.id);
+                const curData = await dbManager.getUser(getCommandUser(message).id);
                 let amount = 0;
 
                 if (input === 'all') {
@@ -144,21 +149,21 @@ module.exports = {
 
                 if (IsDep) {
                     if (amount > curData.balance) return submit.reply({ content: 'You do not have enough balance to deposit that amount.', ephemeral: true });
-                    const bankLimit = await dbManager.getBankLimit(message.author.id);
+                    const bankLimit = await dbManager.getBankLimit(getCommandUser(message).id);
                     const remainingCapacity = Math.max(0, bankLimit - Number(curData.bank));
                     if (amount > remainingCapacity) {
                         return submit.reply({ content: `Your bank can only accept ${formatNumber(remainingCapacity)} more. Current limit: ${formatNumber(bankLimit)}.`, ephemeral: true });
                     }
-                    await dbManager.removeMoney(message.author.id, amount);
-                    const deposited = await dbManager.addBank(message.author.id, amount);
+                    await dbManager.removeMoney(getCommandUser(message).id, amount);
+                    const deposited = await dbManager.addBank(getCommandUser(message).id, amount);
                     if (!deposited) {
-                        await dbManager.addMoney(message.author.id, amount);
+                        await dbManager.addMoney(getCommandUser(message).id, amount);
                         return submit.reply({ content: 'Your bank limit was reached. Your money has been returned to your balance.', ephemeral: true });
                     }
                 } else {
                     if (amount > curData.bank) return submit.reply({ content: 'You do not have enough money in the bank.', ephemeral: true });
-                    await dbManager.removeBank(message.author.id, amount);
-                    await dbManager.addMoney(message.author.id, amount);
+                    await dbManager.removeBank(getCommandUser(message).id, amount);
+                    await dbManager.addMoney(getCommandUser(message).id, amount);
                 }
 
                 currentData = await buildBalanceData();

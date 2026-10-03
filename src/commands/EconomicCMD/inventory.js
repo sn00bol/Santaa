@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ComponentType } = require('discord.js');
 const rpgmanager = require('../../../database/rpgmanager');
 const dbmanager = require('../../../database/dbmanager');
@@ -14,7 +15,7 @@ module.exports = {
     category: 'eco',
     usage: 'Zinventory `@user`',
     async execute(message, args) {
-        let inventoryItems = await rpgmanager.getInventory(message.author.id);
+        let inventoryItems = await rpgmanager.getInventory(getCommandUser(message).id);
         const allItems = allItemsCache;
 
         const itemsPerPage = 5;
@@ -23,8 +24,8 @@ module.exports = {
         let selectedInventoryIds = [];
 
         const generateEmbedAndComponents = async (page) => {
-            const userStats = await getTotalStats(message.author.id);
-            inventoryItems = (await rpgmanager.getInventory(message.author.id)).filter(invItem => {
+            const userStats = await getTotalStats(getCommandUser(message).id);
+            inventoryItems = (await rpgmanager.getInventory(getCommandUser(message).id)).filter(invItem => {
                 const itemDef = allItems.get(invItem.item_id);
                 if (!itemDef) return true;
 
@@ -56,7 +57,7 @@ module.exports = {
             desc += `⚔️ **Attack:** \`${formatNumber(userStats.totalAttack)}\`\n`;
             desc += `🛡️ **Equipped:** \`${userStats.equippedItemName || 'None'}\`\n`;
 
-            const stats = await rpgmanager.getStats(message.author.id);
+            const stats = await rpgmanager.getStats(getCommandUser(message).id);
             const wantedLevel = Math.floor((stats.wanted_level || 0) / 5);
             const stars = wantedLevel > 0 ? '⭐'.repeat(wantedLevel) : '0';
             desc += `🌟 **Wanted Level:** ${stars}\n\n`;
@@ -76,8 +77,8 @@ module.exports = {
 
 
             const embed = new EmbedBuilder()
-                .setTitle(`${message.author.username}'s Profile & Inventory`)
-                .setThumbnail(message.author.displayAvatarURL({ dynamic: true }))
+                .setTitle(`${getCommandUser(message).username}'s Profile & Inventory`)
+                .setThumbnail(getCommandUser(message).displayAvatarURL({ dynamic: true }))
                 .setDescription(desc)
                 .setFooter({ text: `Page ${formatNumber(page + 1)} of ${formatNumber(totalPages)} | Total items: ${formatNumber(inventoryItems.length)}` });
 
@@ -171,12 +172,12 @@ module.exports = {
             return { embeds: [embed], components };
         };
 
-        const response = await message.channel.send(await generateEmbedAndComponents(currentPage));
+        const response = await sendCommandMessage(message, await generateEmbedAndComponents(currentPage));
 
         const collector = response.createMessageComponentCollector({ time: 60000 });
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== message.author.id) return i.reply({ content: 'Not your menu!', ephemeral: true });
+            if (i.user.id !== getCommandUser(message).id) return i.reply({ content: 'Not your menu!', ephemeral: true });
 
             if (i.isStringSelectMenu() && i.customId === 'inv_select') {
                 selectedInventoryIds = i.values;

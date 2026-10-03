@@ -1,4 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
+const { replyToCommand } = require('./commandInteraction');
 
 const MONEY_MAKING_COMMANDS = ['job', 'parttime', 'fish', 'mine', 'beg', 'daily', 'crime', 'steal'];
 
@@ -63,12 +64,9 @@ module.exports = {
                 
                 let replied = false;
                 if (interactionOrMessage && typeof interactionOrMessage.reply === 'function') {
-                    // Try to send embed
-                    try {
-                        const content = blockMessage ? `**${blockMessage}**` : '';
-                        await interactionOrMessage.reply({ content: content || null, embeds: [penaltyEmbed] });
-                        replied = true;
-                    } catch (e) { console.error(e); }
+                    const content = blockMessage ? `**${blockMessage}**` : '';
+                    await replyToCommand(interactionOrMessage, { content: content || null, embeds: [penaltyEmbed] });
+                    replied = true;
                 }
 
                 if (blocked) {

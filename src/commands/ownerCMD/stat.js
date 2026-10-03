@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 require('dotenv').config();
 const os = require('os');
@@ -23,6 +24,6 @@ module.exports = {
             )
             .setTimestamp();
 
-            message.channel.send({ embeds: [statsEmbed] });
+            sendCommandMessage(message, { embeds: [statsEmbed] });
     }
 }

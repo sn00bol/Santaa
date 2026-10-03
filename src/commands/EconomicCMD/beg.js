@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ModalBuilder, TextInputBuilder, TextInputStyle  } = require('discord.js');
 const { checkCooldown } = require('../Utils/Cooldown');
 const { NPC, BegSuccess, SelfBegSuccess, BegFail, BegStolen } = require('../Utils/misc');
@@ -26,24 +27,24 @@ module.exports = {
     description: 'Begging random NPC or people in server, could beg yourself maybe',
     category: 'eco',
     usage: 'Zbeg (Optional: `@user`)',
-    args: [
+    slashOptions: [
         { name: 'target', description: 'The user to beg from', type: 'user', required: false },
     ],
     pickBegSuccessMessage,
     pickSelfBegMessage,
     calculateSelfBegPenalty,
     async execute(message, args = []) {
-        const { author } = message;
+        const author = getCommandUser(message);
         const dbManager = message.client.db;
 
         const timeLeft = checkCooldown(author.id, this.name);
         if (timeLeft) {
-            return message.reply({ content: `Please wait ${timeLeft} before using the \`${this.name}\` command again.`, ephemeral: true });
+            return replyToCommand(message, { content: `Please wait ${timeLeft} before using the \`${this.name}\` command again.`, ephemeral: true });
         }
 
         const wantedCheck = await checkWantedRestrictions(author.id, this.name, message.client, message);
         if (!wantedCheck.allowed) {
-            if (!wantedCheck.handled && wantedCheck.message) message.reply(wantedCheck.message);
+            if (!wantedCheck.handled && wantedCheck.message) replyToCommand(message, wantedCheck.message);
             return;
         }
 
@@ -55,7 +56,9 @@ module.exports = {
         stats.begs = newBegs;
         achievementChecker.checkEconomy(author.id, stats, 'beg').catch(console.error);
 
-        const targetUser = message.mentions.users.first() || (args[0] && /^\d{17,19}$/.test(args[0]) ? await message.client.users.fetch(args[0]).catch(() => null) : null);
+        const targetUser = message.isChatInputCommand?.()
+            ? message.options.getUser('target')
+            : message.mentions.users.first() || (args[0] && /^\d{17,19}$/.test(args[0]) ? await message.client.users.fetch(args[0]).catch(() => null) : null);
         const isSelfBeg = Boolean(targetUser && targetUser.id === author.id);
 
         if (isSelfBeg) {
@@ -83,7 +86,7 @@ module.exports = {
                 .setDescription(`${selfText}\n\nThat cost you **${formatNumber(penalty)}${CURRENCY_EMOJI}** from your assets, go find a job or at least beg from someone else next time`)
                 .setColor('#e67e22');
 
-            await message.reply({ embeds: [selfEmbed] });
+            await replyToCommand(message, { embeds: [selfEmbed] });
             return;
         }
 
@@ -98,7 +101,7 @@ module.exports = {
                 .setDescription(`${author} is begging ${targetUser} for some cash! Click **Give Money** to decide how much to grant.`)
                 .setColor('#ffd166');
 
-            const promptMessage = await message.channel.send({ content: `${targetUser}`, embeds: [promptEmbed], components: [row] });
+            const promptMessage = await sendCommandMessage(message, { content: `${targetUser}`, embeds: [promptEmbed], components: [row] });
 
             const collector = promptMessage.createMessageComponentCollector({
                 componentType: ComponentType.Button,
@@ -211,7 +214,7 @@ module.exports = {
             .setDescription('Do you want to try begging for cash from strangers? Choose **Yes** to proceed or **No** to back out.')
             .setColor('#ffd166');
 
-        const promptMessage = await message.channel.send({ embeds: [promptEmbed], components: [row] });
+        const promptMessage = await sendCommandMessage(message, { embeds: [promptEmbed], components: [row] });
 
         const collector = promptMessage.createMessageComponentCollector({
             componentType: ComponentType.Button,

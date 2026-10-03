@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const fs = require('fs');
 const path = require('path');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
@@ -295,9 +296,9 @@ module.exports = {
     usage: 'Zfishshop',
     show: false,
     async execute(message, args) {
-        const userId = message.author.id;
+        const userId = getCommandUser(message).id;
         const state = await createFishShopState(userId, 'fish', false);
-        const response = await message.reply({
+        const response = await replyToCommand(message, {
             content: null,
             embeds: [],
             components: [buildFishShopContainer(state)],

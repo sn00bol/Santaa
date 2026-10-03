@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 require('dotenv').config();
 const { getMenuRow } = require('../Utils/NavigateManager');
@@ -30,11 +31,11 @@ module.exports = {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        const response = await message.channel.send({ embeds: [mainEmbed], components: [row] });
+        const response = await sendCommandMessage(message, { embeds: [mainEmbed], components: [row] });
         const collector = response.createMessageComponentCollector({ time: 60000 });
 
         collector.on('collect', async (i) => {
-            if (i.user.id !== message.author.id) return i.reply({ content: 'Not your menu!', ephemeral: true });
+            if (i.user.id !== getCommandUser(message).id) return i.reply({ content: 'Not your menu!', ephemeral: true });
 
             if (i.isButton()) {
                 if (i.customId.startsWith('buy_')) {

@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const rpgmanager = require('../../../database/rpgmanager');
 const formatNumber = require('../Utils/formatNumber');
@@ -7,12 +8,14 @@ module.exports = {
     description: 'View recent PVP match history',
     category: 'utl',
     usage: 'Zpvphistory `@user`',
-    args: [
+    slashOptions: [
         { name: 'target', description: 'The user whose history to view', type: 'user', required: false },
     ],
     async execute(message) {
-        const target = message.mentions.users.first() || message.author;
-        const isself = target.id === message.author.id;
+        const target = message.isChatInputCommand?.()
+            ? message.options.getUser('target') || getCommandUser(message)
+            : message.mentions.users.first() || getCommandUser(message);
+        const isself = target.id === getCommandUser(message).id;
 
         try {
             const [history, stats] = await Promise.all([
@@ -21,7 +24,7 @@ module.exports = {
             ]);
 
             if (history.length === 0) {
-                return message.reply(
+                return replyToCommand(message,
                     isself
                         ? 'You have no PVP match history yet. Challenge someone with `Zpvp @user`!'
                         : `${target.username} has no PVP match history yet.`
@@ -58,11 +61,11 @@ module.exports = {
                 .setFooter({ text: `Showing last ${formatNumber(history.length)} of ${formatNumber(stats.total)} match(es)` })
                 .setTimestamp();
 
-            message.channel.send({ embeds: [embed] });
+            sendCommandMessage(message, { embeds: [embed] });
 
         } catch (error) {
             console.error('Error in pvphistory command:', error);
-            message.reply('An error occurred while fetching PVP history.');
+            replyToCommand(message, 'An error occurred while fetching PVP history.');
         }
     }
 };

@@ -1,3 +1,4 @@
+const { sendCommandMessage } = require('../../../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const { PenaltyKick_goal, PenaltyKick_saved } = require('../../../Utils/misc');
 
@@ -52,7 +53,7 @@ module.exports = async function runPenaltyKick(message, dbManager, authorId) {
     .setColor('#0EA5E9')
     .setFooter({ text: 'You have 30 seconds to decide...' });
 
-  await message.channel.send({ embeds: [promptEmbed] });
+  await sendCommandMessage(message, { embeds: [promptEmbed] });
 
   const collected = await message.channel.awaitMessages({
     filter: (msg) => msg.author.id === authorId && DIRECTIONS.includes(msg.content.toLowerCase()),

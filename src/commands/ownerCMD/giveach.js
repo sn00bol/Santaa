@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const { isOwner } = require('../Utils/permission');
 const achievementManager = require('../../minigames/achievement/achievementManager');
@@ -9,33 +10,36 @@ module.exports = {
     description: 'Grant achievements to a user (Owner only)',
     category: 'owner',
     usage: 'Zgiveach `@user` [achievement file name]',
-    args: [
+    slashOptions: [
         { name: 'target', description: 'The user receiving the achievement', type: 'user', required: true },
         { name: 'achievement', description: 'Achievement file name', type: 'string', required: false },
     ],
-    async execute(message, args) {
-        const { author } = message;
+    async execute(message, args = []) {
+        const author = getCommandUser(message);
 
         if (!isOwner(author.id)) {
-            return message.reply('This command is for bot owners only.');
+            return replyToCommand(message, 'This command is for bot owners only.');
         }
 
-        const targetUser = message.mentions.users.first();
+        const isSlash = message.isChatInputCommand?.();
+        const targetUser = isSlash ? message.options.getUser('target') : message.mentions.users.first();
         if (!targetUser) {
-            return message.reply(`Please mention a user. Usage: ${usage}`);
+            return replyToCommand(message, `Please mention a user. Usage: ${usage}`);
         }
 
         const allAchievements = achievementManager.getAchievements();
         if (allAchievements.length === 0) {
-            return message.reply('No achievements loaded.');
+            return replyToCommand(message, 'No achievements loaded.');
         }
 
         // If specific achievement ID provided → grant directly
-        const achIdArg = args.filter(a => !a.startsWith('<@')).join('');
+        const achIdArg = isSlash
+            ? (message.options.getString('achievement') || '')
+            : args.filter(a => !a.startsWith('<@')).join('');
         if (achIdArg) {
             const ach = allAchievements.find(a => a.id === achIdArg);
             if (!ach) {
-                return message.reply(`Achievement \`${achIdArg}\` not found.\nUse \`Zgiveach @user\` (no ID) to see a list of all achievements.`);
+                return replyToCommand(message, `Achievement \`${achIdArg}\` not found.\nUse \`Zgiveach @user\` (no ID) to see a list of all achievements.`);
             }
 
             const granted = await achievementManager.checkAndGrant(targetUser.id, ach.id);
@@ -47,7 +51,7 @@ module.exports = {
                 .addFields({ name: 'Achievement ID', value: `\`${ach.id}\``, inline: true })
                 .setColor(granted ? 0x57F287 : 0xFEE75C)
                 .setTimestamp();
-            return message.channel.send({ embeds: [embed] });
+            return sendCommandMessage(message, { embeds: [embed] });
         }
 
         // No ID → show paginated select menu browser
@@ -121,7 +125,7 @@ module.exports = {
         };
 
         const filtered = getFiltered();
-        const response = await message.channel.send({
+        const response = await sendCommandMessage(message, {
             embeds: [buildEmbed(filtered, page)],
             components: buildComponents()
         });

@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const { allItemsCache } = require('../Utils/StatsCalculator');
 const { CURRENCY_SYMBOL } = require('../Utils/config');
@@ -10,36 +11,40 @@ module.exports = {
     description: 'Give money or items to another user',
     category: ['eco', 'owner'],
     usage: 'Zgive `@user` `item/amount` [quantity]',
-    args: [
+    slashOptions: [
         { name: 'target', description: 'The user receiving the money or item', type: 'user', required: true },
         { name: 'item_or_amount', description: 'An item name, item ID, or money amount', type: 'string', required: true },
         { name: 'quantity', description: 'The item quantity', type: 'integer', required: false },
     ],
     async execute(message, args) {
-        const { author, client } = message;
+        const author = getCommandUser(message);
+        const { client } = message;
         const dbmanager = client.db;
         const rpgmanager = client.rpg;
 
         const isOwner = isOwnerUser(author.id);
 
         // 1. Check target user
-        const targetUser = message.mentions.users.first();
+        const isSlash = message.isChatInputCommand?.();
+        const targetUser = isSlash ? message.options.getUser('target') : message.mentions.users.first();
         if (!targetUser) {
-            return message.reply(`Please mention a user to give money or items to. Example: '${this.usage}'`);
+            return replyToCommand(message, `Please mention a user to give money or items to. Example: '${this.usage}'`);
         }
 
         if (targetUser.id === author.id && !isOwner) {
-            return message.reply("You cannot give money or items to yourself!");
+            return replyToCommand(message, "You cannot give money or items to yourself!");
         }
 
         if (targetUser.bot) {
-            return message.reply("You cannot give money or items to a bot!");
+            return replyToCommand(message, "You cannot give money or items to a bot!");
         }
 
         // Filter out the user mention from the arguments to get item/amount
-        const giveArgs = args.filter(arg => !/^<@!?\d+>$/.test(arg));
+        const giveArgs = isSlash
+            ? [message.options.getString('item_or_amount')].filter(Boolean)
+            : args.filter(arg => !/^<@!?\d+>$/.test(arg));
         if (giveArgs.length === 0) {
-            return message.reply('Please specify an item or amount of money to give. Example: `Zgive @user <item/amount>`');
+            return replyToCommand(message, 'Please specify an item or amount of money to give. Example: `Zgive @user <item/amount>`');
         }
 
         let isMoney = false;
@@ -47,6 +52,8 @@ module.exports = {
         let moneyAmount = 0;
         let itemData = null;
         let quantity = 1;
+        const requestedQuantity = isSlash ? message.options.getInteger('quantity') : null;
+        if (requestedQuantity !== null) quantity = requestedQuantity;
 
         // Helper to look up item by ID or Name (case-insensitive)
         const findItem = (query) => {
@@ -60,7 +67,7 @@ module.exports = {
         };
 
         // 1. Try parsing last argument as quantity (only if multiple args remain)
-        if (giveArgs.length > 1) {
+        if (!isSlash && giveArgs.length > 1) {
             const lastArg = giveArgs[giveArgs.length - 1];
             const parsedQty = parseInt(lastArg);
             if (!isNaN(parsedQty) && parsedQty > 0 && /^\d+$/.test(lastArg)) {
@@ -80,7 +87,7 @@ module.exports = {
             const found = findItem(itemQuery);
             if (found) {
                 itemData = found;
-                quantity = 1;
+                if (!isSlash || requestedQuantity === null) quantity = 1;
                 isItem = true;
             }
         }
@@ -98,7 +105,7 @@ module.exports = {
 
         // If neither matched, report incorrect usage
         if (!isMoney && !isItem) {
-            return message.reply(`Could not find item or parse amount: **"${giveArgs.join(' ')}"**.\nUsage: \`Zgive @user <amount/item name> [quantity]\``);
+            return replyToCommand(message, `Could not find item or parse amount: **"${giveArgs.join(' ')}"**.\nUsage: \`Zgive @user <amount/item name> [quantity]\``);
         }
 
         try {
@@ -106,7 +113,7 @@ module.exports = {
                 if (!isOwner) {
                     const senderData = await dbmanager.getUser(author.id);
                     if (senderData.balance < moneyAmount) {
-                        return message.reply(`You do not have enough money to give. (Balance: **${formatNumber(senderData.balance)}${CURRENCY_SYMBOL}**, Required: **${formatNumber(moneyAmount)}${CURRENCY_SYMBOL}**)`);
+                        return replyToCommand(message, `You do not have enough money to give. (Balance: **${formatNumber(senderData.balance)}${CURRENCY_SYMBOL}**, Required: **${formatNumber(moneyAmount)}${CURRENCY_SYMBOL}**)`);
                     }
                     // Deduct from sender
                     await dbmanager.removeMoney(author.id, moneyAmount);
@@ -128,7 +135,7 @@ module.exports = {
                     achievementChecker.checkEconomy(targetUser.id, receiverStats, 'owner_give').catch(console.error);
                 }
 
-                return message.channel.send({ embeds: [embed] });
+                return sendCommandMessage(message, { embeds: [embed] });
             }
 
             if (isItem) {
@@ -136,7 +143,7 @@ module.exports = {
                     const senderInventory = await rpgmanager.getInventory(author.id);
                     const matchingItems = senderInventory.filter(inv => inv.item_id === itemData.id);
                     if (matchingItems.length < quantity) {
-                        return message.reply(`You do not have enough **${itemData.name}** to give. (You have: **x${formatNumber(matchingItems.length)}**, Required: **x${formatNumber(quantity)}**)`);
+                        return replyToCommand(message, `You do not have enough **${itemData.name}** to give. (You have: **x${formatNumber(matchingItems.length)}**, Required: **x${formatNumber(quantity)}**)`);
                     }
 
                     // Unequip item for sender if they are giving it away and it's currently equipped
@@ -167,11 +174,11 @@ module.exports = {
                     .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                     .setTimestamp();
 
-                return message.channel.send({ embeds: [embed] });
+                return sendCommandMessage(message, { embeds: [embed] });
             }
         } catch (error) {
             console.error('Error occurred in give command:', error);
-            return message.reply('An error occurred while processing the transaction');
+            return replyToCommand(message, 'An error occurred while processing the transaction');
         }
     }
 };

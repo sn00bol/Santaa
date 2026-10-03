@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags} = require('discord.js');
 const formatNumber = require('../../commands/Utils/formatNumber');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
@@ -117,8 +118,8 @@ module.exports = {
   async execute(message) {
     try {
       const prompt = this.getPrompt(Math.floor(Math.random() * olympacPrompts.length));
-      const ownerId = message.author.id;
-      const sent = await message.channel.send({
+      const ownerId = getCommandUser(message).id;
+      const sent = await sendCommandMessage(message, {
         components: [buildSprintContainer({ ownerId, prompt, phase: 'ready' })],
         flags: [MessageFlags.IsComponentsV2]
       });
@@ -272,7 +273,7 @@ module.exports = {
 
     } catch (error) {
       console.error('Error in olympac sprint:', error);
-      message.reply('An error occurred while starting the sprint!');
+      replyToCommand(message, 'An error occurred while starting the sprint!');
     }
   }
 };

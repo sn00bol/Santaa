@@ -1,137 +1,94 @@
-# Data Management (Database)
+# Database and Data Access
 
-The bot stores data in SQLite using two database files:
+The bot uses two SQLite databases. Their files are created at runtime and should not be committed:
 
-### `database/balance.db` via `dbmanager.js`
-Use this for money, bank, jobs, and help preferences.
-- `balances`: user cash and bank data
-- `job_states`: current job info and cooldowns
-- `help_preferences`: last help categories per user
+| File | Manager facade | Main data |
+| --- | --- | --- |
+| `database/balance.db` | `database/dbmanager.js` | Wallet/bank balances, settings, activity, daily claims, jobs, and net-worth peaks |
+| `database/rpg.db` | `database/rpgmanager.js` | Inventory, player stats/profiles, and PvP history |
 
-### `database/rpg.db` via `rpgmanager.js`
-Use this for inventory, player stats, PVP history, and fishing progress.
-- `inventory`: every owned item record
-- `stats`: player stats + equipment + fishing profile
-- `pvp_history`: saved fight results
+The manager modules are compatibility facades: existing commands can continue calling the same methods, while database access and schema work live in focused modules.
 
-Keep these points in mind:
-- `dbmanager.js` initializes `balance.db` and creates missing tables.
-- `rpgmanager.js` initializes `rpg.db` and makes sure old databases still work.
-- If you add new fields, update the create/alter statements in the correct manager file.
+## Module responsibilities
 
-### Database Usage Examples
+- `database/connection.js` opens SQLite connections and applies shared connection settings (`busy_timeout`, WAL journaling, normal synchronous mode, and foreign keys). It also provides the shared idempotent column migration helper.
+- `database/schema/balance.js` creates and migrates the balance database tables and their indexes. It applies the split-notification settings migration transactionally.
+- `database/schema/game.js` creates and migrates inventory, stats, and PvP tables and indexes.
+- `database/repositories/` contains data operations grouped by domain:
+  - `settingsRepository.js`: user settings, help preferences, and passive activity.
+  - `jobsRepository.js`: job state and daily reward/reminder claims.
+  - `economyRepository.js`: balances, bank operations, and bank limits.
+  - `financialRepository.js`: inventory valuations, net-worth peaks, and financial leaderboards.
+  - `inventoryRepository.js`: item ownership and inventory mutations.
+  - `statsRepository.js`: player stats, equipment, and fishing/mining profiles.
+  - `leaderboardRepository.js`: PvP history and game/stat leaderboards.
+- `database/dbmanager.js` and `database/rpgmanager.js` compose those repositories and expose the legacy API. Keep SQL and domain logic in the repositories/schema modules, not in new commands or the facades.
 
-**Accessing Database Managers:**
+## Accessing data
+
+Commands normally use the managers attached to the Discord client:
+
 ```js
-// In command files, access via client.db
-const dbManager = message.client.db; // For balance operations
-const rpgManager = message.client.rpg; // For RPG operations
+const balanceManager = message.client.db;
+const rpgManager = message.client.rpg;
 
-// Or require directly
+const account = await balanceManager.getUser(message.author.id);
+const stats = await rpgManager.getStats(message.author.id);
+```
+
+Direct imports are also supported where the client context is unavailable:
+
+```js
 const dbmanager = require('../../../database/dbmanager');
 const rpgmanager = require('../../../database/rpgmanager');
 ```
 
-**Common Database Operations:**
+Choose `dbmanager` for money, settings, jobs, and net worth. Choose `rpgmanager` for inventory, player stats/profiles, and PvP data. Keep parameterized SQL in repositories; do not interpolate user input into SQL.
 
-**Money Operations (dbmanager):**
+### Common operations
+
 ```js
-// Get user data
-const userData = await dbManager.getUser(userId);
+// Wallet and bank
+await dbmanager.addMoney(userId, amount, { trackEarning: true });
+await dbmanager.removeMoney(userId, amount);
+await dbmanager.addBank(userId, amount);
+await dbmanager.removeBank(userId, amount);
+const summary = await dbmanager.getNetWorthSummary(userId);
 
-// Add money to balance
-await dbManager.addMoney(userId, amount, { trackEarning: true });
-
-// Remove money from balance
-await dbManager.removeMoney(userId, amount);
-
-// Add money to bank
-await dbManager.addBank(userId, amount);
-
-// Remove money from bank
-await dbManager.removeBank(userId, amount);
-
-// Get inventory value
-const inventoryValue = await dbManager.getInventoryValue(userId);
-```
-
-**Inventory Operations (rpgmanager):**
-```js
-// Get user inventory
+// Inventory stores one row per item copy
 const inventory = await rpgmanager.getInventory(userId);
+await rpgmanager.addItem(userId, itemId, itemName);
+await rpgmanager.removeItem(inventory[0].id);
 
-// Add item to inventory
-await rpgmanager.addItem(userId, itemId, quantity);
-
-// Remove item from inventory
-await rpgmanager.removeItem(userId, itemId, quantity);
-
-// Check if user has item
-const hasItem = await rpgmanager.hasItem(userId, itemId);
-
-// Get user stats
+// Stats and leaderboards
 const stats = await rpgmanager.getStats(userId);
-
-// Update user stats
-await rpgmanager.updateStats(userId, { level: newLevel, xp: newXp });
-```
-
-**Query Operations:**
-```js
-// Get money leaderboard
-const leaderboard = await dbmanager.getMoneyLeaderboard(10);
-
-// Get level leaderboard
+await rpgmanager.updateStats(userId, health, stamina);
+await rpgmanager.updateProgress(userId, { level: 2, exp: 100 });
 const levelLeaderboard = await rpgmanager.getLevelLeaderboard(10);
-
-// Get PVP wins leaderboard
-const winsLeaderboard = await rpgmanager.getWinsLeaderboard(10);
+const moneyLeaderboard = await dbmanager.getMoneyLeaderboard(10);
 ```
 
-**Error Handling:**
-```js
-try {
-  await dbManager.addMoney(userId, amount);
-  const embed = new EmbedBuilder()
-    .setColor('#00ff00')
-    .setDescription(`Successfully added ${amount}${CURRENCY_EMOJI}!`);
-  message.channel.send({ embeds: [embed] });
-} catch (error) {
-  console.error('Database error:', error);
-  const errorEmbed = new EmbedBuilder()
-    .setColor('#ff0000')
-    .setDescription('An error occurred while processing your request.');
-  message.channel.send({ embeds: [errorEmbed] });
-}
-```
+`addItem` inserts one inventory row; call it once per item copy. `removeItem` accepts the inventory row ID, not an item ID or quantity. Check the manager/repository implementation before relying on a method signature—older snippets or examples may not match the current API.
 
-**Database with Cooldowns:**
-```js
-const { checkCooldown } = require('../Utils/Cooldown');
+## Adding or changing stored data
 
-async execute(message) {
-  const userId = message.author.id;
-  const commandName = this.name;
+1. Decide which database owns the data: balance/economy or RPG/gameplay.
+2. Add or update the table/column/index in the matching schema module.
+3. Use `ensureColumn` for additive columns so existing databases migrate safely. Keep migrations idempotent; do not swallow unrelated SQL errors.
+4. Add domain queries to the corresponding repository and expose them through the existing manager facade if commands need the new operation.
+5. Add or update tests in `database/repositories/repositories.test.js`. Tests use in-memory SQLite and cover repeatable migrations, legacy schemas, and repository workflows.
+6. Run `npm test` before shipping.
 
-  // Check cooldown
-  const timeLeft = checkCooldown(userId, commandName);
-  if (timeLeft) {
-    return message.reply(`Please wait ${timeLeft} before using this command again.`);
-  }
+Do not rename database files, move tables between the two databases, or remove columns as part of a routine refactor without a deliberate data migration and backup plan. Each manager owns and closes its own connection; startup initializes both before login, and shutdown closes both.
 
-  // Perform database operation
-  try {
-    await dbManager.addMoney(userId, 100);
-    message.reply('Money added successfully!');
-  } catch (error) {
-    console.error('Error:', error);
-    message.reply('An error occurred.');
-  }
-}
-```
+## Performance and consistency
 
-### Boss & Memory System
+- Existing indexes support inventory ownership/item lookups, user-setting sweeps, active jobs, level rankings, and PvP history.
+- Prefer a batched query over a loop that performs one database read per user/item. Financial leaderboards use a shared inventory snapshot for valuation.
+- Use a transaction for multi-step migrations or writes that must succeed/fail together. SQLite transactions are connection-local; do not assume a transaction spans `balance.db` and `rpg.db`.
+- SQL operations use placeholders for values. Dynamic SQL fragments should only be selected from fixed, trusted field names.
+- WAL mode may create SQLite `-wal` and `-shm` sidecar files while the bot is running; treat them as runtime data alongside the database files.
 
-- `database/bosses/*.json`: Contains boss stats and skill configurations
-- `database/bosses_memory/*.json`: Stores current boss state (e.g., remaining health) so it isn't reset when the bot restarts
----
+## Other persisted data
+
+Boss configuration and memory files under `database/bosses/` and `database/bosses_memory/` are JSON, not part of these SQLite managers. Preserve their existing file-based storage unless their subsystem is intentionally migrated.

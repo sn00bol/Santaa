@@ -285,19 +285,14 @@ async function sellAllFish(userId, profile, inventory, bucketKeyOrAll) {
     const itemsToSellMap = new Map();
 
     for (const bucket of scope) {
-        const state = getContainerState(profile, bucket.rowId);
-        const remaining = [];
         for (const entry of bucket.items) {
             const def = allItemsCache.get(entry.id);
             if (def && def.is_sellable && (def.cost ?? 0) > 0) {
                 const existing = itemsToSellMap.get(entry.id) || { itemData: def, quantity: 0 };
                 existing.quantity += 1;
                 itemsToSellMap.set(entry.id, existing);
-            } else {
-                remaining.push(entry);
             }
         }
-        state.items = remaining;
     }
 
     const itemsToSell = Array.from(itemsToSellMap.values());
@@ -306,33 +301,42 @@ async function sellAllFish(userId, profile, inventory, bucketKeyOrAll) {
     }
 
     const result = await sellItemsCore(userId, itemsToSell);
-    if (!result || !result.sold) {
+    if (!result || !Array.isArray(result.soldItems) || result.soldItems.length === 0) {
         return { ok: true, sold: [], soldCount: 0, totalEarned: 0 };
     }
 
     // sellers_man skill: * (1 + 0.03 + level * 0.0025) to earned value
     const sellersManMultiplier = 1 + 0.03 + (sellersManLevel - 1) * 0.0025;
-    result.totalEarned = Math.round((result.totalEarned || 0) * sellersManMultiplier);
-    // Round individual earnings
-    result.sold = result.sold.map(item => ({
-        ...item,
-        earned: Math.round((item.earned || 0) * sellersManMultiplier)
-    }));
 
-    const sold = (result.soldItems || []).map(item => ({
+    const sold = result.soldItems.map(item => ({
         itemId: item.itemId,
         name: item.name,
         count: item.quantity,
-        earned: item.earned
+        earned: Math.round((item.earned || 0) * sellersManMultiplier),
     }));
 
     const soldCount = sold.reduce((sum, item) => sum + item.count, 0);
+    const remainingToRemove = new Map(
+        sold.map(item => [item.itemId, item.count])
+    );
+    for (const bucket of scope) {
+        const state = getContainerState(profile, bucket.rowId);
+        state.items = bucket.items.filter(entry => {
+            const count = remainingToRemove.get(entry.id) || 0;
+            if (count <= 0) return true;
+            remainingToRemove.set(entry.id, count - 1);
+            return false;
+        });
+    }
+
+    ownedBucketsCache = null;
+    ownedBucketsCacheKey = null;
 
     return {
         ok: true,
         sold,
         soldCount,
-        totalEarned: result.totalEarned
+        totalEarned: Math.round((result.totalEarned || 0) * sellersManMultiplier),
     };
 }
 

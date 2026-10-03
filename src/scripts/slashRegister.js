@@ -66,8 +66,9 @@ async function synchronizeSlashCommands(commandManager, commands, { guildId, res
     console.log(`[SLASH] Found ${registeredCommands.size} existing commands.`);
     let deleted = 0;
 
+    console.log(`\n[CAUTIONS] This action will take some minutes, stay tuned\n`);
+
     if (reset) {
-        console.log(`\n[CAUTIONS] This action will take some minutes, stay tuned\n`);
         console.log(`[SLASH] Deleting existing ${scope} commands...`);
         for (const registered of registeredCommands.values()) {
             await commandManager.delete(registered.id, guildId);

@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { AttachmentBuilder } = require('discord.js');
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const { getTotalStats } = require('../Utils/StatsCalculator');
@@ -160,12 +161,14 @@ module.exports = {
   description: 'Check your or another user\'s level',
   category: 'utl',
   usage: 'Zlevel `@user`',
-  args: [
+  slashOptions: [
     { name: 'target', description: 'The user whose level to view', type: 'user', required: false },
   ],
-  async execute(message, args) {
-    const targetUser = message.mentions.users.first() || message.author;
-    const targetMember = message.mentions.members?.find(member => member.id === targetUser.id)
+  async execute(message) {
+  const targetUser = message.isChatInputCommand?.()
+    ? message.options.getUser('target') || getCommandUser(message)
+    : message.mentions.users.first() || getCommandUser(message);
+    const targetMember = message.mentions?.members?.find(member => member.id === targetUser.id)
       || (message.member?.id === targetUser.id ? message.member : null)
       || (message.guild ? await message.guild.members.fetch(targetUser.id).catch(() => null) : null);
     const stats = await getTotalStats(targetUser.id);
@@ -175,10 +178,10 @@ module.exports = {
     try {
       const imageBuffer = await generateLevelCard(targetUser, stats, displayName, rank);
       const attachment = new AttachmentBuilder(imageBuffer, { name: 'level.png' });
-      return message.reply({ files: [attachment] });
+      return replyToCommand(message, { files: [attachment] });
     } catch (error) {
       console.error('Error generating level card:', error);
-      return message.reply('Failed to generate level card.');
+      return replyToCommand(message, 'Failed to generate level card.');
     }
   },
 };

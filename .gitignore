@@ -5,8 +5,7 @@
 node_modules/
 
 # Database
-database/balance.db
-database/rpg.db
+database/*.db*
 database/bosses_memory/
 
 # others

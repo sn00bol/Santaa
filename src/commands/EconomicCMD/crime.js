@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const { checkCooldown } = require('../Utils/Cooldown');
 const { CrimeSuccess, CrimeFail, CrimeWorse } = require('../Utils/misc');
@@ -12,27 +13,28 @@ module.exports = {
     category: 'eco',
     usage: 'Zcrime',
     async execute(message) {
-        const { client, author } = message;
+        const { client } = message;
+        const author = getCommandUser(message);
         const dbManager = client.db;
         const rpgManager = client.rpg;
         const passive = getSetting('passive');
         const userSettings = await dbManager.getUserSettings(author.id);
 
         if (passive.blocksCrime(userSettings)) {
-            return message.reply('Passive Mode is enabled, you cannot commit any crimes');
+            return replyToCommand(message, 'Passive Mode is enabled, you cannot commit any crimes');
         }
 
         // Cooldown
         const timeLeft = checkCooldown(author.id, this.name);
 
         if (timeLeft) {
-            return message.reply({ content: `Please wait ${timeLeft} before using the \`${this.name}\` command again`, ephemeral: true });
+            return replyToCommand(message, { content: `Please wait ${timeLeft} before using the \`${this.name}\` command again`, ephemeral: true });
         }
 
         const wantedCheck = await checkWantedRestrictions(author.id, this.name, client, message);
         if (!wantedCheck.allowed) {
             if (!wantedCheck.handled && wantedCheck.message) {
-                message.reply(wantedCheck.message);
+                replyToCommand(message, wantedCheck.message);
             }
             return;
         }
@@ -133,11 +135,11 @@ module.exports = {
             // Increase Wanted Level
             await rpgManager.updateWantedLevel(author.id, 1);
 
-            message.channel.send({ embeds: [embed] });
+            sendCommandMessage(message, { embeds: [embed] });
 
         } catch (error) {
             console.error('Error occurred while committing crime:', error);
-            message.reply('An error occurred while executing the command.');
+            replyToCommand(message, 'An error occurred while executing the command.');
         }
     }
 }

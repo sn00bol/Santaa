@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../../commands/Utils/commandInteraction');
 const { MessageFlags } = require('discord.js');
 const rpgmanager = require('../../../database/rpgmanager');
 const dbmanager = require('../../../database/dbmanager');
@@ -50,7 +51,7 @@ function attachTableCollector(message, msg) {
     const collector = msg.createMessageComponentCollector({ time: 60000 });
 
     collector.on('collect', async i => {
-        if (i.user.id !== message.author.id) {
+        if (i.user.id !== getCommandUser(message).id) {
             return i.reply({ content: 'Not your menu!', ephemeral: true });
         }
 
@@ -84,7 +85,7 @@ function attachTableCollector(message, msg) {
 }
 
 async function handleTable(message) {
-    const msg = await message.reply({
+    const msg = await replyToCommand(message, {
         components: [craftUI.buildTable('fix').container],
         flags: [MessageFlags.IsComponentsV2],
     });
@@ -93,23 +94,23 @@ async function handleTable(message) {
 
 async function handleFix(message, itemName) {
     if (!itemName) {
-        return message.reply('❌ Please specify an item to fix. Usage: `Zcraft fix <item name>`');
+        return replyToCommand(message, '❌ Please specify an item to fix. Usage: `Zcraft fix <item name>`');
     }
 
-    const userId = message.author.id;
+    const userId = getCommandUser(message).id;
     const inventory = await rpgmanager.getInventory(userId);
 
     // Find item in inventory
     const found = findItemInInventory(inventory, itemName);
     if (!found) {
-        return message.reply(`❌ You don't have an item matching **"${itemName}"** in your inventory.`);
+        return replyToCommand(message, `❌ You don't have an item matching **"${itemName}"** in your inventory.`);
     }
 
     const { itemDef } = found;
 
     // Check fixable
     if (!isFixable(itemDef)) {
-        return message.reply({
+        return replyToCommand(message, {
             components: [craftUI.buildFixResult({
                 error: `**${itemDef.name}** cannot be fixed. (Food, wood, and starter items are not fixable.)`,
             })],
@@ -139,13 +140,13 @@ async function handleFix(message, itemName) {
     }
 
     if (currentDur >= maxDur) {
-        return message.reply(`✅ **${itemDef.name}** is already at full durability (${formatNumber(maxDur)}).`);
+        return replyToCommand(message, `✅ **${itemDef.name}** is already at full durability (${formatNumber(maxDur)}).`);
     }
 
     // Check wood in inventory
     const woodOwned = countItem(inventory, cost.woodId);
     if (woodOwned < cost.woodCost) {
-        return message.reply(
+        return replyToCommand(message,
             `❌ Not enough wood! You need **${cost.woodCost}x Wood** but only have **${woodOwned}x**.\n` +
             `Use \`Zcut\` to chop more wood.`
         );
@@ -154,7 +155,7 @@ async function handleFix(message, itemName) {
     // Check money
     const account = await dbmanager.getUser(userId);
     if (account.balance < cost.moneyCost) {
-        return message.reply(
+        return replyToCommand(message,
             `❌ Not enough money! You need **${CURRENCY_EMOJI}${formatNumber(cost.moneyCost)}** but only have **${CURRENCY_EMOJI}${formatNumber(account.balance)}**.`
         );
     }
@@ -167,7 +168,7 @@ async function handleFix(message, itemName) {
         await rpgmanager.updateProgress(userId, { mining_profile: profile });
     }
 
-    return message.reply({
+    return replyToCommand(message, {
         components: [craftUI.buildFixResult({
             item: itemDef,
             cost,
@@ -180,22 +181,22 @@ async function handleFix(message, itemName) {
 
 async function handleUpgrade(message, itemName) {
     if (!itemName) {
-        return message.reply('❌ Please specify an item to upgrade. Usage: `Zcraft upgrade <item name>`');
+        return replyToCommand(message, '❌ Please specify an item to upgrade. Usage: `Zcraft upgrade <item name>`');
     }
 
-    const userId = message.author.id;
+    const userId = getCommandUser(message).id;
     const inventory = await rpgmanager.getInventory(userId);
 
     const found = findItemInInventory(inventory, itemName);
     if (!found) {
-        return message.reply(`❌ You don't have an item matching **"${itemName}"** in your inventory.`);
+        return replyToCommand(message, `❌ You don't have an item matching **"${itemName}"** in your inventory.`);
     }
 
     const { itemDef } = found;
 
     // Check upgradable
     if (!isUpgradable(itemDef)) {
-        return message.reply({
+        return replyToCommand(message, {
             components: [craftUI.buildUpgradeResult({
                 error: `**${itemDef.name}** cannot be upgraded. Only pickaxes and helmets (excluding starters) are upgradable.`,
             })],
@@ -213,7 +214,7 @@ async function handleUpgrade(message, itemName) {
     const currentLevel = getUpgradeLevel(profile, itemDef.id);
 
     if (currentLevel >= MAX_UPGRADE_LEVEL) {
-        return message.reply({
+        return replyToCommand(message, {
             components: [craftUI.buildUpgradeResult({
                 item: itemDef,
                 upgradeType,
@@ -227,7 +228,7 @@ async function handleUpgrade(message, itemName) {
 
     const tier = getUpgradeTier(upgradeType, currentLevel);
     if (!tier) {
-        return message.reply('❌ Unable to determine upgrade cost. Please try again.');
+        return replyToCommand(message, '❌ Unable to determine upgrade cost. Please try again.');
     }
 
     // Build material requirements
@@ -246,7 +247,7 @@ async function handleUpgrade(message, itemName) {
         const woodDef = allItemsCache.get(req.id);
         const woodName = woodDef?.name || req.id;
         if (owned < req.qty) {
-            return message.reply(
+            return replyToCommand(message,
                 `❌ Not enough materials! You need **${req.qty}x ${woodName}** but only have **${owned}x**.\n` +
                 `Use \`Zcut\` to get more wood.`
             );
@@ -256,7 +257,7 @@ async function handleUpgrade(message, itemName) {
     // Check money
     const account = await dbmanager.getUser(userId);
     if (account.balance < tier.money) {
-        return message.reply(
+        return replyToCommand(message,
             `❌ Not enough money! You need **${CURRENCY_EMOJI}${formatNumber(tier.money)}** but only have **${CURRENCY_EMOJI}${formatNumber(account.balance)}**.`
         );
     }
@@ -272,7 +273,7 @@ async function handleUpgrade(message, itemName) {
     setUpgradeLevel(profile, itemDef.id, newLevel);
     await rpgmanager.updateProgress(userId, { mining_profile: profile });
 
-    return message.reply({
+    return replyToCommand(message, {
         components: [craftUI.buildUpgradeResult({
             item: itemDef,
             upgradeType,
@@ -285,8 +286,8 @@ async function handleUpgrade(message, itemName) {
 }
 
 async function handleMain(message) {
-    return message.reply({
-        components: [craftUI.buildMainMenu(message.content)],
+    return replyToCommand(message, {
+        components: [craftUI.buildMainMenu(message.isChatInputCommand?.() ? '/craft' : message.content)],
         flags: [MessageFlags.IsComponentsV2],
     });
 }
@@ -297,15 +298,16 @@ module.exports = {
     description: 'Fix or upgrade items using wood and materials.',
     category: 'mie',
     usage: 'Zcraft [fix <item> | upgrade <item> | table]',
-    args: [
+    slashOptions: [
         { name: 'action', description: 'Action: fix, upgrade, or table', type: 'string', required: false },
         { name: 'item', description: 'Item name for fix or upgrade', type: 'string', required: false },
     ],
     async execute(message, args) {
-        const slashOptions = message.slashOptions || {};
-        const hasSlashItem = slashOptions.item !== undefined && slashOptions.item !== null;
-        const sub = String(slashOptions.action ?? (hasSlashItem ? '' : args[0]) ?? '').toLowerCase();
-        const rest = hasSlashItem ? String(slashOptions.item) : args.slice(1).join(' ');
+        const isSlash = message.isChatInputCommand?.();
+        const action = isSlash ? message.options.getString('action') : args[0];
+        const item = isSlash ? message.options.getString('item') : null;
+        const sub = String(action || '').toLowerCase();
+        const rest = isSlash ? String(item || '') : args.slice(1).join(' ');
 
         switch (sub) {
             case 'fix':
@@ -321,4 +323,3 @@ module.exports = {
         }
     }
 };
-

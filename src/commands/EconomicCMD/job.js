@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const { getPaginationRow } = require('../Utils/NavigateManager');
 const { jobs, getJobById, getJobByIdentifier, getAvailableJobs, getSortedJobs, getJobCooldownMs, getJobUnlockStatus, formatJobSummary } = require('./jobs/jobData');
@@ -28,18 +29,21 @@ module.exports = {
   description: 'The most feared word in the world... THE JOB!!!!',
   category: 'eco',
   usage: 'Zjob `help`/`work`/`list`/`choose`',
-  args: [
+  slashOptions: [
     { name: 'action', description: 'Job action: help, work, list, or choose', type: 'string', required: false },
     { name: 'job', description: 'Job name when choosing a job', type: 'string', required: false },
   ],
   async execute(message, args = []) {
-    const { author } = message;
+    const author = getCommandUser(message);
     const dbManager = message.client.db;
 
     const state = await dbManager.getJobState(author.id);
     const now = Date.now();
 
-    const action = args[0] ? args[0].toLowerCase() : 'help';
+    const isSlash = message.isChatInputCommand?.();
+    const actionArg = isSlash ? message.options.getString('action') : args[0];
+    const jobArg = isSlash ? message.options.getString('job') : args[1];
+    const action = actionArg ? actionArg.toLowerCase() : 'help';
 
     if (action === 'help') {
       const embed = new EmbedBuilder()
@@ -50,7 +54,7 @@ module.exports = {
           { name: 'Zjob list', value: '-# view all available careers' },
           { name: 'Zjob choose `job name`', value: '-# choose a new job' }
         );
-      return message.channel.send({ embeds: [embed] });
+      return sendCommandMessage(message, { embeds: [embed] });
     }
 
 
@@ -75,7 +79,7 @@ module.exports = {
       };
 
       const initial = buildJobListEmbed(currentPage);
-      const response = await message.channel.send({
+      const response = await sendCommandMessage(message, {
         embeds: [initial.embed],
         components: initial.totalPages > 1 ? [getPaginationRow(currentPage, initial.totalPages)] : []
       });
@@ -83,7 +87,7 @@ module.exports = {
       const collector = response.createMessageComponentCollector({ time: 60000 });
 
       collector.on('collect', async (i) => {
-        if (i.user.id !== message.author.id) return i.reply({ content: 'Not your menu!', ephemeral: true });
+        if (i.user.id !== getCommandUser(message).id) return i.reply({ content: 'Not your menu!', ephemeral: true });
         if (!i.isButton()) return;
 
         switch (i.customId) {
@@ -114,18 +118,18 @@ module.exports = {
     if (action === 'choose') {
       const wantedCheck = await checkWantedRestrictions(author.id, this.name, message.client, message);
       if (!wantedCheck.allowed) {
-        if (!wantedCheck.handled && wantedCheck.message) message.reply(wantedCheck.message);
+        if (!wantedCheck.handled && wantedCheck.message) replyToCommand(message, wantedCheck.message);
         return;
       }
 
-      const targetJob = getJobByIdentifier(args[1]);
+      const targetJob = getJobByIdentifier(jobArg);
       if (!targetJob) {
-        return message.reply('That job was not found. Use `Zjob list` to see the available careers.');
+        return replyToCommand(message, 'That job was not found. Use `Zjob list` to see the available careers.');
       }
 
       const unlockStatus = getJobUnlockStatus(targetJob, Number(state.work_count || 0));
       if (!unlockStatus.unlocked) {
-        return message.reply(`You cannot choose **${targetJob.name}** yet. ${unlockStatus.reason}`);
+        return replyToCommand(message, `You cannot choose **${targetJob.name}** yet. ${unlockStatus.reason}`);
       }
 
       await dbManager.updateJobProgress(author.id, {
@@ -137,29 +141,29 @@ module.exports = {
         first_bonus_received: 0
       });
 
-      return message.reply(`You chose **${targetJob.name}**! Your new job is ready.`);
+      return replyToCommand(message, `You chose **${targetJob.name}**! Your new job is ready.`);
     }
 
     if (action === 'work') {
       // continue with the work flow below
     } else if (action && action !== 'help' && action !== 'list' && action !== 'choose') {
-      return message.reply('Unknown job action. Use `Zjob help` to see the available commands.');
+      return replyToCommand(message, 'Unknown job action. Use `Zjob help` to see the available commands.');
     }
 
     if (state.fired_until > now) {
       const waitTime = state.fired_until - now;
-      return message.reply(`You were fired and cannot work again for ${formatTimeLeft(waitTime)}.`);
+      return replyToCommand(message, `You were fired and cannot work again for ${formatTimeLeft(waitTime)}.`);
     }
 
     const wantedCheck = await checkWantedRestrictions(author.id, this.name, message.client, message);
     if (!wantedCheck.allowed) {
-      if (!wantedCheck.handled && wantedCheck.message) message.reply(wantedCheck.message);
+      if (!wantedCheck.handled && wantedCheck.message) replyToCommand(message, wantedCheck.message);
       return;
     }
 
     const job = getJobById(state.job_id);
     if (!job) {
-      return message.reply('Your saved job could not be found. Please try again later.');
+      return replyToCommand(message, 'Your saved job could not be found. Please try again later.');
     }
 
     const lastWorkedAt = Number(state.last_worked_at || 0);
@@ -171,7 +175,7 @@ module.exports = {
         last_worked_at: now + cooldownConfig.jobFirePenalty,
         work_count: Math.max(0, Number(state.work_count) - 1)
       });
-      return message.reply('You were fired for missing work for too long. Take a short break and try again soon.');
+      return replyToCommand(message, 'You were fired for missing work for too long. Take a short break and try again soon.');
     }
 
     const pay = job.salary;
@@ -218,7 +222,7 @@ module.exports = {
       nextWorkCount
     });
 
-    message.channel.send({ embeds: [embed] });
+    sendCommandMessage(message, { embeds: [embed] });
 
     // Hook achievements for job work
     if (shouldReward) {

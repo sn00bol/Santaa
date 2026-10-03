@@ -1,3 +1,4 @@
+const { getCommandUser, replyToCommand, sendCommandMessage } = require('../Utils/commandInteraction');
 const { EmbedBuilder } = require('discord.js');
 const { checkCooldown } = require('../Utils/Cooldown');
 const { StealSuccess, StealFail, StealBusted } = require('../Utils/misc');
@@ -14,24 +15,26 @@ module.exports = {
     category: 'eco',
     usage: 'Zsteal (optional: `@user`)',
     DMs: false,
-    args: [
+    slashOptions: [
         { name: 'target', description: 'The user to steal from', type: 'user', required: false },
     ],
     async execute(message) {
-        const { author } = message;
+        const author = getCommandUser(message);
         const dbManager = message.client.db;
         const rpgManager = message.client.rpg;
 
         // ── Target validation ──────────────────────────────────────────────
-        const targetUser = message.mentions.users.first();
+        const targetUser = message.isChatInputCommand?.()
+            ? message.options.getUser('target')
+            : message.mentions.users.first();
         if (!targetUser) {
-            return message.reply('You must mention a user to steal from. Example: Zsteal `@user`');
+            return replyToCommand(message, 'You must mention a user to steal from. Example: Zsteal `@user`');
         }
         if (targetUser.id === author.id) {
-            return message.reply('You can\'t steal from yourself, that\'s just called losing money.');
+            return replyToCommand(message, 'You can\'t steal from yourself, that\'s just called losing money.');
         }
         if (targetUser.bot) {
-            return message.reply('Bots don\'t carry wallets. Nice try though.');
+            return replyToCommand(message, 'Bots don\'t carry wallets. Nice try though.');
         }
 
         const passive = getSetting('passive');
@@ -40,22 +43,22 @@ module.exports = {
             dbManager.getUserSettings(targetUser.id),
         ]);
         if (passive.blocksSteal(authorSettings)) {
-            return message.reply('Passive Mode is enabled, you cannot stealing anyone, find a job now');
+            return replyToCommand(message, 'Passive Mode is enabled, you cannot stealing anyone, find a job now');
         }
         if (passive.protectsFromSteal(targetSettings)) {
-            return message.reply(`${targetUser.username} is protected by Passive Mode`);
+            return replyToCommand(message, `${targetUser.username} is protected by Passive Mode`);
         }
 
         // ── Cooldown ───────────────────────────────────────────────────────
         const timeLeft = checkCooldown(author.id, this.name);
         if (timeLeft) {
-            return message.reply(`Please wait **${timeLeft}** before attempting to steal again.`);
+            return replyToCommand(message, `Please wait **${timeLeft}** before attempting to steal again.`);
         }
 
         const wantedCheck = await checkWantedRestrictions(author.id, this.name, message.client, message);
         if (!wantedCheck.allowed) {
             if (!wantedCheck.handled && wantedCheck.message) {
-                message.reply(wantedCheck.message);
+                replyToCommand(message, wantedCheck.message);
             }
             return;
         }
@@ -64,7 +67,7 @@ module.exports = {
             // ── Check target balance ──────────────────────────────────────
             const targetData = await dbManager.getUser(targetUser.id);
             if (targetData.balance < MIN_TARGET_BALANCE) {
-                return message.reply(
+                return replyToCommand(message,
                     `${targetUser.username} is too broke to steal from. (Needs at least **${formatNumber(MIN_TARGET_BALANCE)}${CURRENCY_EMOJI}** in wallet)`
                 );
             }
@@ -155,11 +158,11 @@ module.exports = {
             // Increase Wanted Level
             await rpgManager.updateWantedLevel(author.id, 1);
 
-            message.channel.send({ embeds: [embed] });
+            sendCommandMessage(message, { embeds: [embed] });
 
         } catch (error) {
             console.error('Error in steal command:', error);
-            message.reply('An error occurred while executing the steal command.');
+            replyToCommand(message, 'An error occurred while executing the steal command.');
         }
     }
 };
