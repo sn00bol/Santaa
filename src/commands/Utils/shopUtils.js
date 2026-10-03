@@ -5,6 +5,7 @@ const { isVisibleItem } = require('./itemVisibility');
 const SHOP_ITEMS_ROOT = path.join(__dirname, '..', '..', 'items', 'shopItems');
 const LEGACY_SHOP_ITEMS_ROOT = path.join(__dirname, 'shopUtils');
 const FISH_SHOP_ITEMS_ROOT = path.join(__dirname, '..', '..', 'items', 'fish', 'fshop');
+const CRAFT_AXE_ITEMS_ROOT = path.join(__dirname, '..', '..', 'items', 'craft', 'axe');
 
 const resolveShopItemsPath = (shopType) => {
     if (shopType === 'fish') {
@@ -27,6 +28,11 @@ const loadShopItems = (shopType) => {
         return items;
     }
 
+    const itemPaths = [shopPath];
+    if (shopType === 'gepora' && fs.existsSync(CRAFT_AXE_ITEMS_ROOT)) {
+        itemPaths.push(CRAFT_AXE_ITEMS_ROOT);
+    }
+
     const traverse = (dir) => {
         for (const entry of fs.readdirSync(dir)) {
             const fullPath = path.join(dir, entry);
@@ -46,7 +52,9 @@ const loadShopItems = (shopType) => {
         }
     };
 
-    traverse(shopPath);
+    for (const itemPath of itemPaths) {
+        traverse(itemPath);
+    }
     return items;
 };
 
