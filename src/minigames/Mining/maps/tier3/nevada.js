@@ -3,7 +3,7 @@ module.exports = {
     name: 'Somewhere in Nevada',
     tier: 3,
     description: 'Somewhere in Nevada, the people not fun when they saw you',
-    image: 'randomcave.png',
+    image: 'nevada.png',
     rates: {
         "COMMON": 33,
         "UNCOMMON": 27,

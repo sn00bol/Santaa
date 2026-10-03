@@ -18,7 +18,8 @@
 ## FEATURES
 - Good looking UI/UX
 - Economy System: Balance, Jobs, Part Time, beg, crime, steal,...
-- Fun and advance minigames: PVP, fishing, mining, guess, olympac,...
+- Fun and advance minigames: PVP, fishing, mining, hunt, climb, memory, guess, olympac,...
+- Meme commands: `meme` for a random online template, `slap`, `drake`, and `distracted` for dedicated online meme templates.
 - Trading and shopping (ofc)
 - Using cheat legally with owner commands so you could flex anyone
 - Scanning commands using get files recursive and customize bot status

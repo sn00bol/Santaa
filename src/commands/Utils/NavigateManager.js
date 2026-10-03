@@ -8,6 +8,7 @@ const getOptions = () => {
         { label: 'Economic', value: 'eco' },
         { label: 'Utils', value: 'utl' },
         { label: 'Minigames', value: 'mie' },
+        { label: 'Memes', value: 'meme' },
     ];
     options.push({ label: 'Unknown', value: 'gau3' });
     return options;

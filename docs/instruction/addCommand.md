@@ -21,7 +21,7 @@ module.exports = {
 
   // Only add args when the command needs slash command options
   // If args is omitted, the slash command has no options
-  args: [
+  SlashOptions: [
     { name: 'target', description: 'Say hello to that dude', type: 'user', required: false },
     { name: 'text', description: 'Give him some text', type: 'string', required: false },
   ],

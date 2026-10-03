@@ -54,6 +54,7 @@ async function migrateGameSchema(db) {
         ['items_bought', 'INTEGER DEFAULT 0'],
         ['unknown_category_visits', 'INTEGER DEFAULT 0'],
         ['pvp_wins', 'INTEGER DEFAULT 0'],
+        ['climb_best_height', 'INTEGER DEFAULT 0'],
     ];
 
     await ensureColumn(db, 'inventory', 'durability', 'INTEGER DEFAULT NULL');

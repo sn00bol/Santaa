@@ -16,6 +16,8 @@ const formatNumber = require('../Utils/formatNumber');
 const { CURRENCY_EMOJI } = require('../Utils/config');
 
 const PAGE_SIZE = 5;
+const MAX_PAGES = 10;
+const MAX_VISIBLE_ENTRIES = PAGE_SIZE * MAX_PAGES;
 const MODES = new Set(['stat', 'item', 'achieve', 'user']);
 const SCOPES = new Set(['global', 'server']);
 const SCOPE_OPTIONS = [
@@ -29,6 +31,7 @@ const STAT_OPTIONS = [
     { key: 'level', label: 'Level' },
     { key: 'wins', label: 'PvP Wins' },
     { key: 'pvp_rank', label: 'PvP Rank' },
+    { key: 'climb', label: 'Climb Best Height' },
     { key: 'steals', label: 'Steals' },
     { key: 'crimes', label: 'Crimes' },
     { key: 'begs', label: 'Begs' },
@@ -85,6 +88,10 @@ function sortLeaderboardRows(rows) {
         .map((row, index) => ({ ...row, rank: index + 1 }));
 }
 
+function limitLeaderboardRows(rows) {
+    return rows.slice(0, MAX_VISIBLE_ENTRIES);
+}
+
 function hasLeaderboardArguments(args = [], slashOptions = {}) {
     return args.length > 0 || Object.values(slashOptions).some(value => value !== undefined && value !== null && value !== '');
 }
@@ -96,7 +103,7 @@ function createMainMenu(commandText) {
         `**"${enteredCommand}" is not valid, check these:**`,
         '',
         `- ${prefix}leaderboard \`stat?\` \`scope?\``,
-        '-# Traditional leaderboard: money, bank, level, PvP wins/rank,...',
+        '-# Traditional leaderboard: money, bank, level, PvP wins/rank, climb best height,...',
         '',
         `- ${prefix}leaderboard \`item?\` \`scope?\``,
         '-# Rank players by how many copies of an item they own',
@@ -168,23 +175,29 @@ async function getStatLeaderboard(statKey) {
     }
 
     const stats = await rpgmanager.getLeaderboardStats();
-    return stats.map(row => {
-        const wins = Number(row.pvp_wins || 0);
-        const losses = Number(row.pvp_losses || 0);
-        const matchCount = wins + losses;
-        const winRate = matchCount ? (wins / matchCount) * 100 : 0;
-        const score = statKey === 'pvp_rank' ? winRate : Number(row[statKey === 'wins' ? 'pvp_wins' : statKey] || 0);
-        const displayValue = statKey === 'pvp_rank'
-            ? `${formatNumber(Math.round(winRate))}% win rate (${formatNumber(wins)}W/${formatNumber(losses)}L)`
-            : formatNumber(score);
+    return stats
+        .filter(row => statKey !== 'climb' || Number(row.climb_best_height || 0) > 0)
+        .map(row => {
+            const wins = Number(row.pvp_wins || 0);
+            const losses = Number(row.pvp_losses || 0);
+            const matchCount = wins + losses;
+            const winRate = matchCount ? (wins / matchCount) * 100 : 0;
+            const score = statKey === 'pvp_rank'
+                ? winRate
+                : Number(row[statKey === 'wins' ? 'pvp_wins' : statKey === 'climb' ? 'climb_best_height' : statKey] || 0);
+            const displayValue = statKey === 'pvp_rank'
+                ? `${formatNumber(Math.round(winRate))}% win rate (${formatNumber(wins)}W/${formatNumber(losses)}L)`
+                : statKey === 'climb'
+                    ? `${formatNumber(score)}m`
+                    : formatNumber(score);
 
-        return {
-            userId: row.user_id,
-            score,
-            displayValue,
-            tieBreaker: wins,
-        };
-    });
+            return {
+                userId: row.user_id,
+                score,
+                displayValue,
+                tieBreaker: wins,
+            };
+        });
 }
 
 async function getAchievementLeaderboard() {
@@ -298,11 +311,14 @@ async function getLeaderboardData(message, request, invokerId, scopeCache) {
 
     const sortedRows = sortLeaderboardRows(applyScope(rows, memberIds));
     const position = sortedRows.find(row => row.userId === invokerId);
+    const visibleRows = limitLeaderboardRows(sortedRows);
     return {
-        rows: sortedRows,
+        rows: visibleRows,
         position: position?.rank || null,
         title,
-        positionLabel: `My position: ${position ? `#${formatNumber(position.rank)}` : '—'}`,
+        positionLabel: `My position: ${position
+            ? `#${formatNumber(position.rank)}${position.rank > MAX_VISIBLE_ENTRIES ? ` (past the ${MAX_PAGES}-page view)` : ''}`
+            : '—'}`,
         overview: false,
     };
 }
@@ -509,4 +525,7 @@ module.exports = {
     createLeaderboardContainer,
     hasLeaderboardArguments,
     createMainMenu,
+    limitLeaderboardRows,
+    PAGE_SIZE,
+    MAX_PAGES,
 };

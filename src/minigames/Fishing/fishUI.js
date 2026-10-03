@@ -9,6 +9,7 @@ const fishBucket = require('./fishBucket');
 const mapManager = require('./MapManager');
 const weatherManager = require('./WeatherManager');
 const fishSkills = require('./fishSkills');
+const { getRodDurability } = require('../../commands/Utils/fishingSchema');
 const FISH_GUIDE_URL = 'https://github.com/meh2025/Example-Discord-Bot-using-Javascript/blob/alpha/docs/instruction/Fish.md';
 
 function resolveItemName(itemId, fallback) {
@@ -82,7 +83,7 @@ function buildMain(profile = {}, inventory = null, noticeMessage = null) {
     const baseDurability = rodItem?.durability ?? 100;
     const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
     const durabilityMax = isBareHand ? '∞' : String(baseDurability + imStrongerLevel * 10);
-    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability !== undefined ? profile.equipment.durability : durabilityMax);
+    const durabilityCurrent = isBareHand ? '∞' : String(getRodDurability(profile, profile.equipment?.currentRod, Number(durabilityMax)));
 
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, rodName, 10);
     const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), bucketLabel, 10);
@@ -633,7 +634,7 @@ function buildFishingNow(profile = {}, inventory = null) {
     const baseDurability = rodItem?.durability ?? 100;
     const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
     const durabilityMax = isBareHand ? '∞' : String(baseDurability + imStrongerLevel * 10);
-    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? durabilityMax);
+    const durabilityCurrent = isBareHand ? '∞' : String(getRodDurability(profile, profile.equipment?.currentRod, Number(durabilityMax)));
 
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, rodName, 10);
     const bucketLine = formatStatLine(String(bucketCount), String(bucketSize), bucketLabel, 10);
@@ -678,7 +679,7 @@ function buildWaitingEmbed(profile, inventory = null) {
     const baseDurability = rodItem?.durability ?? 100;
     const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
     const durabilityMax = isBareHand ? '∞' : String(baseDurability + imStrongerLevel * 10);
-    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? durabilityMax);
+    const durabilityCurrent = isBareHand ? '∞' : String(getRodDurability(profile, profile.equipment?.currentRod, Number(durabilityMax)));
 
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, rodName, 10);
 
@@ -800,7 +801,7 @@ function buildEquipment(profile = {}, inventory = [], infoMessage = null) {
     const baseDurability = rodItem?.durability ?? 100;
     const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
     const durabilityMax = isBareHand ? '∞' : (baseDurability + imStrongerLevel * 10);
-    const durabilityCurrent = isBareHand ? '∞' : String(profile.equipment?.durability ?? durabilityMax);
+    const durabilityCurrent = isBareHand ? '∞' : String(getRodDurability(profile, rodId, Number(durabilityMax)));
 
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, '', 10);
 
@@ -810,7 +811,7 @@ function buildEquipment(profile = {}, inventory = [], infoMessage = null) {
     let rodInfo = '';
     const ownedRod = inventory.some(item => String(item.item_id) === String(rodId));
 
-    if (!ownedRod) {
+    if (!ownedRod && !isBareHand) {
         rodInfo = `**Durability:**\n${durabilityLine}\n\n**Stats:**\n• No stats currently`;
     } else {
         const rodStatsText = rodItem ? (rodItem.stat || rodItem.stats || '• No stats currently') : '• No stats currently';

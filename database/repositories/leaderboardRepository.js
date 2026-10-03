@@ -84,7 +84,7 @@ function createLeaderboardRepository(getDatabase, getStats) {
 
         async getLeaderboardStats() {
             return getDatabase().all(`
-                SELECT stats.user_id, stats.level, stats.exp, stats.steals,
+                SELECT stats.user_id, stats.level, stats.exp, stats.steals, stats.climb_best_height,
                     stats.crimes, stats.begs, stats.fishing_profile,
                     COALESCE(wins.count, 0) AS pvp_wins,
                     COALESCE(losses.count, 0) AS pvp_losses

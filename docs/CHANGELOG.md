@@ -1,8 +1,10 @@
-v1.3.0-beta.0
-- Refactor and split index.js, database manager into handler and repo stuff
-- Upgrading command loading and database more faster
-- Fix nothing was sold when buckets have fish
-- Args now using discord native not have to compiler or anything stuff
+v1.3.0-beta.1
+- Add 3 meme commands
+- Add climb, hunt, memory match
+- Add all assets map for mining
+- Fix fishing `your hand` stats
+- Fix fishing durability literally reset when select other items
+- Limit leaderboard only view 10 pages
 
 # CHANGELOG
 
@@ -14,7 +16,7 @@ v1.3.0-beta.0
 - Add settings, fast navigate button and reload button in navigation, add categories button in fish/mine shops
 - Unify items object `cost` and `sell` to only `cost`
 - Move fishlist select bar to bottom
-- Added a lot of new small minigames and memes
+- Added 6 new small minigames and memes
 - Other: add new mining achievements, reminder, cut tree, bank limit to deposit
 - Allow to DMs bot and add slash commands
 - Allow to starting bot via docker

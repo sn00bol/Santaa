@@ -13,6 +13,7 @@ const formatNumber = require('../../commands/Utils/formatNumber');
 const rpgmanager = require('../../../database/rpgmanager');
 const { checkCooldown, getCooldownDuration } = require('../../commands/Utils/Cooldown');
 const { checkWantedRestrictions } = require('../../commands/Utils/WantedLevel');
+const { getRodDurability, setRodDurability } = require('../../commands/Utils/fishingSchema');
 const mapManager = require('./MapManager');
 const weatherManager = require('./WeatherManager');
 
@@ -929,9 +930,7 @@ module.exports = {
                         const rodItem = allItemsCache.get(currentRod);
                         const baseDurability = rodItem?.durability ?? 100;
                         const maxDurability = baseDurability + imStrongerLevel * 10;
-                        const durability = typeof profile.equipment.durability === 'number'
-                            ? profile.equipment.durability
-                            : maxDurability;
+                        const durability = getRodDurability(profile, currentRod, maxDurability);
 
                         if (durability <= 0) {
                             profile.equipment.currentRod = profile.fallbackRod || 'hand';
@@ -946,9 +945,9 @@ module.exports = {
                             return;
                         }
 
-                        profile.equipment.durability = durability - 1;
+                        setRodDurability(profile, currentRod, durability - 1);
 
-                        if (profile.equipment.durability <= 0) {
+                        if (durability - 1 <= 0) {
                             profile.equipment.currentRod = profile.fallbackRod || 'hand';
                             profile.equipment.currentBait = 'finger';
                             profile.equipment.durability = 0;
@@ -1148,17 +1147,32 @@ module.exports = {
                             });
                             return;
                         }
-
                         profile.equipment = profile.equipment || {};
+                        profile.equipment = profile.equipment || {};
+                        const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
+                        const rodItem = allItemsCache.get(selectedRod);
+                        const baseDurability = rodItem?.durability ?? 100;
+                        const maxDurability = baseDurability + imStrongerLevel * 10;
+                        const selectedDurability = selectedRod === 'hand'
+                            ? null
+                            : getRodDurability(profile, selectedRod, maxDurability);
+
+                        if (selectedDurability !== null && selectedDurability <= 0) {
+                            await i.update({
+                                content: null,
+                                embeds: [],
+                                components: [fishUI.buildEquipment(profile, inventory, '⚠️ This fishing rod is broken and cannot be equipped.')],
+                                flags: [MessageFlags.IsComponentsV2]
+                            });
+                            return;
+                        }
+
                         profile.equipment.currentRod = selectedRod;
                         if (profile.equipment.currentRod === 'hand') {
                             profile.equipment.currentBait = 'finger';
                             delete profile.equipment.durability;
                         } else {
-                            const rodItem = allItemsCache.get(selectedRod);
-                            const baseDurability = rodItem?.durability ?? 100;
-                            const imStrongerLevel = fishSkills.getSkillLevel(profile, 'im_stronger');
-                            profile.equipment.durability = baseDurability + imStrongerLevel * 10;
+                            setRodDurability(profile, selectedRod, selectedDurability);
                         }
                         await rpgmanager.updateProgress(userId, { fishing_profile: profile });
 

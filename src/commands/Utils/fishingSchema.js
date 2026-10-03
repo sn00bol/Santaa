@@ -15,7 +15,8 @@ const DEFAULT_FISHING_PROFILE = {
     equipment: {
         currentRod: 'defaultRod',
         currentBait: 'worm',
-        durability: 100,
+        durability: 50,
+        rodDurability: { defaultRod: 50 },
         baitStock: {
             worm: 5,
             finger: 0,
@@ -45,6 +46,16 @@ const DEFAULT_FISHING_PROFILE = {
     achievements: [],
 };
 
+function createDefaultFishingProfile() {
+    return {
+        ...DEFAULT_FISHING_PROFILE,
+        equipment: {
+            ...DEFAULT_FISHING_PROFILE.equipment,
+            rodDurability: { ...DEFAULT_FISHING_PROFILE.equipment.rodDurability },
+        },
+    };
+}
+
 function generateProgressBar(current, max, length = 10) {
     const safeCurrent = Number.isFinite(current) ? Math.max(0, Number(current)) : 0;
     const safeMax = Number.isFinite(max) && max > 0 ? Number(max) : 1;
@@ -56,7 +67,9 @@ function generateProgressBar(current, max, length = 10) {
 }
 
 function parseFishingProfile(raw) {
-    if (!raw) return { ...DEFAULT_FISHING_PROFILE };
+    if (!raw) {
+        return createDefaultFishingProfile();
+    }
     let parsed;
     if (typeof raw === 'object') {
         parsed = raw;
@@ -64,12 +77,12 @@ function parseFishingProfile(raw) {
         try {
             parsed = JSON.parse(raw);
         } catch {
-            return { ...DEFAULT_FISHING_PROFILE };
+            return createDefaultFishingProfile();
         }
     }
 
     if (typeof parsed !== 'object' || parsed === null) {
-        return { ...DEFAULT_FISHING_PROFILE };
+        return createDefaultFishingProfile();
     }
 
     const merged = {
@@ -84,6 +97,9 @@ function parseFishingProfile(raw) {
         equipment: {
             ...DEFAULT_FISHING_PROFILE.equipment,
             ...(parsed.equipment || {}),
+            rodDurability: (parsed.equipment?.rodDurability && typeof parsed.equipment.rodDurability === 'object' && !Array.isArray(parsed.equipment.rodDurability))
+                ? { ...parsed.equipment.rodDurability }
+                : {},
         },
         bucket: {
             ...DEFAULT_FISHING_PROFILE.bucket,
@@ -105,6 +121,14 @@ function parseFishingProfile(raw) {
         },
     };
 
+    if (
+        Object.keys(merged.equipment.rodDurability).length === 0 &&
+        typeof parsed.equipment?.durability === 'number' &&
+        Number.isFinite(parsed.equipment.durability)
+    ) {
+        merged.equipment.rodDurability[merged.equipment.currentRod || 'hand'] = parsed.equipment.durability;
+    }
+
     if (merged.equipment.baitStock?.worm <= 0) {
         merged.equipment.currentBait = 'finger';
     }
@@ -119,6 +143,25 @@ function parseFishingProfile(raw) {
     }
 
     return merged;
+}
+
+function getRodDurability(profile, rodId, maxDurability) {
+    const equipment = profile?.equipment || {};
+    const savedDurability = equipment.rodDurability?.[rodId];
+    if (typeof savedDurability === 'number' && Number.isFinite(savedDurability)) {
+        return savedDurability;
+    }
+
+    return maxDurability;
+}
+
+function setRodDurability(profile, rodId, durability) {
+    profile.equipment = profile.equipment || {};
+    profile.equipment.rodDurability = profile.equipment.rodDurability || {};
+    profile.equipment.rodDurability[rodId] = durability;
+    if (profile.equipment.currentRod === rodId) {
+        profile.equipment.durability = durability;
+    }
 }
 
 function getActiveBait(profile) {
@@ -143,4 +186,6 @@ module.exports = {
     DEFAULT_FISHING_PROFILE,
     generateProgressBar,
     parseFishingProfile,
+    getRodDurability,
+    setRodDurability,
 };

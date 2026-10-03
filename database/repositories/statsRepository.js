@@ -66,6 +66,14 @@ function createStatsRepository(getDatabase) {
             return newLevel;
         },
 
+        async updateClimbBestHeight(userId, height) {
+            await getStats(userId);
+            return getDatabase().run(
+                'UPDATE stats SET climb_best_height = MAX(climb_best_height, ?) WHERE user_id = ?',
+                [Math.max(0, Math.floor(Number(height) || 0)), userId]
+            );
+        },
+
         async updateStats(userId, health, stamina) {
             return getDatabase().run(
                 'UPDATE stats SET health = ?, stamina = ? WHERE user_id = ?',
@@ -75,7 +83,7 @@ function createStatsRepository(getDatabase) {
 
         async updateProgress(userId, {
             attack, defense, level, exp, steals, crimes, begs, items_sold, items_bought,
-            unknown_category_visits, pvp_wins, fishing_profile, mining_profile,
+            unknown_category_visits, pvp_wins, climb_best_height, fishing_profile, mining_profile,
         }) {
             const updates = [];
             const params = [];
@@ -91,6 +99,7 @@ function createStatsRepository(getDatabase) {
                 items_bought,
                 unknown_category_visits,
                 pvp_wins,
+                climb_best_height,
             };
             for (const [column, value] of Object.entries(fields)) {
                 if (value !== undefined) {

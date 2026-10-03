@@ -113,7 +113,7 @@
 
 ### [BUG-003]: Fake fish durability
 - **Status**: Fixed
-- **Detail**: From v1.2.0, I literally forgot this and become the longest bugs exists, it literally fake durability with `0 / 100` hardcode instead use real one, had fixed it at Alpha 4 v1.3.0
+- **Detail**: From v1.2.0, I literally forgot this and become the longest bugs exists, it literally fake durability with `0 / 100` hardcode instead use real one, had fixed it at Alpha 4 v1.3.0 and fix it entirely in Beta 1
 
 ### [BUG-003]: Your hand items in Fishing Rod have no stats
 - **Status**: Fixed

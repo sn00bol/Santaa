@@ -30,7 +30,7 @@ Santaa/
 │   └── minigames/          # Minigames stuff
 │       ├── Fishing/
 │       ├── Mining/
-│       └── Other/          # Other minigames (guessmeme, olympac)
+│       └── Other/          # Other minigames (hunt, climb, memory, guessmeme, olympac)
 ├── README.md               # General project documentation
 └── package.json            # Where running `npm run` scripts
 

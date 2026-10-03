@@ -3,7 +3,7 @@ module.exports = {
     name: 'B730 Airplane ',
     tier: 3,
     description: 'Well you are in a airplane, but it is not flying, so you can mine here lol',
-    image: 'randomcave.png',
+    image: 'airplane.png',
     rates: {
         "COMMON": 32,
         "UNCOMMON": 28,
