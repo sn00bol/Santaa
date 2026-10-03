@@ -1,4 +1,5 @@
 const { ComponentType, MessageFlags } = require('discord.js');
+const path = require('path');
 const rpgmanager = require('../../../database/rpgmanager');
 const dbmanager = require('../../../database/dbmanager');
 const { checkCooldown } = require('../../commands/Utils/Cooldown');
@@ -14,6 +15,7 @@ const notifi = require('../../commands/Utils/notifi');
 const { getShopItemCost } = require('../../commands/Utils/shopUtils');
 const mineBackpack = require('./mineBackpack');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
+const mapManager = require('./MapManager');
 
 const mineCounts = new Map();
 
@@ -688,7 +690,30 @@ module.exports = {
 
 				if (id === 'mine_location') {
 					view = 'location';
-					return await interaction.update({ components: [mineUI.buildLocation(profile)] });
+					const targetMapId = profile.currentMap || mapManager.getAllMaps()[0]?.id;
+					const map = mapManager.getMap(targetMapId) || mapManager.getAllMaps()[0];
+					const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'mine', map.image);
+					return await interaction.update({
+						components: [mineUI.buildLocation(profile, targetMapId)],
+						files: [{ attachment: imagePath, name: map.image }]
+					});
+				}
+
+				if (id.startsWith('mine_location_travel_')) {
+					const targetMapId = id.replace('mine_location_travel_', '');
+					profile.currentMap = targetMapId;
+					await rpgmanager.updateProgress(userId, { mining_profile: profile });
+					return await updateMain(interaction);
+				}
+
+				if (id === 'mine_location_select' && interaction.isStringSelectMenu()) {
+					const targetMapId = interaction.values[0];
+					const map = mapManager.getMap(targetMapId) || mapManager.getAllMaps()[0];
+					const imagePath = path.join(__dirname, '..', '..', '..', 'assets', 'mine', map.image);
+					return await interaction.update({
+						components: [mineUI.buildLocation(profile, targetMapId)],
+						files: [{ attachment: imagePath, name: map.image }]
+					});
 				}
 				if (id === 'mine_menu_back' || id === 'mine_shop_back') return await updateMain(interaction);
 				if (id === 'mine_shop') {

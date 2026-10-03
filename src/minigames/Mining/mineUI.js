@@ -3,7 +3,10 @@ const {
     ButtonBuilder,
     ButtonStyle,
     ContainerBuilder,
+    MediaGalleryBuilder,
+    MediaGalleryItemBuilder,
     SeparatorBuilder,
+    SectionBuilder,
     StringSelectMenuBuilder,
     TextDisplayBuilder,
 } = require('discord.js');
@@ -11,6 +14,7 @@ const formatNumber = require('../../commands/Utils/formatNumber');
 const mineCore = require('./mineCore');
 const mineBackpack = require('./mineBackpack');
 const mineSkills = require('./mineSkills');
+const mapManager = require('./MapManager');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 const { allItemsCache } = require('../../commands/Utils/StatsCalculator');
@@ -67,8 +71,8 @@ function buildMain(user, stats, inventory = [], backpacks = [], notice = null, p
     const durabilityMax = isHand ? '∞' : String(pickaxeItem?.durability ?? 80);
     const durabilityLine = formatStatLine(durabilityCurrent, durabilityMax, pickaxeName, 10);
     const locationLine = profile.currentMap
-        ? `📍 ${profile.currentMap}`
-        : `📍 Default Mine`;
+        ? `📍 ${mapManager.getMap(profile.currentMap)?.name || profile.currentMap}`
+        : `⚠️ No Location selected — **Pick one first!**`;
 
     const text1 = new TextDisplayBuilder()
         .setContent(`# ⛏️ Mining\n> Prepare your gear, then head underground, ${user.username}.\n> **Daily Streak:** ${(profile.dailyStreak || 0)} days`);
@@ -94,7 +98,9 @@ function buildMain(user, stats, inventory = [], backpacks = [], notice = null, p
     const secondRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('mine_equipment').setLabel('Equipment').setStyle(ButtonStyle.Primary),
         new ButtonBuilder().setCustomId('mine_location').setLabel('Location').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('mine_now').setLabel('Mining now').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('mine_now').setLabel('Mining now')
+            .setStyle(profile.currentMap ? ButtonStyle.Success : ButtonStyle.Secondary)
+            .setDisabled(!profile.currentMap),
         new ButtonBuilder().setLabel('\u200B').setStyle(ButtonStyle.Link).setURL(MINING_GUIDE_URL)
     );
 
@@ -551,24 +557,110 @@ function buildBoardContainer(user, stats, session, { revealAll = false, notice =
     return container;
 }
 
-function buildLocation(profile = {}, notice = null) {
+function buildLocation(profile = {}, selectedMapId = null, notice = null) {
+    const historicalMines = profile.historicalMines || {};
+    const currentMapId = profile.currentMap || null;
+    const targetMapId = selectedMapId || currentMapId || mapManager.getAllMaps()[0]?.id;
+
+    const map = mapManager.getMap(targetMapId) || mapManager.getAllMaps()[0];
+    if (!map) {
+        return new ContainerBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent('# 📍 Mining Location\n> No mining locations available.'))
+            .addSeparatorComponents(new SeparatorBuilder())
+            .addActionRowComponents(new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('mine_menu_back').setLabel('Back to Mining').setStyle(ButtonStyle.Secondary)
+            ));
+    }
+
+    const isUnlocked = mapManager.isMapUnlocked(map.id, historicalMines);
+
+    const titleText = new TextDisplayBuilder().setContent('# 📍 Choosing Location');
+
+    const gallery = new MediaGalleryBuilder()
+        .addItems(
+            new MediaGalleryItemBuilder()
+                .setURL(`attachment://${map.image}`)
+                .setDescription(map.name)
+        );
+
+    let descriptionText = `> ${map.description}\n\n`;
+
+    if (isUnlocked) {
+        descriptionText += `**Rarity Rates:**\n`;
+        const commonRate = map.rates?.COMMON || 0;
+        const uncommonRate = map.rates?.UNCOMMON || 0;
+        const rareRate = map.rates?.RARE || 0;
+        const epicRate = map.rates?.EPIC || 0;
+        const legendaryRate = map.rates?.LEGENDARY || 0;
+        const mythicRate = map.rates?.MYTHIC || 0;
+
+        descriptionText += `\`Common: ${commonRate}%\` | \`Uncommon: ${uncommonRate}%\`\n`;
+        if (rareRate > 0 || epicRate > 0 || legendaryRate > 0 || mythicRate > 0) {
+            descriptionText += `**Rare+:** \`Rare: ${rareRate}%\` `;
+            if (epicRate > 0) descriptionText += `| \`Epic: ${epicRate}%\` `;
+            if (legendaryRate > 0) descriptionText += `| \`Legendary: ${legendaryRate}%\` `;
+            if (mythicRate > 0) descriptionText += `| \`Mythic: ${mythicRate}%\``;
+            descriptionText += '\n';
+        }
+    } else {
+        descriptionText += `🔒 **LOCKED**\n**Requirements to unlock:** ${mapManager.getMapUnlockRequirements(map)}\n`;
+    }
+
+    const travelButton = new ButtonBuilder()
+        .setCustomId(`mine_location_travel_${map.id}`)
+        .setLabel(map.id === currentMapId ? 'Already here' : 'Travel')
+        .setStyle(ButtonStyle.Success)
+        .setDisabled(!isUnlocked || map.id === currentMapId);
+
+    const mapSection = new SectionBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(descriptionText))
+        .setButtonAccessory(travelButton);
+
+    const allMaps = mapManager.getAllMaps();
+    const mapOptions = allMaps.map(m => {
+        const unlocked = mapManager.isMapUnlocked(m.id, historicalMines);
+        return {
+            label: `${m.name} ${unlocked ? '' : '(Locked)'}`,
+            value: m.id,
+            description: `Tier ${m.tier}`,
+            default: m.id === targetMapId
+        };
+    }).slice(0, 25);
+
+    const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId('mine_location_select')
+        .setPlaceholder('Select a location to mine')
+        .addOptions(mapOptions);
+
+    const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+    const navButtonRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('mine_menu_back')
+            .setLabel('Go back')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('mine_now')
+            .setLabel('Mining now')
+            .setStyle(ButtonStyle.Primary)
+            .setDisabled(!currentMapId)
+    );
+
     const container = new ContainerBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('# 📍 Mining Location\n> Select a mining site to start excavating.'))
+        .addTextDisplayComponents(titleText)
+        .addMediaGalleryComponents(gallery)
+        .addActionRowComponents(selectRow)
         .addSeparatorComponents(new SeparatorBuilder())
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent('🔒 **UNDER CONSTRUCTION**\n*New mining locations are being surveyed! Default Mine is currently active.*'));
+        .addSectionComponents(mapSection)
+        .addSeparatorComponents(new SeparatorBuilder())
+        .addActionRowComponents(navButtonRow);
 
     if (notice) {
         container.addSeparatorComponents(new SeparatorBuilder())
             .addTextDisplayComponents(new TextDisplayBuilder().setContent(`> ${notice}`));
     }
 
-    const navRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('mine_menu_back').setLabel('Back to Mining').setStyle(ButtonStyle.Secondary)
-    );
-
-    return container
-        .addSeparatorComponents(new SeparatorBuilder())
-        .addActionRowComponents(navRow);
+    return container;
 }
 
 function buildSkill(profile = {}, skillState = null, notice = null) {

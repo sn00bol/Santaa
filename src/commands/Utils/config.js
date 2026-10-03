@@ -29,7 +29,6 @@ const configs = {
         passiveInactivityMs: 30 * 24 * 60 * 60 * 1000,
         passiveSweepIntervalMs: 5 * 60 * 1000,
         passiveInactivityLabel: '30 days',
-        jobReminderCooldownMs: 24 * 60 * 60 * 1000,
     },
     test: {
         parttime: 5 * 1000,
@@ -45,7 +44,6 @@ const configs = {
         passiveInactivityMs: 5 * 60 * 1000,
         passiveSweepIntervalMs: 1 * 10000,
         passiveInactivityLabel: '5 minutes',
-        jobReminderCooldownMs: 10 * 60 * 1000,
     }
 };
 
@@ -58,5 +56,4 @@ module.exports = {
     noSLASH,
     mode: COOLDOWN_MODE,
     ...configs[COOLDOWN_MODE],
-    dailyReminderCooldownMs: configs[COOLDOWN_MODE].daily,
 };

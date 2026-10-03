@@ -1,8 +1,15 @@
 const { EmbedBuilder } = require('discord.js');
-const { checkCooldown } = require('../Utils/Cooldown');
 const { CURRENCY_EMOJI } = require('../Utils/config');
+const cooldownConfig = require('../Utils/config');
 const formatNumber = require('../Utils/formatNumber');
 const { checkWantedRestrictions } = require('../Utils/WantedLevel');
+
+function formatCooldown(ms) {
+    const totalMinutes = Math.ceil(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
 
 module.exports = {
     name: 'daily',
@@ -10,21 +17,26 @@ module.exports = {
     category: 'eco',
     usage: 'Zdaily',
     async execute(message) {
-        // Database manager
-        const { client, author } = message;
-        const dbManager = message.client.db;
+        const { author, client } = message;
+        const dbManager = client.db;
+        const cooldownMs = cooldownConfig.daily;
+        const now = Date.now();
 
-        // Cooldown
-        const timeLeft = checkCooldown(author.id, this.name);
-
-        if (timeLeft) {
-            return message.reply(`Please wait ${timeLeft} before using the \`${this.name}\` command again.`);
+        const timeLeftMs = await dbManager.getDailyCooldownRemaining(author.id, now, cooldownMs);
+        if (timeLeftMs > 0) {
+            return message.reply(`Please wait ${formatCooldown(timeLeftMs)} before using the \`${this.name}\` command again.`);
         }
 
         const wantedCheck = await checkWantedRestrictions(author.id, this.name, message.client, message);
         if (!wantedCheck.allowed) {
             if (!wantedCheck.handled && wantedCheck.message) message.reply(wantedCheck.message);
             return;
+        }
+
+        const claimed = await dbManager.claimDailyReward(author.id, Date.now(), cooldownMs);
+        if (!claimed) {
+            const remainingMs = await dbManager.getDailyCooldownRemaining(author.id, Date.now(), cooldownMs);
+            return message.reply(`Please wait ${formatCooldown(remainingMs)} before using the \`${this.name}\` command again.`);
         }
 
         // Random daily reward

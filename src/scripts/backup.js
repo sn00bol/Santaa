@@ -1,8 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const AdmZip = require('adm-zip');
+const sqlite3 = require('sqlite3');
 
 const backupDir = path.join(__dirname, '..', '..', '.backups');
+const excludedRootEntries = new Set(['node_modules', '.git', '.scrap_dbtest', '.backups']);
 
 function getFormattedDate() {
     const d = new Date();
@@ -12,15 +15,15 @@ function getFormattedDate() {
     return `${day}${month}${year}`;
 }
 
-function ensureBackupDir() {
-    if (!fs.existsSync(backupDir)) {
-        fs.mkdirSync(backupDir, { recursive: true });
+function ensureBackupDir(directory = backupDir) {
+    if (!fs.existsSync(directory)) {
+        fs.mkdirSync(directory, { recursive: true });
     }
 }
 
-function getNextBackupNumber(dateStr) {
-    ensureBackupDir();
-    const files = fs.readdirSync(backupDir);
+function getNextBackupNumber(dateStr, directory = backupDir) {
+    ensureBackupDir(directory);
+    const files = fs.readdirSync(directory);
     let maxNum = 0;
 
     files.forEach(file => {
@@ -34,44 +37,96 @@ function getNextBackupNumber(dateStr) {
     return maxNum + 1;
 }
 
-// Function to create a backup
-function createBackup() {
+function isSqliteFile(fileName) {
+    return /\.(?:db|sqlite3?)$/i.test(fileName);
+}
+
+function isSqliteSidecar(fileName) {
+    return /\.(?:db|sqlite3?)-(?:wal|shm|journal)$/i.test(fileName);
+}
+
+function createDatabaseSnapshot(sourcePath, destinationPath) {
     return new Promise((resolve, reject) => {
-        try {
-            ensureBackupDir();
-            const dateStr = getFormattedDate();
-            const nextNum = getNextBackupNumber(dateStr);
-            const backupFileName = `${dateStr}_${nextNum}.zip`;
-            const backupFilePath = path.join(backupDir, backupFileName);
+        const database = new sqlite3.Database(sourcePath, sqlite3.OPEN_READONLY, error => {
+            if (error) return reject(error);
 
-            const zip = new AdmZip();
-            const rootDir = path.join(__dirname, '..', '..');
+            const finish = backupError => {
+                database.close(closeError => {
+                    if (backupError) return reject(backupError);
+                    if (closeError) return reject(closeError);
+                    resolve();
+                });
+            };
 
-            const excludeList = ['node_modules', '.git', '.scrap_dbtest', '.backups'];
+            const backup = database.backup(destinationPath, backupError => {
+                if (backupError) return finish(backupError);
 
-            const items = fs.readdirSync(rootDir);
-
-            for (const item of items) {
-                if (excludeList.includes(item)) continue;
-
-                const fullPath = path.join(rootDir, item);
-                const stat = fs.statSync(fullPath);
-
-                if (stat.isDirectory()) {
-                    zip.addLocalFolder(fullPath, item);
-                } else {
-                    zip.addLocalFile(fullPath);
-                }
-            }
-
-            zip.writeZip(backupFilePath);
-            console.log(`[Backup] Successfully created backup: ${backupFileName}`);
-            resolve(backupFilePath);
-        } catch (error) {
-            console.error(`[Backup] Error creating backup:`, error);
-            reject(error);
-        }
+                const step = () => backup.step(-1, (stepError, completed) => {
+                    if (stepError) return finish(stepError);
+                    if (completed) return finish();
+                    step();
+                });
+                step();
+            });
+        });
     });
+}
+
+async function addDatabaseEntries(zip, sourceDirectory, archiveDirectory, tempDirectory) {
+    const entries = fs.readdirSync(sourceDirectory, { withFileTypes: true });
+    let snapshotIndex = 0;
+
+    for (const entry of entries) {
+        const sourcePath = path.join(sourceDirectory, entry.name);
+        const archivePath = path.posix.join(archiveDirectory, entry.name);
+        if (entry.isDirectory()) {
+            await addDatabaseEntries(zip, sourcePath, archivePath, tempDirectory);
+        } else if (entry.isFile() && isSqliteSidecar(entry.name)) {
+            continue;
+        } else if (entry.isFile() && isSqliteFile(entry.name)) {
+            const snapshotPath = path.join(tempDirectory, `database-${snapshotIndex++}.sqlite`);
+            await createDatabaseSnapshot(sourcePath, snapshotPath);
+            zip.addLocalFile(snapshotPath, archiveDirectory, entry.name);
+        } else if (entry.isFile()) {
+            zip.addLocalFile(sourcePath, archiveDirectory, entry.name);
+        }
+    }
+}
+
+async function createBackup({ rootDir = path.join(__dirname, '..', '..'), outputDir = backupDir } = {}) {
+    ensureBackupDir(outputDir);
+    const dateStr = getFormattedDate();
+    const backupFileName = `${dateStr}_${getNextBackupNumber(dateStr, outputDir)}.zip`;
+    const backupFilePath = path.join(outputDir, backupFileName);
+    const tempArchivePath = path.join(outputDir, `.${backupFileName}.${process.pid}.tmp`);
+    const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'santaa-backup-'));
+
+    try {
+        const zip = new AdmZip();
+        for (const item of fs.readdirSync(rootDir, { withFileTypes: true })) {
+            if (excludedRootEntries.has(item.name) || item.name.startsWith('.env')) continue;
+
+            const fullPath = path.join(rootDir, item.name);
+            if (item.isDirectory() && item.name === 'database') {
+                await addDatabaseEntries(zip, fullPath, item.name, tempDirectory);
+            } else if (item.isDirectory()) {
+                zip.addLocalFolder(fullPath, item.name);
+            } else if (item.isFile()) {
+                zip.addLocalFile(fullPath);
+            }
+        }
+
+        zip.writeZip(tempArchivePath);
+        fs.renameSync(tempArchivePath, backupFilePath);
+        console.log(`[Backup] Successfully created backup: ${backupFileName}`);
+        return backupFilePath;
+    } catch (error) {
+        console.error('[Backup] Error creating backup:', error);
+        throw error;
+    } finally {
+        fs.rmSync(tempArchivePath, { force: true });
+        fs.rmSync(tempDirectory, { recursive: true, force: true });
+    }
 }
 
 function listBackups() {
@@ -111,3 +166,9 @@ module.exports = {
     listBackups,
     restoreBackup
 };
+
+if (require.main === module) {
+    createBackup().catch(() => {
+        process.exitCode = 1;
+    });
+}

@@ -131,7 +131,7 @@ module.exports = {
       await dbManager.updateJobProgress(author.id, {
         job_id: targetJob.id,
         work_count: 0,
-        last_worked_at: 0,
+        last_worked_at: now,
         fired_at: 0,
         fired_until: 0,
         first_bonus_received: 0
@@ -168,6 +168,7 @@ module.exports = {
       await dbManager.updateJobProgress(author.id, {
         fired_at: now,
         fired_until: now + cooldownConfig.jobFirePenalty,
+        last_worked_at: now + cooldownConfig.jobFirePenalty,
         work_count: Math.max(0, Number(state.work_count) - 1)
       });
       return message.reply('You were fired for missing work for too long. Take a short break and try again soon.');

@@ -5,8 +5,8 @@ module.exports = {
     description: 'Well you are in a airplane, but it is not flying, so you can mine here lol',
     image: 'randomcave.png',
     rates: {
-        "COMMON": 30,
-        "UNCOMMON": 30,
+        "COMMON": 32,
+        "UNCOMMON": 28,
         "RARE": 25,
         "EPIC": 12,
         "LEGENDARY": 2,

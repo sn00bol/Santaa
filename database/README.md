@@ -1,6 +1,5 @@
-For .db file: It's the database of the bot, it contains all the data of the bot.
-For dbmanager/rpgmanager: It's the manager of the database, it contains all the functions of the bot.
+The `.db` files contain the bot's persistent economy, inventory, and player data. `dbmanager.js` and `rpgmanager.js` define the schema and database operations.
 
-Remember, you have to backup before change anything in here
+Back up before changing database code or files. For a consistent live Docker backup, create `.backups/` and run `docker compose --profile tools run --rm backup` from the project root. The backup service mounts `database/` read-only, snapshots SQLite databases through SQLite's backup API, and excludes `.env` files.
 
-(If you ever need to delete .db file or dbmanager/rpgmanager, your whole bot will crash and you will lose all your data)
+Stop the bot before restoring a backup. Do not run the Docker bot and host `npm` bot at the same time: both write to the same SQLite databases. Keep at least one backup copy off the machine running Docker.

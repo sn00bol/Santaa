@@ -5,6 +5,7 @@ node_modules
 .backups
 .scrap_dbtest
 test
+**/*.test.js
 database/*.db*
 database/bosses_memory/
 database/inflation.json

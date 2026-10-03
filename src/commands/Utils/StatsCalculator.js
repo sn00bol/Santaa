@@ -61,7 +61,8 @@ const loadItems = () => {
         [path.join(__dirname, '..', '..', 'items', 'mine'), 'mining'],
         [path.join(__dirname, '..', '..', 'minigames', 'Mining', 'minerals'), 'mining'],
         [path.join(__dirname, '..', '..', 'items', 'fish'), 'fishing'],
-        [path.join(__dirname, '..', '..', 'minigames', 'Fishing', 'fish'), 'fishing']
+        [path.join(__dirname, '..', '..', 'minigames', 'Fishing', 'fish'), 'fishing'],
+        [path.join(__dirname, '..', '..', 'items', 'craft'), 'crafting'],
     ];
 
     for (const [targetPath, shopName] of targetsWithShop) {

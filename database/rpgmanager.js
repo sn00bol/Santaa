@@ -373,5 +373,14 @@ module.exports = {
             ORDER BY owned_count DESC, user_id ASC
         `, [itemId]);
     },
+
+    async close() {
+        if (!db) return;
+        const activeDatabase = db;
+        db = null;
+        await new Promise((resolve, reject) => {
+            activeDatabase.close(error => error ? reject(error) : resolve());
+        });
+    },
 };
 

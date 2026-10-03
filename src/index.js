@@ -3,6 +3,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const { Agent } = require('undici');
 const { Client, IntentsBitField, Partials, Collection, ActivityType } = require('discord.js');
 const dbmanager = require('../database/dbmanager');
@@ -34,6 +35,72 @@ const client = new Client({
         retries: 5,
     },
 });
+
+let databasesReady = false;
+let isShuttingDown = false;
+let presenceInterval = null;
+let shutdownPromise = null;
+const activeCommands = new Set();
+
+const healthServer = process.env.ENABLE_DOCKER_HEALTHCHECK === 'true'
+    ? http.createServer((request, response) => {
+        if (request.method !== 'GET' || request.url !== '/health') {
+            response.writeHead(404).end();
+            return;
+        }
+
+        const isReady = databasesReady && client.isReady() && !isShuttingDown;
+        response.writeHead(isReady ? 200 : 503, { 'Content-Type': 'text/plain; charset=utf-8' });
+        response.end(isReady ? 'ready' : 'not ready');
+    }).listen(Number(process.env.HEALTHCHECK_PORT) || 3000, '127.0.0.1')
+    : null;
+
+healthServer?.on('error', error => {
+    console.error('[HEALTH] Healthcheck server failed:', error);
+});
+
+function shutdown(signal) {
+    if (shutdownPromise) return shutdownPromise;
+    isShuttingDown = true;
+    databasesReady = false;
+    console.log(`[SHUTDOWN] Received ${signal}; closing bot resources.`);
+
+    if (presenceInterval) clearInterval(presenceInterval);
+
+    shutdownPromise = (async () => {
+        const pendingCommands = Promise.allSettled([...activeCommands]);
+        const healthServerClosed = healthServer && healthServer.listening
+            ? new Promise(resolve => healthServer.close(resolve))
+            : Promise.resolve();
+        const commandResults = await Promise.allSettled([
+            pendingCommands,
+            healthServerClosed,
+        ]);
+        client.destroy();
+        const serviceResults = await Promise.allSettled([discordHttpAgent.close()]);
+        const databaseResults = await Promise.allSettled([
+            dbmanager.close(),
+            rpgmanager.close(),
+        ]);
+        const failures = [...commandResults, ...serviceResults, ...databaseResults]
+            .filter(result => result.status === 'rejected');
+        if (failures.length > 0) {
+            failures.forEach(result => console.error('[SHUTDOWN] Resource close failed:', result.reason));
+            process.exitCode = 1;
+        }
+    })();
+
+    return shutdownPromise;
+}
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+    process.once(signal, () => {
+        shutdown(signal).catch(error => {
+            console.error('[SHUTDOWN] Failed to stop cleanly:', error);
+            process.exitCode = 1;
+        });
+    });
+}
 
 // Command management
 const pfx = process.env.PFX;
@@ -114,19 +181,29 @@ async function runCommand(command, context, args) {
     }
 }
 
+async function runTrackedCommand(command, context, args) {
+    const commandPromise = runCommand(command, context, args);
+    activeCommands.add(commandPromise);
+    try {
+        await commandPromise;
+    } finally {
+        activeCommands.delete(commandPromise);
+    }
+}
+
 client.on('messageCreate', async (message) => {
-    if (!message.content.startsWith(pfx) || message.author.bot) return;
+    if (isShuttingDown || !message.content.startsWith(pfx) || message.author.bot) return;
 
     const args = message.content.slice(pfx.length).trim().split(/ +/);
     const commandName = args.shift().toLowerCase();
     const command = client.commands.get(commandName) || client.aliases.get(commandName);
     if (command && (message.guild || command.DMs !== false)) {
-        await runCommand(command, message, args);
+        await runTrackedCommand(command, message, args);
     }
 });
 
 client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand() || interaction.user.bot) return;
+    if (isShuttingDown || !interaction.isChatInputCommand() || interaction.user.bot) return;
 
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
@@ -137,10 +214,10 @@ client.on('interactionCreate', async interaction => {
 
     const args = getInteractionArgs(interaction, command);
     const message = await createInteractionMessage(interaction, args, pfx, command);
-    await runCommand(command, message, args);
+    await runTrackedCommand(command, message, args);
 });
 
-client.once('ready', () => {
+client.once('clientReady', () => {
     notifi.startNotifications(client);
 });
 
@@ -152,13 +229,19 @@ async function connectData() {
             rpgmanager.init()
         ]);
 
+        if (isShuttingDown) {
+            await Promise.allSettled([dbmanager.close(), rpgmanager.close()]);
+            return;
+        }
+
         client.db = dbmanager;
         client.rpg = rpgmanager;
+        databasesReady = true;
 
         await retryWithBackoff(() => client.login(process.env.DISCORD_BOT_API_KEY), {
             initialDelayMs: 5_000,
             maxDelayMs: 60_000,
-            shouldRetry: error => ![
+            shouldRetry: error => !isShuttingDown && ![
                 'TokenInvalid',
                 'TokenMissing',
             ].includes(error.code) && error.status !== 401,
@@ -167,6 +250,8 @@ async function connectData() {
                 console.warn(`[LOGIN] Retrying in ${Math.ceil(delayMs / 1000)} seconds.`);
             },
         });
+
+        if (isShuttingDown) return;
 
         const updateStatus = () => {
             const serverCount = client.guilds.cache.size;
@@ -181,9 +266,10 @@ async function connectData() {
         };
 
         updateStatus();
-        setInterval(updateStatus, 5 * 60 * 1000);
+        presenceInterval = setInterval(updateStatus, 5 * 60 * 1000);
 
     } catch (error) {
+        if (isShuttingDown) return;
         console.error('Error initializing bot:', error);
         process.exit(1);
     }

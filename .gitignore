@@ -12,5 +12,6 @@ database/bosses_memory/
 # others
 database/inflation.json
 test/
-*.test.js
+**/*.test.js
 .scrap_dbtest/
+.backups/

@@ -5,8 +5,8 @@ module.exports = {
     description: 'Underground of construction site, who knows they left something down here?',
     image: 'constructionsite.png',
     rates: {
-        "COMMON": 55,
-        "UNCOMMON": 44,
+        "COMMON": 57,
+        "UNCOMMON": 42,
         "RARE": 0.9,
         "EPIC": 0.1
     }

@@ -5,8 +5,8 @@ module.exports = {
     description: 'Somewhere in Nevada, the people not fun when they saw you',
     image: 'randomcave.png',
     rates: {
-        "COMMON": 35,
-        "UNCOMMON": 25,
+        "COMMON": 33,
+        "UNCOMMON": 27,
         "RARE": 25,
         "EPIC": 12,
         "LEGENDARY": 2,

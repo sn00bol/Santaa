@@ -1,8 +1,8 @@
 # Updating bot
-**WARNING** : Currently the update system still unstable and cause some bugs or crash whole your bot and still in developments, I prefer to use `git pull` for now
+The host-side Git updater is experimental and disabled by default. Prefer a reviewed `git pull` for host deployments.
 To editing update settings, update it via `.env`:
 ```
-AUTO_UPDATE=true # Enable or disable auto update (true = enable, false = disable)
+AUTO_UPDATE=false # Enable or disable the experimental host-side updater
 UPDATE_REPOSITORY=https://github.com/your-user/your-repository.git # Repository URL for the updater
 UPDATE_BRANCH=main # Branch to update from, including: `main`, `alpha`, `beta`
 CHECK_INTERVAL=3600 # Check interval in seconds (1 hour)
@@ -14,7 +14,7 @@ npm run update # fast update
 
 npm run fallback # rollback codebase before update
 ```
-Also, if you enable `AUTO_UPDATE` (default is true) in .env, the bot will auto update every `CHECK_INTERVAL` seconds while running `npm run start` or `npm run dev`, it will auto restart the bot after update bot. But if the update failed, it will rollback to previous codebase via .zip file backup
+When enabled, the host-side updater checks every `CHECK_INTERVAL` seconds while running `npm run start` or `npm run dev`. Docker always forces this Git updater off; Docker releases are published as images and deployed by pulling the selected image tag.
 
 For example:
 ```
@@ -50,4 +50,6 @@ To change where to update, set `UPDATE_REPOSITORY` to the repository URL and cha
 
 (If you saw this link `https://github.com/meh2025/Example-Discord-Bot-using-Javascript` at the top of response, it basically old repo name of bots)
 
-Finally, updater WILL and NERVER work in Docker because I have disable for its unstable, you could enable it back but not recommend
+Docker image publishing runs from version tags such as `v1.3.0-alpha.7` through `.github/workflows/docker-publish.yml`. To deploy manually, run `docker compose pull bot` followed by `docker compose up -d bot`.
+
+An opt-in Watchtower profile is available through `docker compose --profile auto-update up -d watchtower`. The upstream Watchtower repository was archived in December 2025; its Docker socket access is highly privileged, and updates have no automatic rollback. Keep the profile disabled unless you accept that risk and have verified a backup and restore first. See the Docker section in the root README for the backup and rollback commands.

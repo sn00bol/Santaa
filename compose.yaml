@@ -1,12 +1,102 @@
 services:
   bot:
     build: .
-    pull_policy: build
+    image: ${SANTAA_IMAGE:-santaa:dev}
+    pull_policy: ${SANTAA_PULL_POLICY:-build}
     env_file:
       - .env
     environment:
       AUTO_UPDATE: "false"
+      ENABLE_DOCKER_HEALTHCHECK: "true"
+      HEALTHCHECK_PORT: "3000"
     user: "${SANTAA_UID:-1000}:${SANTAA_GID:-1000}"
+    init: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    pids_limit: 256
+    mem_limit: ${SANTAA_MEMORY_LIMIT:-1g}
+    cpus: ${SANTAA_CPUS:-1.0}
+    stop_grace_period: 60s
     volumes:
       - ./database:/app/database
+      - ./.backups:/app/.backups
+    networks:
+      - bot_network
+    labels:
+      com.centurylinklabs.watchtower.enable: "${SANTAA_WATCHTOWER_ENABLED:-false}"
+      com.centurylinklabs.watchtower.scope: "santaa"
+      com.centurylinklabs.watchtower.lifecycle.pre-update: "node /app/src/scripts/backup.js || exit 75"
+      com.centurylinklabs.watchtower.lifecycle.pre-update-timeout: "0"
+    healthcheck:
+      test: ["CMD", "node", "src/scripts/healthcheck.js"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 180s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     restart: unless-stopped
+
+  backup:
+    build: .
+    image: ${SANTAA_IMAGE:-santaa:dev}
+    pull_policy: ${SANTAA_PULL_POLICY:-build}
+    profiles:
+      - tools
+    user: "${SANTAA_UID:-1000}:${SANTAA_GID:-1000}"
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    pids_limit: 64
+    mem_limit: 512m
+    network_mode: none
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    volumes:
+      - ./database:/app/database:ro
+      - ./.backups:/app/.backups
+    command: ["node", "src/scripts/backup.js"]
+
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    profiles:
+      - auto-update
+    environment:
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_SCOPE: "santaa"
+      WATCHTOWER_SCHEDULE: "0 0 4 * * *"
+      WATCHTOWER_CLEANUP: "false"
+      WATCHTOWER_LIFECYCLE_HOOKS: "true"
+      WATCHTOWER_TIMEOUT: "60s"
+      TZ: "UTC"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - watchtower_network
+    labels:
+      com.centurylinklabs.watchtower.enable: "false"
+      com.centurylinklabs.watchtower.scope: "santaa"
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    pids_limit: 64
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    restart: unless-stopped
+
+networks:
+  bot_network:
+  watchtower_network:

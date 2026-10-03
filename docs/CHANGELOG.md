@@ -1,3 +1,10 @@
+v1.3.0-alpha.7
+- Add location (now mining work fully)
+- Add axe items and `cut` to get wood
+- Add crafting
+- Fix notification and jobs reminder
+- Upgrading little bit for Docker
+
 # CHANGELOG
 
 # v1.3.0 - 10.xx.2026

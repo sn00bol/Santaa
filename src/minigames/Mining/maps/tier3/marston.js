@@ -5,8 +5,8 @@ module.exports = {
     description: 'Did you said... John Marston?',
     image: 'randomcave.png',
     rates: {
-        "COMMON": 40,
-        "UNCOMMON": 20,
+        "COMMON": 38,
+        "UNCOMMON": 22,
         "RARE": 25,
         "EPIC": 12,
         "LEGENDARY": 2,

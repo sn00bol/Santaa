@@ -5,8 +5,8 @@ module.exports = {
     description: 'Mining site, mining site... Wait, this is a palace',
     image: 'randomcave.png',
     rates: {
-        "COMMON": 80,
-        "UNCOMMON": 19,
+        "COMMON": 78,
+        "UNCOMMON": 21,
         "RARE": 0.9,
         "EPIC": 0.1
     }
