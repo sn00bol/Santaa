@@ -68,10 +68,10 @@ function buildTable(view = 'fix', page = 0, disabled = false) {
         entries = [...allItemsCache.values()].filter(isFixable).sort((a, b) => (a.cost || 0) - (b.cost || 0));
         totalPages = Math.ceil(entries.length / itemsPerPage) || 1;
         const start = page * itemsPerPage;
-        bodyLines.push('## 🔨 Fix Recipes\n> `craft fix <item>` · Wood + money\n');
+        bodyLines.push('## 🔨 Fix Recipes\n> `craft fix <item>`\n');
         bodyLines.push(entries.slice(start, start + itemsPerPage).map((item, index) => {
             const cost = getFixCost(item);
-            return `**${formatNumber(start + index + 1)}. ${item.name}** · ${formatNumber(item.durability)} durability\n${cost.woodCost}x Wood + ${CURRENCY_EMOJI}${formatNumber(cost.moneyCost)}`;
+            return `**${formatNumber(start + index + 1)}. ${item.name}** · ${formatNumber(item.durability)} durability\n${cost.woodCost}x Wood + ${formatNumber(cost.moneyCost)}${CURRENCY_EMOJI}`;
         }).join('\n\n') || '*No fixable items found.*');
     } else if (view === 'pickaxe') {
         entries = PICKAXE_UPGRADE_TIERS;
