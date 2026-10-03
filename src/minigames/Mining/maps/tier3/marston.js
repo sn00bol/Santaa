@@ -3,7 +3,7 @@ module.exports = {
     name: 'Marston\'s Cave',
     tier: 3,
     description: 'Did you said... John Marston?',
-    image: 'marston.png',
+    image: 'randomcave.png',
     rates: {
         "COMMON": 40,
         "UNCOMMON": 20,

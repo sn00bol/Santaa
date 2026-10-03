@@ -3,7 +3,7 @@ module.exports = {
     name: 'Hidden Bunker',
     tier: 2,
     description: 'A hidden bunker you have found somewhere... seems like its was deeper than I think',
-    image: 'hiddenbunker.png',
+    image: 'randomcave.png',
     rates: {
         "COMMON": 35,
         "UNCOMMON": 35,

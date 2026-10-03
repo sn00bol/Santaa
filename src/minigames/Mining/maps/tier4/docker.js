@@ -3,7 +3,7 @@ module.exports = {
     name: 'The Docker',
     tier: 4,
     description: 'Bro are you using docker desktop to mining??? ts frying me',
-    image: 'docker.png',
+    image: 'randomcave.png',
     rates: {
         "COMMON": 25,
         "UNCOMMON": 15,

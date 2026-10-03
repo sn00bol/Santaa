@@ -3,7 +3,7 @@ module.exports = {
     name: "Santaa's Cave",
     tier: 4,
     description: 'Santaa\'s secret cave, now go finding something before he comes!',
-    image: 'santaacave.png',
+    image: 'randomcave.png',
     rates: {
         "COMMON": 20,
         "UNCOMMON": 20,

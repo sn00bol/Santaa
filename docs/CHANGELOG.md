@@ -1,9 +1,3 @@
-v1.3.0-alpha.6
-- Add location (alpha 7 will officially add srry) and skills for mining
-- Add specific skills for each pickaxe
-- Add how to play Fishing, Mining guide 
-- Support running via Docker
-
 # CHANGELOG
 
 # v1.3.0 - 10.xx.2026
@@ -15,7 +9,7 @@ v1.3.0-alpha.6
 - Unify items object `cost` and `sell` to only `cost`
 - Move fishlist select bar to bottom
 - Added a lot of new small minigames and memes
-- Other: add new mining achievements, reminder, bank limit to deposit
+- Other: add new mining achievements, reminder, cut tree, bank limit to deposit
 - Allow to DMs bot and add slash commands
 - Allow to starting bot via docker
 - Revert from image to legacy embed for leaderboard, and balance
