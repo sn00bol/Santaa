@@ -19,9 +19,14 @@ module.exports = {
                 user_id TEXT,
                 item_id TEXT,
                 item_name TEXT,
+                durability INTEGER DEFAULT NULL,
                 acquired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        const inventoryColumns = await db.all('PRAGMA table_info(inventory)');
+        if (!inventoryColumns.some(column => column.name === 'durability')) {
+            await db.exec('ALTER TABLE inventory ADD COLUMN durability INTEGER DEFAULT NULL');
+        }
         await db.exec(`
             CREATE TABLE IF NOT EXISTS stats (
                 user_id TEXT PRIMARY KEY,
@@ -103,6 +108,19 @@ module.exports = {
             return true;
         }
         return false;
+    },
+
+    async updateInventoryDurability(inventoryId, durability, brokenName = null) {
+        if (brokenName) {
+            return await db.run(
+                'UPDATE inventory SET durability = ?, item_name = ? WHERE id = ?',
+                [durability, brokenName, inventoryId]
+            );
+        }
+        return await db.run(
+            'UPDATE inventory SET durability = ? WHERE id = ?',
+            [durability, inventoryId]
+        );
     },
 
     // Get user stats
@@ -383,4 +401,3 @@ module.exports = {
         });
     },
 };
-
