@@ -18,14 +18,9 @@
 ## FEATURES
 - Good looking UI/UX
 - Economy System: Balance, Jobs, Part Time, beg, crime, steal,...
-<<<<<<< HEAD
 - Fun and advance minigames: PVP, fishing, mining, hunt, climb, memory, guess, olympac,...
 - Meme commands: `meme` for a random online template, `slap`, `drake`, and `distracted` for dedicated online meme templates.
 - Trading and shopping (ofc)
-=======
-- Fun and advance minigames: PVP, fishing, mining, guess, olympac,...
-- Trading and shopping
->>>>>>> c3c9ae1c79827a7f6432555aaee1774e9427f79b
 - Using cheat legally with owner commands so you could flex anyone
 - Scanning commands using get files recursive and customize bot status
 - Lightweight and easily to manage database
@@ -45,7 +40,6 @@ Before do anything:
 > Currently bot using SQlite due to minimal usage, the bot may not operate stably when running "very" many servers, so switching to another SQL is recommended (required to change a lot database)
 =======
 > Currently bot using SQlite due to minimal usage, the bot may not operate stably when running many servers, so switching to MongoDB is recommended (required to change a lot database)
->>>>>>> c3c9ae1c79827a7f6432555aaee1774e9427f79b
 
 ## SETUP
 Run these commands in your terminal:
