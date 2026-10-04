@@ -1,9 +1,3 @@
-v1.3.0-beta.2
-- Add 5 new ores for each mining rarity
-- Add mining achievements
-- Remove slash in owner commands
-- setup some stuff to merge into main branch
-
 # CHANGELOG
 
 # v1.3.0 - 10.4.2026
