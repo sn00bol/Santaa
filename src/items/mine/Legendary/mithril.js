@@ -3,7 +3,7 @@ module.exports = {
     name: 'Mithril',
     cost: 1500,
     desc: 'This metal can even stand against creeper',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

@@ -11,7 +11,7 @@ module.exports = {
   aliases: ['hi', 'hallo'], // Not required to add
   description: 'Bot greeting command', // Needed for help command, or its will fallback "No description"
   category: 'gnr', // Not required because help command will list it at "All" category but cannot appear in other category
-  //All category supported: eco: Economic, gnr: General, owner: Owner (Important, if you make a command literally cheat lol), utl: Utils, mie: Minigames
+  // All category supported: eco: Economic, gnr: General, owner: Owner (prefix-only; never registered as a slash command), utl: Utils, mie: Minigames
   // If you want to add more or than 1 category, use array format: category: ['category1', 'category2'],
 
   usage: 'Zhello `target` `text`',

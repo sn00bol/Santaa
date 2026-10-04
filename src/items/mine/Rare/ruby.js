@@ -3,7 +3,7 @@ module.exports = {
     name: 'Ruby',
     cost: 170,
     desc: 'Is this gem related to vampire?',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

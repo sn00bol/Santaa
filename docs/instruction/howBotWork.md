@@ -30,7 +30,7 @@ Slash-command registration is a separate operation; it is not performed during n
 npm run slash-register
 ```
 
-The script loads command modules, validates slash definitions, and creates missing or updates changed registrations without deleting unrelated registrations. Set `SLASH_GUILD_ID` in `.env` for a single server (changes appear faster); leave it empty for global registration.
+The script loads command modules, validates slash definitions, and creates missing or updates changed registrations without deleting unrelated registrations. Commands in the `owner` category (including commands with `owner` in a category array) are prefix-only; synchronization also removes their existing slash registrations. Set `SLASH_GUILD_ID` in `.env` for a single server (changes appear faster); leave it empty for global registration.
 
 To remove existing registrations in the selected scope before synchronization, run:
 

@@ -1,6 +1,19 @@
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } = require('discord.js');
 const { getPaginationRow } = require('../../commands/Utils/NavigateManager');
 
+const SUBCATEGORY_OPTIONS = {
+    Fishing: [
+        { label: 'All Fishing', value: 'all', subCategory: null },
+        { label: 'Total Catch', value: 'Total', subCategory: 'Total' },
+        { label: 'Special Milestones', value: 'Special', subCategory: 'Special' },
+    ],
+    Mining: [
+        { label: 'All Mining', value: 'all', subCategory: null },
+        { label: 'Rarity Milestones', value: 'Total', subCategory: 'Total' },
+        { label: 'Special Milestones', value: 'Special', subCategory: 'Special' },
+    ],
+};
+
 function buildMain(profile, categories, achievements, state = { category: 'Fishing', subCategory: null, page: 0 }) {
     const { category, subCategory, page } = state;
     const pageSize = 5;
@@ -10,23 +23,23 @@ function buildMain(profile, categories, achievements, state = { category: 'Fishi
         .setContent('# 🏆 Achievements\n> Track your milestones and prove your dedication! Each achievement can be earned only once.');
 
     const topRows = [];
-    if (category === 'Fishing') {
+    if (SUBCATEGORY_OPTIONS[category]) {
         topRows.push(new ActionRowBuilder().addComponents(
             new StringSelectMenuBuilder()
                 .setCustomId('ach_sub_category_select')
-                .setPlaceholder('Filter: Total vs Special')
-                .addOptions([
-                    { label: 'All Fishing', value: 'all', default: !subCategory },
-                    { label: 'Total Catch', value: 'Total', default: subCategory === 'Total' },
-                    { label: 'Special Milestones', value: 'Special', default: subCategory === 'Special' },
-                ])
+                .setPlaceholder('Filter achievements')
+                .addOptions(SUBCATEGORY_OPTIONS[category].map(option => ({
+                    label: option.label,
+                    value: option.value,
+                    default: option.subCategory === subCategory,
+                })))
         ));
     }
 
     // 2. Filtered Content
     let filteredAchievements = achievements.filter(a => a.category === category);
     
-    if (category === 'Fishing' && subCategory) {
+    if (subCategory) {
         filteredAchievements = filteredAchievements.filter(a => a.subCategory === subCategory);
     }
 

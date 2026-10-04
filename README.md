@@ -32,8 +32,8 @@ Before do anything:
 
 1. Node.js v16 or higher
 2. Git to make updater work
-4. Docker
-5. Your discord bot token and some enable intents
+3. Docker (Optional)
+4. Your discord bot token and some enable intents
 
 > **Note on Databases:**  
 > Currently bot using SQlite due to minimal usage, the bot may not operate stably when running "very" many servers, so switching to another SQL is recommended (required to change a lot database)
@@ -73,9 +73,9 @@ npm run test   # test if it's bugging or not
 ```bash
 docker compose up --build -d     # Build and start container
 
-docker compose logs -f bot       # Shutdown bot
+docker compose logs -f bot       # Getting bot logs
 
-docker compose ps                # Getting logs
+docker compose ps                # Container status
 ```
 For more details about docker check it [here](docs/instruction/Docker.md).
 

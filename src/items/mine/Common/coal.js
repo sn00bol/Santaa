@@ -3,7 +3,7 @@ module.exports = {
     name: 'Coal',
     cost: 15,
     desc: 'i Feel fuels, well you can use it',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

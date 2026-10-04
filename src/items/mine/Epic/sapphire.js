@@ -3,7 +3,7 @@ module.exports = {
     name: 'Sapphire',
     cost: 450,
     desc: 'This is why Ibruh camera have this?',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

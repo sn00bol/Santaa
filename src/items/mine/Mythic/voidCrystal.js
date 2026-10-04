@@ -3,7 +3,7 @@ module.exports = {
     name: 'Void Crystal',
     cost: 5000,
     desc: 'Void... and a crystal... who named this?',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

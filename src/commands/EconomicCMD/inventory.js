@@ -30,7 +30,7 @@ module.exports = {
                 if (!itemDef) return true;
 
                 const itemType = Array.isArray(itemDef.type) ? itemDef.type : [itemDef.type];
-                if (itemType.includes('fish')) return false;
+                if (itemType.includes('fish') || itemType.includes('mine')) return false;
 
                 return isVisibleItem(itemDef);
             });

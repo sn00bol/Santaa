@@ -3,7 +3,7 @@ module.exports = {
     name: 'Abyssal Stone',
     cost: 4800,
     desc: 'This is so deep, the deep',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

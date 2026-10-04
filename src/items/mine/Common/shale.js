@@ -3,7 +3,7 @@ module.exports = {
     name: 'Shale',
     cost: 11,
     desc: 'You mean whale?',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

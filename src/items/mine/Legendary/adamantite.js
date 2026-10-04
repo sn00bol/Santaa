@@ -3,7 +3,7 @@ module.exports = {
     name: 'Adamantite',
     cost: 1400,
     desc: 'This diamond so Unbreakable',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

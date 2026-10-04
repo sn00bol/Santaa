@@ -3,6 +3,8 @@ const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelect
 const achievementManager = require('./achievementManager');
 const achievementUI = require('./achievementUI');
 const rpgmanager = require('../../../database/rpgmanager');
+const { parseFishingProfile } = require('../../commands/Utils/fishingSchema');
+const { parseMiningProfile } = require('../../commands/Utils/miningSchema');
 
 module.exports = {
     name: 'achievement',
@@ -13,7 +15,14 @@ module.exports = {
     async execute(message, args) {
         const userId = getCommandUser(message).id;
         const stats = await rpgmanager.getStats(userId);
-        const profile = stats.fishing_profile || {}; 
+        const fishingProfile = parseFishingProfile(stats.fishing_profile);
+        const miningProfile = parseMiningProfile(stats.mining_profile);
+        const profile = {
+            achievements: [...new Set([
+                ...(fishingProfile.achievements || []),
+                ...(miningProfile.achievements || []),
+            ])],
+        };
         
         const categories = achievementManager.getCategories();
         const achievements = achievementManager.getAchievements();
@@ -52,11 +61,11 @@ module.exports = {
                     });
                 } else if (['first', 'prev', 'next', 'last'].includes(i.customId)) {
                     let filtered = achievements.filter(a => a.category === state.category);
-                    if (state.category === 'Fishing' && state.subCategory) {
+                    if (state.subCategory) {
                         filtered = filtered.filter(a => a.subCategory === state.subCategory);
                     }
                     
-                    const pageSize = 10;
+                    const pageSize = 5;
                     const maxPages = Math.max(1, Math.ceil(filtered.length / pageSize));
                     
                     if (i.customId === 'first') state.page = 0;
@@ -84,4 +93,3 @@ module.exports = {
         });
     }
 };
-

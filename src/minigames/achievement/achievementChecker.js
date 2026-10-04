@@ -1,12 +1,28 @@
 const achievementManager = require('./achievementManager');
 
 // Helper to check multiple tiered catches
-async function checkCatches(userId, profile, type, counts) {
-    const amount = profile.historicalCatches?.[type] || 0;
+async function checkCatches(userId, profile, type, counts, prefix = 'fish') {
+    const history = prefix === 'mine' ? profile.historicalMines : profile.historicalCatches;
+    const amount = history?.[type] || 0;
     for (const count of counts) {
         if (amount >= count) {
-            await achievementManager.checkAndGrant(userId, `fish_${type.toLowerCase()}_${count}`);
+            const achievementId = `${prefix}_${type.toLowerCase()}_${count}`;
+            await achievementManager.checkAndGrant(userId, achievementId);
+            if (prefix === 'mine') {
+                profile.achievements = profile.achievements || [];
+                if (!profile.achievements.includes(achievementId)) {
+                    profile.achievements.push(achievementId);
+                }
+            }
         }
+    }
+}
+
+async function grantMiningAchievement(userId, profile, achievementId) {
+    await achievementManager.checkAndGrant(userId, achievementId);
+    profile.achievements = profile.achievements || [];
+    if (!profile.achievements.includes(achievementId)) {
+        profile.achievements.push(achievementId);
     }
 }
 
@@ -38,7 +54,7 @@ class AchievementChecker {
                         await achievementManager.checkAndGrant(userId, 'fish_kaboom_100');
                     }
                 }
-                
+
                 if (event.fish?.name === 'sn00bol') {
                     await achievementManager.checkAndGrant(userId, 'fish_is_that_you');
                 }
@@ -65,6 +81,39 @@ class AchievementChecker {
         
         if (profile.achievements?.includes('fish_whole_world') && profile.achievements?.includes('fish_is_that_you')) {
             await achievementManager.checkAndGrant(userId, 'fish_aguaman');
+        }
+    }
+
+    async checkMining(userId, profile, event = {}) {
+        if (!profile) return;
+
+        const counts = [50, 100, 300, 500, 700, 1000];
+        await checkCatches(userId, profile, 'Common', counts, 'mine');
+        await checkCatches(userId, profile, 'Uncommon', counts, 'mine');
+        await checkCatches(userId, profile, 'Rare', counts, 'mine');
+        await checkCatches(userId, profile, 'Epic', counts, 'mine');
+        await checkCatches(userId, profile, 'Legendary', counts, 'mine');
+        await checkCatches(userId, profile, 'Mythic', counts, 'mine');
+
+        if (event.type === 'bomb' && (profile.bombStreak || 0) >= 5) {
+            await grantMiningAchievement(userId, profile, 'mine_bomb_5');
+        }
+        if (event.type === 'chest') {
+            await grantMiningAchievement(userId, profile, 'mine_chest_first');
+        }
+        if (event.type === 'exit' && event.immediate) {
+            await grantMiningAchievement(userId, profile, 'mine_exit_first');
+        }
+        if (event.type === 'minerals') {
+            if (event.minerals?.some(mineral => mineral.id === 'flint')) {
+                await grantMiningAchievement(userId, profile, 'mine_flint');
+            }
+            const { mineralData } = require('../Mining/mineCore');
+            const collected = new Set(profile.historicalMinerals || []);
+            const allMinerals = Object.values(mineralData).flat();
+            if (allMinerals.length > 0 && allMinerals.every(mineral => collected.has(mineral.id))) {
+                await grantMiningAchievement(userId, profile, 'mine_minerals_all');
+            }
         }
     }
     

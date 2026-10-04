@@ -17,6 +17,7 @@ const { getShopItemCost } = require('../../commands/Utils/shopUtils');
 const mineBackpack = require('./mineBackpack');
 const { CURRENCY_EMOJI } = require('../../commands/Utils/config');
 const mapManager = require('./MapManager');
+const achievementChecker = require('../achievement/achievementChecker');
 
 const mineCounts = new Map();
 
@@ -140,6 +141,20 @@ module.exports = {
 			const baseExp = loot.reduce((sum, mineral) => sum + mineCore.calculateExp(mineral), 0);
 			const skillBonus = mineSkills.getSkillEffect('efficient_strike', mineSkills.getSkillLevel(profile, 'efficient_strike'));
 			return Math.floor(baseExp * multiplier * (1 + skillBonus));
+		};
+
+		const trackMinedMinerals = minerals => {
+			profile.historicalMines = profile.historicalMines || {};
+			profile.historicalMinerals = Array.isArray(profile.historicalMinerals) ? profile.historicalMinerals : [];
+			for (const mineral of minerals) {
+				const rarity = mineral.rarity
+					? `${mineral.rarity.charAt(0)}${mineral.rarity.slice(1).toLowerCase()}`
+					: 'Common';
+				profile.historicalMines[rarity] = (profile.historicalMines[rarity] || 0) + 1;
+				if (!profile.historicalMinerals.includes(mineral.id)) {
+					profile.historicalMinerals.push(mineral.id);
+				}
+			}
 		};
 
 		const startMining = async interaction => {
@@ -282,6 +297,7 @@ module.exports = {
 					backpackNotice = `\n> ⚠️ **${placement.backpackName}** is full! The overflow went to your general inventory.`;
 				}
 			}
+			trackMinedMinerals(loot);
 			const totalExp = calculateMiningExp(loot, expMultiplier);
 			const { earnedPoints } = mineSkills.awardSkillPoints(profile, totalExp);
 
@@ -290,6 +306,7 @@ module.exports = {
 			exp = (exp || 0) + totalExp;
 			while (exp >= level * 100) { exp -= level * 100; level++; }
 			await rpgmanager.updateProgress(userId, { exp, level, mining_profile: profile });
+			await achievementChecker.checkMining(userId, profile, { type: 'minerals', minerals: loot });
 			return `${backpackNotice}${earnedPoints ? `\n> 🧠 Earned ${formatNumber(earnedPoints)} Mining Skill Point${earnedPoints === 1 ? '' : 's'}.` : ''}`;
 		};
 
@@ -307,6 +324,12 @@ module.exports = {
 			if (id === 'mine_exit') {
 				session.status = 'exited';
 				mineBoard.activeSessions.delete(userId);
+				profile.bombStreak = 0;
+				await rpgmanager.updateProgress(userId, { mining_profile: profile });
+				await achievementChecker.checkMining(userId, profile, {
+					type: 'exit',
+					immediate: session.revealedCount === 0,
+				});
 				return updateMain(interaction);
 			}
 
@@ -317,6 +340,7 @@ module.exports = {
 
 			if (id === 'mine_cashout') {
 				const keptCount = session.sessionLoot.length;
+				profile.bombStreak = 0;
 				const notice = await commitLoot(session.sessionLoot);
 				session.status = 'cashed';
 				mineBoard.activeSessions.delete(userId);
@@ -367,6 +391,7 @@ module.exports = {
 			}
 
 			if (result.revealedType === 'chest') {
+				await achievementChecker.checkMining(userId, profile, { type: 'chest' });
 				const rand = Math.random();
 				let chestNotice = '';
 				if (rand < 0.4) {
@@ -384,6 +409,9 @@ module.exports = {
 				} else {
 					const mineral = mineCore.getRandomMineral(session.rollOptions);
 					await rpgmanager.addItem(userId, mineral.id, mineral.name);
+					trackMinedMinerals([mineral]);
+					await rpgmanager.updateProgress(userId, { mining_profile: profile });
+					await achievementChecker.checkMining(userId, profile, { type: 'minerals', minerals: [mineral] });
 					chestNotice = `🎁 **CHEST!** You found a **${mineral.name}**!`;
 				}
 				return updateBoard(interaction, chestNotice);
@@ -402,6 +430,7 @@ module.exports = {
 			if (result.hitBomb) {
 				const currentStats = await rpgmanager.getStats(userId);
 				profile = parseMiningProfile(currentStats.mining_profile || profile);
+				profile.bombStreak = (profile.bombStreak || 0) + 1;
 				const equipment = profile.equipment || {};
 				const currentHelmet = itemGroups.helmets.find(item => item.id === equipment.currentHelmet);
 				const currentInventory = await rpgmanager.getInventory(userId);
@@ -424,6 +453,7 @@ module.exports = {
 						equipment.currentHelmet = null;
 						await rpgmanager.markItemBroken(userId, currentHelmet.id, `Broken ${currentHelmet.name}`);
 						await rpgmanager.updateProgress(userId, { mining_profile: profile });
+						await achievementChecker.checkMining(userId, profile, { type: 'bomb' });
 						return updateBoard(
 							interaction,
 							`💥 **BOMB!** Your **${currentHelmet.name}** protected you from taking damage (-3 HP), but it broke into a **Broken ${currentHelmet.name}**! Session loot was lost.`,
@@ -431,6 +461,7 @@ module.exports = {
 						);
 					} else {
 						await rpgmanager.updateProgress(userId, { mining_profile: profile });
+						await achievementChecker.checkMining(userId, profile, { type: 'bomb' });
 						return updateBoard(
 							interaction,
 							`💥 **BOMB!** Your **${currentHelmet.name}** absorbed the blast and protected your HP! (-3 Helmet HP, remaining: ${newHelmetHp}/${maxHp} HP). Session loot was lost.`,
@@ -443,12 +474,14 @@ module.exports = {
 					const damage = Math.max(1, 15 - damageReduction);
 					await rpgmanager.updateStats(userId, Math.max(0, currentStats.health - damage), currentStats.stamina);
 					await rpgmanager.updateProgress(userId, { mining_profile: profile });
+					await achievementChecker.checkMining(userId, profile, { type: 'bomb' });
 					return updateBoard(interaction, `💥 **BOMB!** You hit a bomb without helmet protection and lost your session loot. -${damage} HP.`, true);
 				}
 			}
 
 			if (session.revealedCount >= session.safeCells) {
 				const keptCount = session.sessionLoot.length;
+				profile.bombStreak = 0;
 				await commitLoot(session.sessionLoot, 1.25);
 				session.status = 'won';
 				mineBoard.activeSessions.delete(userId);
@@ -780,7 +813,10 @@ module.exports = {
 			if (!session || session.status !== 'playing') return;
 			mineBoard.activeSessions.delete(userId);
 			session.status = 'expired';
-			const currentStats = await rpgmanager.getStats(userId).catch(() => stats);
+			const currentStats = await rpgmanager.getStats(userId);
+			profile = parseMiningProfile(currentStats.mining_profile || profile);
+			profile.bombStreak = 0;
+			await rpgmanager.updateProgress(userId, { mining_profile: profile });
 			await mainMsg.edit({
 				components: [mineUI.buildBoardContainer(getCommandUser(message), currentStats, session, {
 					revealAll: true,

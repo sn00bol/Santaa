@@ -3,7 +3,7 @@ module.exports = {
     name: 'Platinum',
     cost: 200,
     desc: 'I have a stand! Star Platinum',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

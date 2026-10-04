@@ -8,6 +8,7 @@ const {
     buildSlashCommand,
     getSlashCommandSignature,
     getSlashCommandValidationError,
+    isOwnerCommand,
 } = require('../commands/Utils/slashCommand');
 const { retryWithBackoff } = require('../commands/Utils/retry');
 
@@ -49,7 +50,13 @@ function shouldResetSlashCommands(args = process.argv.slice(2), envValue = proce
 
 async function synchronizeSlashCommands(commandManager, commands, { guildId, reset = false } = {}) {
     const slashCommands = [];
+    const ownerCommandNames = new Set();
     for (const command of commands.values()) {
+        if (isOwnerCommand(command)) {
+            if (typeof command.name === 'string') ownerCommandNames.add(command.name.toLowerCase());
+            continue;
+        }
+
         const validationError = getSlashCommandValidationError(command);
         if (validationError) {
             if (command.show !== false) {
@@ -74,6 +81,14 @@ async function synchronizeSlashCommands(commandManager, commands, { guildId, res
         }
         registeredCommands.clear();
         console.log(`[SLASH] Deleted ${deleted} existing commands`);
+    }
+
+    for (const registered of registeredCommands.values()) {
+        if (!ownerCommandNames.has(registered.name)) continue;
+        await commandManager.delete(registered.id, guildId);
+        registeredCommands.delete(registered.id);
+        deleted += 1;
+        console.log(`[SLASH] Removed owner command /${registered.name}; owner commands are prefix-only.`);
     }
 
     let created = 0;

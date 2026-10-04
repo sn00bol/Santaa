@@ -3,7 +3,7 @@ module.exports = {
     name: 'Clay',
     cost: 10,
     desc: 'Its feel soft and wet',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

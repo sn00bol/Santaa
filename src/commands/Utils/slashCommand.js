@@ -1,11 +1,18 @@
 const { SlashCommandBuilder } = require('discord.js');
 
+function isOwnerCommand(command) {
+    return Array.isArray(command?.category)
+        ? command.category.includes('owner')
+        : command?.category === 'owner';
+}
+
 function getSlashCommandValidationError(command) {
     if (!command || typeof command !== 'object') return 'command must be an object';
     if (typeof command.name !== 'string' || !/^[a-z0-9_-]{1,32}$/.test(command.name)) {
         return 'name must contain only lowercase letters, numbers, underscores, or hyphens';
     }
     if (typeof command.execute !== 'function') return 'execute must be a function';
+    if (isOwnerCommand(command)) return 'owner commands are prefix-only';
     if (command.show === false) return 'command is hidden';
 
     if (command.slashOptions !== undefined) {
@@ -86,4 +93,5 @@ module.exports = {
     buildSlashCommand,
     getSlashCommandSignature,
     getSlashCommandValidationError,
+    isOwnerCommand,
 };

@@ -54,14 +54,25 @@ class AchievementManager {
 
         const rpgmanager = require('../../../database/rpgmanager');
         const stats = await rpgmanager.getStats(userId);
-        const profile = stats.fishing_profile || {};
+        const profileKey = ach.category === 'Mining' ? 'mining_profile' : 'fishing_profile';
+        const rawProfile = stats[profileKey] || {};
+        let profile = rawProfile;
+        if (typeof rawProfile === 'string') {
+            try {
+                profile = JSON.parse(rawProfile);
+            } catch (error) {
+                console.error(`Could not parse ${profileKey} while granting ${achievementId}:`, error);
+                return false;
+            }
+        }
+        if (!profile || typeof profile !== 'object' || Array.isArray(profile)) profile = {};
 
         if (profile.achievements?.includes(achievementId)) return false;
 
         if (!profile.achievements) profile.achievements = [];
         profile.achievements.push(achievementId);
         
-        await rpgmanager.updateProgress(userId, { fishing_profile: profile });
+        await rpgmanager.updateProgress(userId, { [profileKey]: profile });
         return true;
     }
 }

@@ -3,7 +3,7 @@ module.exports = {
     name: 'Copper',
     cost: 30,
     desc: 'Copper',
-    type: [],
+    type: ['mine'],
     is_sellable: true,
     is_tradeable: true
 };

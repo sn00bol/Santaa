@@ -1,19 +1,17 @@
-v1.3.0-beta.1
-- Add 3 meme commands
-- Add climb, hunt, memory match
-- Add all assets map for mining
-- Fix fishing `your hand` stats
-- Fix fishing durability literally reset when select other items
-- Limit leaderboard only view 10 pages
+v1.3.0-beta.2
+- Add 5 new ores for each mining rarity
+- Add mining achievements
+- Remove slash in owner commands
+- setup some stuff to merge into main branch
 
 # CHANGELOG
 
-# v1.3.0 - 10.xx.2026
+# v1.3.0 - 10.4.2026
 - Brand new UI/UX for Mining, guess meme, olympac
-- Rework and added new a lot of material
+- Rework and added new 32 ore
 - Add mining shops with pickaxe, bags and helmet
 - Add crafting system to upgrade pickaxe and helmet (to nothing to +8) or fixing it
-- Add settings, fast navigate button and reload button in navigation, add categories button in fish/mine shops
+- Add settings, fast navigate button and reload button in navigation
 - Unify items object `cost` and `sell` to only `cost`
 - Move fishlist select bar to bottom
 - Added 6 new small minigames and memes
@@ -64,6 +62,7 @@ Beta release: [18a88db](https://github.com/sn00bol/Santaa/commit/18a88dba6f6284c
 - Bot now when running npm run kinda slower (somtimes little bit fast)
 - Remove custom currency emoji due to bug
 - Fix beg command without that user permission to earn money
+- Refactor database, index.js into a alot of file
 
 Alpha release: [cdcdcf5](https://github.com/sn00bol/Santaa/commit/cdcdcf53693b0966397d42d121c5757a7ba9f4cc), [4bbd71f](https://github.com/sn00bol/Santaa/commit/4bbd71f01c682f7573dd2bed1568c22025006a03), [8439a95](https://github.com/sn00bol/Santaa/commit/8439a958a0e2498e5eec93097a5397eb9421ce46), [9cc4f14](https://github.com/sn00bol/Santaa/commit/9cc4f141e0f52f387d4c458e033eacff16445d94), [a7d6aa4](https://github.com/sn00bol/Santaa/commit/a7d6aa486291dde1e154f66bc37de90b5bb5dca7), [2ecf639](https://github.com/sn00bol/Santaa/commit/2ecf6393129044fcc2f3885639d13d08ad0381ac)
 
