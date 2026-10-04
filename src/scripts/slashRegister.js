@@ -2,7 +2,6 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
-const { Agent } = require('undici');
 const { Collection, REST, Routes } = require('discord.js');
 const {
     buildSlashCommand,
@@ -142,18 +141,12 @@ async function runSlashRegister({ reset = shouldResetSlashCommands() } = {}) {
     const { commands } = loadCommands(path.resolve(__dirname, '..'));
     console.log(`[SLASH] Loaded ${commands.size} command modules.`);
 
-    const agent = new Agent({
-        connectTimeout: 15_000,
-        headersTimeout: 20_000,
-        bodyTimeout: 20_000,
-    });
-    const rest = new REST({ version: '10', agent, timeout: 20_000, retries: 0 }).setToken(token);
+    const rest = new REST({ version: '10', timeout: 20_000, retries: 0 }).setToken(token);
 
-    try {
-        console.log('[SLASH] Fetching application details (REST only; no bot Gateway login)...');
-        const application = await retryWithBackoff(
-            () => rest.get(Routes.oauth2CurrentApplication()),
-            {
+    console.log('[SLASH] Fetching application details (REST only; no bot Gateway login)...');
+    const application = await retryWithBackoff(
+        () => rest.get(Routes.oauth2CurrentApplication()),
+        {
             initialDelayMs: 1_000,
             maxDelayMs: 5_000,
             maxAttempts: 3,
@@ -163,18 +156,15 @@ async function runSlashRegister({ reset = shouldResetSlashCommands() } = {}) {
                 console.warn(`[SLASH] Retrying in ${Math.ceil(delayMs / 1000)} seconds (maximum 3 attempts).`);
             },
         });
-        console.log(`[SLASH] Connected to application ${application.id}.`);
+    console.log(`[SLASH] Connected to application ${application.id}.`);
 
-        const commandManager = createSlashCommandManager(rest, application.id, process.env.SLASH_GUILD_ID || undefined);
-        const result = await synchronizeSlashCommands(commandManager, commands, {
-            guildId: process.env.SLASH_GUILD_ID || undefined,
-            reset,
-        });
-        console.log(`[SLASH] Completed: ${result.total} valid commands.`);
-        return result;
-    } finally {
-        await agent.close().catch(() => { });
-    }
+    const commandManager = createSlashCommandManager(rest, application.id, process.env.SLASH_GUILD_ID || undefined);
+    const result = await synchronizeSlashCommands(commandManager, commands, {
+        guildId: process.env.SLASH_GUILD_ID || undefined,
+        reset,
+    });
+    console.log(`[SLASH] Completed: ${result.total} valid commands.`);
+    return result;
 }
 
 if (require.main === module) {

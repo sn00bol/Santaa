@@ -17,12 +17,11 @@ function registerShutdownHandlers({ client, state, healthServer, activeCommands,
                 healthServerClosed,
             ]);
             client.destroy();
-            const serviceResults = await Promise.allSettled([client.httpAgent.close()]);
             const databaseResults = await Promise.allSettled([
                 dbmanager.close(),
                 rpgmanager.close(),
             ]);
-            const failures = [...commandResults, ...serviceResults, ...databaseResults]
+            const failures = [...commandResults, ...databaseResults]
                 .filter(result => result.status === 'rejected');
             if (failures.length > 0) {
                 failures.forEach(result => console.error('[SHUTDOWN] Resource close failed:', result.reason));
