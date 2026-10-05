@@ -74,7 +74,11 @@ Also you can manage your bot via Docker Desktop
 Now your bot is alive and enjoy!
 
 ### For Developer
-If you're planning to modify Santaa, add commands, develop features, or debug the bot, running it directly with Node.js is recommended instead of Docker
+If you're planning to modify Santaa, add commands, develop features, or debug the bot, running it directly with Node.js is recommended instead of Docker, also if you want a debloated version of Santaa then use:
+```bash
+git clone https://github.com/sn00bol/De-santaa.git
+```
+(CAUTIONS: This version only keep root, which is mean a lot of feature will be remove and only keep important things)
 
 (Do step 1. and step 2. in FOR NON-DEVELOPER)
 
