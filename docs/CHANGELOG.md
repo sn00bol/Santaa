@@ -1,5 +1,10 @@
 # CHANGELOG
 
+# EOL - 10.11.2026
+Hello guy... this is EOL version of this bot, currently I working a brand new project that very heavy than this x5 time and take a lot of times, also this project has reached my plan and objectives since bot was born. Santaa will get patches normally if it new discord.js version, sqlite bugs,... BUT not getting a new feature or backend stuff, upgrade database.
+
+Finally, thanks yall who follow this project for nearly 5 month, see you again.
+
 # v1.3.0 - 10.4.2026
 - Brand new UI/UX for Mining, guess meme, olympac
 - Rework and added new 32 ore
